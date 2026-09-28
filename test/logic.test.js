@@ -1,7 +1,7 @@
 // node --test test/logic.test.js — zero deps, pure-function coverage for Phase 1.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { computeProgress, validateVerdict, questFallback, isAllowedOrigin, createRateLimiter } = require('../logic.js');
+const { computeProgress, validateVerdict, questFallback } = require('../logic.js');
 
 // --- computeProgress ---
 
@@ -93,40 +93,4 @@ test('questFallback: returns exactly 3 generic quests with title + finish', () =
     assert.equal(typeof q.finish, 'string');
     assert.ok(q.finish.length > 0);
   }
-});
-
-// --- isAllowedOrigin ---
-
-test('isAllowedOrigin: allows a matching Origin header', () => {
-  assert.equal(isAllowedOrigin({ origin: 'https://questling.vercel.app', referer: null, host: 'questling.vercel.app' }), true);
-});
-
-test('isAllowedOrigin: allows a matching Referer when Origin is absent', () => {
-  assert.equal(isAllowedOrigin({ origin: null, referer: 'https://questling.vercel.app/index.html', host: 'questling.vercel.app' }), true);
-});
-
-test('isAllowedOrigin: rejects a mismatched origin (curl/script abuse)', () => {
-  assert.equal(isAllowedOrigin({ origin: 'https://evil.example', referer: null, host: 'questling.vercel.app' }), false);
-});
-
-test('isAllowedOrigin: rejects when both headers are missing', () => {
-  assert.equal(isAllowedOrigin({ origin: null, referer: null, host: 'questling.vercel.app' }), false);
-});
-
-test('isAllowedOrigin: does not block when host is unset (local dev)', () => {
-  assert.equal(isAllowedOrigin({ origin: null, referer: null, host: undefined }), true);
-});
-
-// --- createRateLimiter ---
-
-test('createRateLimiter: allows the first call for an id, blocks an immediate second', () => {
-  const rl = createRateLimiter(1000);
-  assert.equal(rl.allow('session-a'), true);
-  assert.equal(rl.allow('session-a'), false);
-});
-
-test('createRateLimiter: tracks ids independently', () => {
-  const rl = createRateLimiter(1000);
-  assert.equal(rl.allow('session-a'), true);
-  assert.equal(rl.allow('session-b'), true);
 });

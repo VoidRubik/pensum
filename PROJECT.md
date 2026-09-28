@@ -1,84 +1,64 @@
 # questling
 
-AI screen-pet hackathon app — task + deadline in, editable quests out, screen-share checks verify
-real progress, pet reacts.
+AI screen-pet — a small always-on-top bar at the bottom-center of your screen (Wispr-Flow style).
+Tell it a task + deadline, it breaks it into editable quests, looks at your screen when you ask,
+and the pet reacts to real progress.
 
-**Grade: Unrun** (Phase 1 only, built and verified against mock mode + a local dev server. Real
-Gemini calls, the public repo, and the Vercel deploy have never run — that's Bruno's hands, per
-scope. Do not call this "done"; call it "Phase 1, mock-verified, not deployed.")
+**Grade: Partial** — Phase 1 runs as a Windows desktop overlay (Electron), verified in mock mode.
+Real Gemini calls have never run (no key yet). Phase 2 (automatic checks, nudges, all pet states)
+not built.
 
-## What it does (Phase 1)
-
-Type a task → `POST /api/quests` returns 3–6 editable quests + an editable deadline → **Start**
-shares your screen (`getDisplayMedia`) → **check me now** grabs one downscaled JPEG (≤1024px),
-sends it to `POST /api/check`, gets back `{on_task, quest_done, progress_estimate, pet_line,
-reason}` → progress bar advances (monotonic), pet reacts idle/happy/worried.
-
-Phase 2 (interval checks, off-task streak rule, override, deadline nudges, sleepy/party states)
-and Phase 3 (PiP pop-out, thumbnail/watching indicator polish, design pass) are separate task
-cards, not built yet.
-
-## Run it locally
-
-No build step, no framework. The `api/*.js` files are Vercel-function-shaped
-(`module.exports = async (req, res) => ...`) but nothing here depends on the Vercel CLI —
-`vercel dev` should work once the project is linked; for a quick local check without that, serve
-`index.html` statically and stub the two API routes, or use `vercel dev` after `vercel link`.
+## Run it
 
 ```
-node --test test/logic.test.js
+npm install
+npm start          # launches the overlay; tray icon (mint dot) has Show/hide, Pause, Quit
+npm test           # node --test, pure logic
 ```
 
-Mock mode: leave `GEMINI_API_KEY` unset (or append `?mock=1`), and both endpoints return scripted,
-schema-valid responses — zero cost, no key needed.
+Put your key in `.env` (gitignored, never commit or paste it anywhere):
+```
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
+```
+No key, or `QUESTLING_MOCK=1` → scripted quests/verdicts, $0. Use a key from a Google project
+with **no billing enabled** so the free tier is a hard $0 cap. Pick the model id with:
+```
+curl -H "x-goog-api-key: $KEY" https://generativelanguage.googleapis.com/v1beta/models
+```
 
-## Verified this session (2026-09-27)
+If `npm start` just prints a Node version and exits: the shell has `ELECTRON_RUN_AS_NODE=1`
+(VS Code-spawned shells set it). Unset it first.
 
-- `node --test test/logic.test.js` — **19/19 pass**: progress math (including "never moves
-  backwards"), verdict schema validation (rejects malformed/wrong-typed/out-of-range), quest
-  fallback, Origin/Referer allow-list, best-effort rate limiter.
-- Full mock flow end to end in real Chrome (Playwright-driven, not headless — needed a real
-  screen to share): typed a task → 3 quests returned → **Start** → real `getDisplayMedia` capture
-  → **check me now** → real frame grabbed via `ImageCapture.grabFrame()` (`usedFallback: false`,
-  confirmed non-blank) → mock verdict → progress bar moved `0 → 0.057`, pet went idle → happy,
-  thumbnail populated. Screenshot taken as evidence (session scratchpad, not committed — nothing
-  here is a real captured screen worth keeping).
-- `/api/quests` and `/api/check` reject-path tests via curl: missing `text` → 400, non-JPEG
-  prefix → 400, well-formed mock request → 200 with schema-correct body.
+## How it works
 
-## Known gap: the hidden-tab spike is inconclusive, not passed
+- `main.js` — frameless transparent window, `alwaysOnTop('screen-saver')`, no taskbar entry,
+  bottom-center of the primary work area; grows upward into a panel on ▴. `setContentProtection`
+  hides the pet from every screen capture, so Gemini never sees the pet itself. Screen capture is
+  `desktopCapturer` in the main process — no share prompt, works while the pet is minimized or
+  unfocused. Frames stay in memory; never written to disk.
+- `ai.js` + `gemini.js` — quest generation and the screen check, raw REST with JSON schema,
+  key sent as a header. Bad model output → keep state, pet says "my eyes blurred".
+- `preload.js` — the only bridge (`window.questling`). Renderer has no Node, no key.
+- `index.html` / `style.css` / `app.js` — bar + panel UI, state in localStorage (text only).
+- `logic.js` — progress math, verdict validation, quest fallback.
 
-The plan's own build gate ("prove a non-blank frame grab while `document.hidden === true`, before
-building anything that depends on it") was attempted three ways under Playwright + real Chrome:
-switching to a second tab, switching to a second top-level window, and a genuine Win32
-`ShowWindowAsync(SW_MINIMIZE)` on the actual browser window. None of the three made
-`document.hidden` (or even `document.hasFocus()`) report anything but `visible`/`true` inside the
-CDP-attached page — a documented category of automation limitation (Chrome suppresses natural
-page-visibility throttling for pages under DevTools/CDP control, to keep automated tests from
-flaking on backgrounding). What *is* proven: `getDisplayMedia` + `ImageCapture.grabFrame()`
-returns a real non-blank frame during active capture in a normal, focused run
-(`test/hidden-tab-spike.html`, `usedFallback: false`). `grabFrame()` reads the track's raw buffer
-rather than a painted/composited canvas, which is architecturally why it's expected to keep
-working while backgrounded — but that's reasoning, not a passed test.
+## Verified 2026-09-27 (Playwright `_electron`, mock mode, real Windows desktop)
 
-**This means:** the single biggest risk named in the Brief (real background-tab capture, the
-actual point of the product) is still open. Closing it needs a human manually backgrounding a real
-tab while this page runs and checking the console — not something this session could force through
-automation. Flagged in the Brief's Risks and here so it isn't lost.
+- `npm test` 12/12.
+- Bar placed at exact bottom-center (`x=(1304-360)/2`, 12px above work area), always-on-top,
+  never steals focus; expands to 360×480 upward keeping its bottom edge; collapses on Start.
+- Flow: task → 3 quests → Start → ✓ ×2 → pet happy, progress 0 → 0.11, frame thumbnail shown.
+- Capture with the pet **minimized and unfocused**: non-blank frame (pixel variance 1130). Closes
+  the old web version's #1 risk (hidden-tab capture) — the browser tab no longer exists.
+- Full-screen capture with content protection on shows no pet.
+- localStorage contains no image data.
 
-## Known gap: Gemini model id unverified
+## Not done
 
-`api/_gemini.js` defaults `GEMINI_MODEL` to `gemini-2.0-flash` — a guess, not a confirmed current
-Flash alias. Check Google's docs at deploy time.
+- Real Gemini calls (needs `.env`), current model id confirmed via ListModels.
+- Phase 2: interval checks in main, 2-in-a-row off-task rule, override, deadline nudges, all states.
+- Packaging to a single `.exe` (electron-builder), autostart, public repo.
 
-## Not done (deliberately, this session's scope)
-
-- No public GitHub repo (`gh repo create` is Bruno's hands).
-- No Vercel deploy, no real `GEMINI_API_KEY` (Bruno's hands — needs a no-billing Google project so
-  free tier stays a hard $0 cap).
-- Phase 2 and Phase 3 task cards exist but are unbuilt.
-
-Brief: `brainstorms/brief-20260927-183530-questling.md`. Tasks:
-`os/zones/Tasks/task-20260927-184008-questling-phase-1-*.md` (Phase 1, this session),
-`task-20260927-184019-*` (Phase 2), `task-20260927-184027-*` (Phase 3). Brain node:
-`brain/situational/memory/ai-pet.md`.
+Brief: `brainstorms/brief-20260927-183530-questling.md` (see its desktop-overlay revision).
+Brain node: `brain/situational/memory/aipet.md`.

@@ -2,56 +2,54 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'">
 <title>Questling</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main data-pet-state="idle">
 
-  <h1>Questling</h1>
-
-  <section id="task-card" class="card">
-    <label for="task-text">What are you working on?</label>
-    <input id="task-text" type="text" placeholder="e.g. finish the slide deck">
-    <button id="make-quests">Make quests</button>
-  </section>
-
-  <section id="quest-card" class="card hidden">
-    <label for="deadline">Deadline</label>
-    <input id="deadline" type="datetime-local">
-    <ul id="quest-list" class="quest-list"></ul>
-    <button id="start-btn">Start</button>
-  </section>
-
-  <section id="run-card" class="card hidden">
-    <div class="pet-stage">
-      <svg id="pet-svg" viewBox="0 0 100 100" aria-hidden="true">
-        <ellipse class="body" cx="50" cy="55" rx="34" ry="30"/>
-        <circle class="cheek" cx="30" cy="58" r="6"/>
-        <circle class="cheek" cx="70" cy="58" r="6"/>
-        <circle class="eye" cx="38" cy="48" r="4"/>
-        <circle class="eye" cx="62" cy="48" r="4"/>
-      </svg>
-      <div id="pet-line" class="pet-line">ready when you are</div>
+  <section id="panel" class="panel hidden">
+    <div id="task-card">
+      <label for="task-text">What are you working on?</label>
+      <input id="task-text" type="text" placeholder="e.g. finish the slide deck by 6pm">
+      <button id="make-quests">Make quests</button>
     </div>
 
-    <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
-
-    <div class="watching-indicator hidden" id="watching-indicator">
-      <span class="watching-dot"></span>
-      <span>watching your screen</span>
-      <img id="thumb" class="thumb hidden" alt="last frame checked">
+    <div id="quest-card" class="hidden">
+      <label for="deadline">Deadline</label>
+      <input id="deadline" type="datetime-local">
+      <ul id="quest-list" class="quest-list"></ul>
+      <div class="row">
+        <button id="start-btn">Start</button>
+        <button id="new-task" class="secondary">New task</button>
+      </div>
     </div>
 
-    <button id="check-now">check me now</button>
-    <button id="pause-btn" class="secondary">Pause</button>
-
-    <p class="privacy-line">
-      Questling never saves your screen. Each check sends one frame to Google Gemini, and it is
-      dropped as soon as the check finishes. Your task, quests and deadline live only in this
-      browser — no account, no server database.
+    <p id="mock-note" class="note hidden">Mock mode — no GEMINI_API_KEY in .env, verdicts are scripted.</p>
+    <p class="note">
+      Questling never saves your screen. Each check sends one frame to Google Gemini and drops it
+      when the check finishes. Tasks live only on this PC.
     </p>
+  </section>
+
+  <section id="bar" class="bar">
+    <svg id="pet-svg" viewBox="0 0 100 100" aria-hidden="true">
+      <ellipse class="body" cx="50" cy="55" rx="34" ry="30"/>
+      <circle class="cheek" cx="30" cy="58" r="6"/>
+      <circle class="cheek" cx="70" cy="58" r="6"/>
+      <circle class="eye" cx="38" cy="48" r="4"/>
+      <circle class="eye" cx="62" cy="48" r="4"/>
+    </svg>
+    <div class="bar-mid">
+      <div id="pet-line" class="pet-line">hi! tell me what you're working on</div>
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+    </div>
+    <span id="watching-indicator" class="watching-dot hidden" title="watching your screen"></span>
+    <img id="thumb" class="thumb hidden" alt="last frame checked">
+    <button id="check-now" class="icon hidden" title="check me now">✓</button>
+    <button id="pause-btn" class="icon secondary hidden" title="pause watching">❚❚</button>
+    <button id="toggle" class="icon secondary" title="open / close">▴</button>
   </section>
 
 </main>

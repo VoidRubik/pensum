@@ -15,7 +15,7 @@ function computeProgress({ questsDone, total, currentEstimate, previous }) {
 }
 
 /** Schema check on model output. Returns boolean, never throws — callers
- * treat `false` as "keep state, retry next cycle" (see api/check.js). */
+ * treat `false` as "keep state, retry next cycle" (see ai.js). */
 function validateVerdict(v) {
   if (!v || typeof v !== 'object') return false;
   const shape = {
@@ -41,50 +41,9 @@ function questFallback() {
   ];
 }
 
-/** Best-effort origin check (adversarial review #1/#4). Not a security
- * boundary on its own — a forged Origin header defeats it — but it
- * stops casual curl/script abuse of a public URL with no auth. `host`
- * is the deployed domain, e.g. "questling.vercel.app". Requests with no
- * Origin/Referer at all (same-origin GET-style tools, some curl setups)
- * are rejected too: a browser always sends one for a fetch() POST. */
-function isAllowedOrigin({ origin, referer, host }) {
-  if (!host) return true; // local dev / host unset: don't block
-  const check = (value) => {
-    if (!value) return false;
-    try {
-      return new URL(value).host === host;
-    } catch {
-      return false;
-    }
-  };
-  return check(origin) || check(referer);
-}
+const exported = { computeProgress, validateVerdict, questFallback };
 
-/** In-memory, best-effort rate limiter. NOT durable across Vercel's
- * stateless/multi-instance functions (adversarial review #4) — this is a
- * documented, deliberate scope cut, not a real guarantee. */
-function createRateLimiter(minIntervalMs) {
-  const last = new Map();
-  return {
-    allow(id) {
-      const now = Date.now();
-      const prev = last.get(id) || 0;
-      if (now - prev < minIntervalMs) return false;
-      last.set(id, now);
-      return true;
-    },
-  };
-}
-
-const exported = {
-  computeProgress,
-  validateVerdict,
-  questFallback,
-  isAllowedOrigin,
-  createRateLimiter,
-};
-
-// Dual CommonJS (Node, api/*.js, node --test) / browser global (app.js via
+// Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = exported;

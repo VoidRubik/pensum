@@ -1,8 +1,6 @@
-// Raw fetch to the Gemini REST API. No SDK dependency (ponytail: stdlib
-// first). Model id comes from env GEMINI_MODEL — verify the current Flash
-// alias against Google's docs at deploy time; this default is a guess, not
-// a guarantee (see brief Open questions).
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+// Raw fetch to the Gemini REST API. No SDK dependency. GEMINI_MODEL in .env
+// overrides the default; pick it from the ListModels call (see PROJECT.md).
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 async function callGemini({ contents, responseSchema, systemInstruction }) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -12,7 +10,7 @@ async function callGemini({ contents, responseSchema, systemInstruction }) {
     throw err;
   }
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const body = {
     contents,
@@ -27,7 +25,7 @@ async function callGemini({ contents, responseSchema, systemInstruction }) {
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

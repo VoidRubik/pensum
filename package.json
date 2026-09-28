@@ -1,0 +1,12 @@
+{
+  "name": "questling",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5"
+  }
+}
