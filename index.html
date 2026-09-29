@@ -26,6 +26,11 @@
       </div>
     </div>
 
+    <div id="overrides" class="row hidden">
+      <button id="override-done" class="secondary">that's done</button>
+      <button id="override-working" class="secondary">I'm working on it</button>
+    </div>
+    <p id="usage-line" class="note"></p>
     <p id="mock-note" class="note hidden">Mock mode — no GEMINI_API_KEY in .env, verdicts are scripted.</p>
     <p class="note">
       Questling never saves your screen. Each check sends one frame to Google Gemini and drops it
@@ -45,6 +50,7 @@
       <div id="pet-line" class="pet-line">hi! tell me what you're working on</div>
       <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
     </div>
+    <button id="undo-chip" class="chip hidden">undo ✓</button>
     <span id="watching-indicator" class="watching-dot hidden" title="watching your screen"></span>
     <img id="thumb" class="thumb hidden" alt="last frame checked">
     <button id="check-now" class="icon hidden" title="check me now">✓</button>

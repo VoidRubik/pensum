@@ -4,9 +4,11 @@ AI screen-pet — a small always-on-top bar at the bottom-center of your screen 
 Tell it a task + deadline, it breaks it into editable quests, looks at your screen when you ask,
 and the pet reacts to real progress.
 
-**Grade: Partial** — Phase 1 runs as a Windows desktop overlay (Electron), verified in mock mode.
-Real Gemini calls have never run (no key yet). Phase 2 (automatic checks, nudges, all pet states)
-not built.
+**Grade: Partial** — Windows desktop overlay (Electron). Phase 1 + Phase 2 built. Mock end-to-end
+(auto checks, 2-in-a-row off-task, override, auto-complete + undo, pause) **Built**. Real Gemini:
+quests call and two checks verified 2026-09-28 (on/off-task judged correctly, on a saved screenshot
+of the UI — not a live screen). **Unrun at real stakes**: never used on real work; live daily-cap
+test and live-screen checks not yet done.
 
 ## Run it
 
@@ -19,8 +21,18 @@ npm test           # node --test, pure logic
 Put your key in `.env` (gitignored, never commit or paste it anywhere):
 ```
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash              # quests (default)
+GEMINI_CHECK_MODEL=gemini-3.5-flash-lite   # screen checks (default)
 ```
+`gemini-2.5-*` returns 404 for new keys (retired 2026-09). 3.x uses `thinkingLevel: minimal`
+(`low` still burns hundreds of thinking tokens on 3.5-flash).
+
+Optional env: `QUESTLING_DAILY_CHECKS` (default 150, caps auto checks only), `QUESTLING_CHECK_INTERVAL_MS`
+(default 180000), `QUESTLING_TICK_MS` (nudge tick, 30000), `QUESTLING_MOCK=1`,
+`QUESTLING_MOCK_SCRIPT=on,off,off,done,done`, `QUESTLING_LEDGER_PATH`.
+
+Usage ledger: `usage.jsonl` in Electron userData (text metadata only: model, tokens, ms, status),
+sole writer `ledger.js`.
 No key, or `QUESTLING_MOCK=1` → scripted quests/verdicts, $0. Use a key from a Google project
 with **no billing enabled** so the free tier is a hard $0 cap. Pick the model id with:
 ```
@@ -56,8 +68,7 @@ If `npm start` just prints a Node version and exits: the shell has `ELECTRON_RUN
 
 ## Not done
 
-- Real Gemini calls (needs `.env`), current model id confirmed via ListModels.
-- Phase 2: interval checks in main, 2-in-a-row off-task rule, override, deadline nudges, all states.
+- Live-screen real checks, live daily-cap test, free-tier limits per model (ledger + 429 backoff make them observable).
 - Packaging to a single `.exe` (electron-builder), autostart, public repo.
 
 Brief: `brainstorms/brief-20260927-183530-questling.md` (see its desktop-overlay revision).
