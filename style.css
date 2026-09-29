@@ -32,7 +32,6 @@ main {
 
 /* --- bar (always visible) --- */
 .bar {
-  -webkit-app-region: drag;
   height: 64px;
   flex: none;
   display: flex;
@@ -44,12 +43,12 @@ main {
   border: 1px solid #e4dff0;
   box-shadow: 0 4px 16px rgba(47, 43, 58, 0.18);
 }
-.bar button, .bar img { -webkit-app-region: no-drag; }
-
 .bar-mid { flex: 1; min-width: 0; }
 
-.pet-line {
-  font-size: 0.82rem;
+.quest-row { display: flex; align-items: center; gap: 6px; }
+.quest-line {
+  font-size: 0.85rem;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -70,9 +69,29 @@ main {
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* --- speech bubble + proposal (above the bar, window grows to fit) --- */
+.bubble, .proposal {
+  flex: none;
+  max-height: 130px;
+  overflow: hidden;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e4dff0;
+  box-shadow: 0 4px 16px rgba(47, 43, 58, 0.18);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.bubble p, .proposal p { margin: 0; overflow-wrap: anywhere; }
+.proposal p { margin-bottom: 8px; font-weight: 600; }
+.proposal button { padding: 6px 12px; }
+.proposal .row { margin-bottom: 0; }
+.bubble { max-height: 96px; }
+
 /* --- panel (expands upward above the bar) --- */
 .panel {
-  flex: 1;
+  flex: none;
+  height: 400px;
   overflow-y: auto;
   padding: 16px;
   border-radius: 18px;
@@ -130,11 +149,19 @@ button.icon {
   gap: 6px;
 }
 .quest-item {
-  padding: 6px 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
   border-radius: 10px;
   background: var(--cream);
+  border: 1px solid transparent;
+  cursor: pointer;
 }
-.quest-item.done { opacity: 0.55; text-decoration: line-through; }
+.quest-item.current { border-color: var(--mint-dark); }
+.quest-item.done .qtext { opacity: 0.55; text-decoration: line-through; }
+.quest-item input[type="checkbox"] { margin-top: 5px; flex: none; accent-color: var(--mint-dark); }
+.qtext { flex: 1; min-width: 0; }
 .quest-item input[type="text"] {
   margin: 0;
   background: transparent;
@@ -183,14 +210,23 @@ button.icon {
 }
 
 .thumb {
-  width: 44px;
-  height: 28px;
+  width: 80px;
+  height: 50px;
   object-fit: cover;
   border-radius: 6px;
   border: 1px solid #e4dff0;
   flex: none;
 }
 
-button.chip { padding: 4px 8px; font-size: 0.72rem; flex: none; background: var(--lilac); color: var(--ink); }
+button.chip { background: var(--lilac-dark); color: #fff; font-weight: 700; }
+
+/* --- panel extras --- */
+.panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.panel-head .note { margin: 0; }
+.row { margin-bottom: 12px; }
+.link-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.link-row .note { margin: 0; overflow-wrap: anywhere; }
+.check-label { display: flex; align-items: center; gap: 6px; margin: 0; }
+.check-label input { margin: 0; accent-color: var(--mint-dark); }
 
 .hidden { display: none !important; }

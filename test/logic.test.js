@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { computeProgress, validateVerdict, questFallback } = require('../logic.js');
+const L = require('../logic.js');
 
 // --- computeProgress ---
 
@@ -119,22 +120,6 @@ test('offTaskStep: override suppresses worried for one verdict and resets counte
   assert.equal(r.state.off, 0);
 });
 
-test('doneStep: completes on 2 consecutive quest_done for same idx', () => {
-  let r = doneStep({ idx: null, n: 0 }, 0, true, false); assert.equal(r.complete, false);
-  r = doneStep(r.state, 0, true, false); assert.equal(r.complete, true);
-});
-
-test('doneStep: a false or a different idx resets the streak', () => {
-  let r = doneStep({ idx: null, n: 0 }, 0, true, false);
-  r = doneStep(r.state, 0, false, false); assert.equal(r.state.n, 0);
-  r = doneStep({ idx: 0, n: 1 }, 1, true, false); assert.equal(r.complete, false);
-});
-
-test('doneStep: undo lock blocks auto-complete', () => {
-  let r = doneStep({ idx: 0, n: 1 }, 0, true, true);
-  assert.equal(r.complete, false);
-});
-
 const MIN = 60000;
 test('nudgeDue: 8-min window never gets the 10-min nudge', () => {
   const startedAt = 0, deadline = 8 * MIN;
@@ -187,4 +172,97 @@ test('nextInterval: 429 per-day stops, per-minute backs off (>=2x, cap 15min), e
   assert.equal(nextInterval(180000, { status: 429, retryDelayMs: 1000 }), 360000);
   assert.equal(nextInterval(180000, { status: 429, retryDelayMs: 500000 }), 500000);
   assert.equal(nextInterval(180000, { status: 429, retryDelayMs: 9e9 }), 900000);
+});
+
+// --- v3: propose + confirm ---
+
+test('doneStep is gone (auto-complete replaced by proposals)', () => {
+  assert.equal(L.doneStep, undefined);
+});
+
+test('proposeStep: quest_done on an unsuppressed quest proposes it', () => {
+  const r = L.proposeStep({ suppress: {} }, { idx: 1, questDone: true, auto: true });
+  assert.equal(r.propose, true);
+});
+
+test('proposeStep: not quest_done never proposes', () => {
+  assert.equal(L.proposeStep({ suppress: {} }, { idx: 1, questDone: false, auto: true }).propose, false);
+});
+
+test('proposeStep: notYet suppresses the next 2 auto checks for that quest only', () => {
+  let st = L.notYet({ suppress: {} }, 1);
+  let r = L.proposeStep(st, { idx: 1, questDone: true, auto: true });
+  assert.equal(r.propose, false);
+  assert.equal(L.proposeStep(r.state, { idx: 2, questDone: true, auto: true }).propose, true, 'other quest unaffected');
+  r = L.proposeStep(r.state, { idx: 1, questDone: true, auto: true });
+  assert.equal(r.propose, false);
+  r = L.proposeStep(r.state, { idx: 1, questDone: true, auto: true });
+  assert.equal(r.propose, true, 'third auto check proposes again');
+});
+
+test('proposeStep: manual checks do not use up suppression', () => {
+  let st = L.notYet({ suppress: {} }, 0);
+  let r = L.proposeStep(st, { idx: 0, questDone: true, auto: false });
+  assert.equal(r.propose, false);
+  assert.equal(r.state.suppress[0], 2);
+});
+
+test('currentIdx: explicit current if not done, else first not-done, -1 when all done', () => {
+  assert.equal(L.currentIdx({ current: 2, done: [false, false, false] }), 2);
+  assert.equal(L.currentIdx({ current: 2, done: [false, false, true] }), 0);
+  assert.equal(L.currentIdx({ current: null, done: [true, false, false] }), 1);
+  assert.equal(L.currentIdx({ current: 0, done: [true, true] }), -1);
+});
+
+// --- v3: signals ---
+
+test('redactTitle: drops private browsing, password managers, banking words', () => {
+  assert.equal(L.redactTitle('chrome', 'News - Incognito'), null);
+  assert.equal(L.redactTitle('msedge', 'Docs [InPrivate]'), null);
+  assert.equal(L.redactTitle('KeePass', 'Database'), null);
+  assert.equal(L.redactTitle('chrome', 'Mi banco - Inicio'), null);
+  assert.equal(L.redactTitle('WINWORD', 'Essay.docx - Word'), 'Essay.docx - Word');
+});
+
+test('focusSummary: clips to [since, now], sums per window, longest first', () => {
+  const ev = [
+    { ts: 0, process: 'chrome', title: 'YouTube' },
+    { ts: 100000, process: 'WINWORD', title: 'Essay.docx' },
+    { ts: 260000, process: 'chrome', title: 'YouTube' },
+  ];
+  const s = L.focusSummary(ev, 90000, 280000);
+  assert.equal(s, "WINWORD 'Essay.docx' 2m40s · chrome 'YouTube' 30s");
+});
+
+test('focusSummary: titles off sends process name only; empty when no events', () => {
+  const ev = [{ ts: 0, process: 'WINWORD', title: 'Secret.docx' }];
+  assert.equal(L.focusSummary(ev, 0, 60000, { titles: false }), 'WINWORD 1m');
+  assert.equal(L.focusSummary([], 0, 60000), '');
+});
+
+test('shouldSkip: locked, or idle >= max(interval, 5 min)', () => {
+  assert.equal(L.shouldSkip(0, true, 180000), true);
+  assert.equal(L.shouldSkip(299, false, 180000), false);
+  assert.equal(L.shouldSkip(300, false, 180000), true);
+  assert.equal(L.shouldSkip(300, false, 600000), false, 'interval longer than 5 min raises the bar');
+});
+
+test('artifactDigest: word count, markdown headings, last 800 chars', () => {
+  const text = '# Title\nintro words here\n## Part two\n' + 'x'.repeat(1000);
+  const d = L.artifactDigest(text);
+  assert.equal(d.words, 9);
+  assert.deepEqual(d.headings, ['# Title', '## Part two']);
+  assert.equal(d.tail.length, 800);
+  assert.deepEqual(L.artifactDigest(''), { words: 0, headings: [], tail: '' });
+});
+
+// --- review fix: long documents keep their head AND their tail ---
+
+test('capMiddle: short text untouched; long text keeps head + tail, so "where it stopped" survives', () => {
+  assert.equal(L.capMiddle('short', 100), 'short');
+  const t = 'H'.repeat(50) + 'M'.repeat(1000) + 'T'.repeat(50);
+  const c = L.capMiddle(t, 100);
+  assert.ok(c.length <= 100 + 60, String(c.length));
+  assert.ok(c.startsWith('H'.repeat(20)));
+  assert.ok(c.endsWith('T'.repeat(50)), 'the end of the document must be kept');
 });

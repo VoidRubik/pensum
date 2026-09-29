@@ -6,6 +6,8 @@ const { validateVerdict, questFallback } = require('./logic.js');
 
 const QUEST_MODEL = () => process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const CHECK_MODEL = () => process.env.GEMINI_CHECK_MODEL || 'gemini-3.5-flash-lite';
+// Done-checks make the user wait: lite answered in ~1.3 s and correctly (n=2); flash took 10-20 s and errored twice.
+const DONE_MODEL = () => process.env.GEMINI_DONE_MODEL || CHECK_MODEL();
 
 const PERSONA = `You are Questling, a small cute screen pet who cheers the user on. English only. Warm, brief,
 never scolding. pet_line is under 60 characters.`;
@@ -43,6 +45,16 @@ const thinkingFor = (model) => ({
   thinkingConfig: /gemini-3/.test(model) ? { thinkingLevel: 'minimal' } : { thinkingBudget: 0 },
 });
 
+const DONE_SCHEMA = {
+  type: 'object',
+  properties: {
+    quest_done: { type: 'boolean' },
+    reason: { type: 'string' },
+    pet_line: { type: 'string' },
+  },
+  required: ['quest_done', 'reason', 'pet_line'],
+};
+
 const isMock = () => !process.env.GEMINI_API_KEY || process.env.QUESTLING_MOCK === '1';
 
 function defaultDeadline(now) {
@@ -72,8 +84,8 @@ async function quests({ text, now, tzOffset }) {
       systemInstruction: PERSONA,
       generationConfig: thinkingFor(model),
       contents: [{ role: 'user', parts: [{ text: `Task: "${text}". Current time: ${now}, timezone offset (minutes): ${tzOffset}.
-Break this into 3 to 6 concrete quests, each with a finish condition that would be visible on the
-user's screen. Also infer deadline_iso (ISO 8601) if the task implies one, otherwise 1 hour from now.` }] }],
+Break this into 3 to 6 granular quests. Each finish condition must be checkable from the screen or
+from the text of the user's document (e.g. "the conclusion paragraph exists", not "essay is good"). Also infer deadline_iso (ISO 8601) if the task implies one, otherwise 1 hour from now.` }] }],
       responseSchema: QUEST_SCHEMA,
     });
     if (!Array.isArray(result?.quests) || result.quests.length === 0 || !result.deadline_iso) {
@@ -99,6 +111,18 @@ function mockVerdict() {
   };
 }
 
+// Screen-derived signals for the prompt. Built per call, never stored.
+function signalLines(ctx) {
+  const out = [];
+  if (ctx.focus) out.push(`Since the last look the user had in front: ${ctx.focus}.`);
+  if (ctx.digest) {
+    const h = ctx.digest.headings.length ? `; headings: ${ctx.digest.headings.join(' / ')}` : '';
+    out.push(`Their document (${ctx.source}): ${ctx.digest.words} words${h}. It currently ends: "${ctx.digest.tail}"`);
+  }
+  if (ctx.notYet) out.push(`The user said "not done yet" to: ${ctx.notYet}.`);
+  return out.length ? out.join('\n') + '\n' : '';
+}
+
 // Last 2 reasons stay in memory only — screen-derived text never hits disk.
 let lastReasons = [];
 let gen = 0; // bumped on reset so an in-flight check can't write reasons into the next task
@@ -119,7 +143,7 @@ async function check({ jpegBase64, quest, ctx = {}, auto = false }) {
         role: 'user',
         parts: [
           { text: `Overall task: "${ctx.task}"\nQuests:\n${questLines}\nCurrent quest: "${quest?.title}" (finish condition: "${quest?.finish}")
-${lastReasons.length ? `Previous checks said: ${lastReasons.join(' | ')}\n` : ''}Look at the attached screenshot. on_task = the screen is plausibly work toward the current quest.
+${lastReasons.length ? `Previous checks said: ${lastReasons.join(' | ')}\n` : ''}${signalLines(ctx)}Look at the attached screenshot. on_task = the screen is plausibly work toward the current quest.
 quest_done = the finish condition is visibly met right now. progress_estimate = integer 0-100 for this quest.` },
           { inlineData: { mimeType: 'image/jpeg', data: jpegBase64 } },
         ],
@@ -134,4 +158,42 @@ quest_done = the finish condition is visibly met right now. progress_estimate = 
   }
 }
 
-module.exports = { quests, check, isMock, resetMemory, QUEST_MODEL, CHECK_MODEL };
+// QUESTLING_MOCK_CLAIM="ok,no" -> deterministic done-check answers; default always agrees.
+let claimN = 0;
+function mockClaim() {
+  const script = (process.env.QUESTLING_MOCK_CLAIM || 'ok').split(',').filter(Boolean);
+  const ok = script[claimN++ % script.length] === 'ok';
+  return ok
+    ? { quest_done: true, reason: 'mock: looks finished', pet_line: 'yes, that looks done!' }
+    : { quest_done: false, reason: 'mock: the conclusion is still missing', pet_line: 'hmm, not quite yet' };
+}
+
+// "Am I done?" — quest model, sharper frame, full linked text. Returns a verdict or { error, pet_line }.
+async function doneCheck({ jpegBase64, quest, ctx = {} }) {
+  if (isMock()) return mockClaim();
+  const model = DONE_MODEL();
+  const doc = ctx.text ? `Full text of their document (${ctx.source}):\n<<<\n${ctx.text}\n>>>\n` : '';
+  try {
+    const result = await real('done-check', false, {
+      model,
+      systemInstruction: PERSONA,
+      generationConfig: { ...thinkingFor(model), temperature: 0.2 },
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: `Overall task: "${ctx.task}"\nThe user says this quest is done: "${quest?.title}" (finish condition: "${quest?.finish}")
+${signalLines({ focus: ctx.focus })}${doc}Judge honestly from the screenshot${ctx.text ? ' and the document text' : ''}.
+quest_done = the finish condition is met. reason = under 60 characters: what is missing, or what you saw.` },
+          { inlineData: { mimeType: 'image/jpeg', data: jpegBase64 } },
+        ],
+      }],
+      responseSchema: DONE_SCHEMA,
+    });
+    if (typeof result?.quest_done !== 'boolean' || typeof result.reason !== 'string' || typeof result.pet_line !== 'string') throw new Error('bad done-check');
+    return result;
+  } catch (e) {
+    return { error: true, pet_line: 'my eyes blurred, try again', status: e.status || 0 };
+  }
+}
+
+module.exports = { doneCheck, quests, check, isMock, resetMemory, QUEST_MODEL, CHECK_MODEL, DONE_MODEL };

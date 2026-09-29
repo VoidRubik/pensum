@@ -1,21 +1,21 @@
 # questling
 
 AI screen-pet — a small always-on-top bar at the bottom-center of your screen (Wispr-Flow style).
-Tell it a task + deadline, it breaks it into editable quests, looks at your screen when you ask,
-and the pet reacts to real progress.
+Tell it a task + deadline, it breaks it into editable quests, watches your screen, and **proposes**
+when a quest looks done — you confirm with one click.
 
-**Grade: Partial** — Windows desktop overlay (Electron). Phase 1 + Phase 2 built. Mock end-to-end
-(auto checks, 2-in-a-row off-task, override, auto-complete + undo, pause) **Built**. Real Gemini:
-quests call and two checks verified 2026-09-28 (on/off-task judged correctly, on a saved screenshot
-of the UI — not a live screen). **Unrun at real stakes**: never used on real work; live daily-cap
-test and live-screen checks not yet done.
+**Grade: Partial** — Windows desktop overlay (Electron). v3 (2026-09-29) built: propose-and-confirm
+done, speech bubble, multi-monitor capture, window-title / idle / Word-text signals. Mock end-to-end
+(27 checks) **Built**. Real Gemini (free tier): done-check verified on staged essay pages (n=2, lite);
+earlier quests + checks verified 2026-09-28. **Unrun at real stakes**: Bruno has not yet used v3 on real
+work; live-screen checks, the Word/linked-file path with a real essay, and the daily-cap test are not done.
 
 ## Run it
 
 ```
 npm install
 npm start          # launches the overlay; tray icon (mint dot) has Show/hide, Pause, Quit
-npm test           # node --test, pure logic
+npm test           # node --test, pure logic (34 tests)
 ```
 
 Put your key in `.env` (gitignored, never commit or paste it anywhere):
@@ -23,53 +23,77 @@ Put your key in `.env` (gitignored, never commit or paste it anywhere):
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-3.5-flash              # quests (default)
 GEMINI_CHECK_MODEL=gemini-3.5-flash-lite   # screen checks (default)
+GEMINI_DONE_MODEL=                         # done-check (default: the check model)
 ```
-`gemini-2.5-*` returns 404 for new keys (retired 2026-09). 3.x uses `thinkingLevel: minimal`
-(`low` still burns hundreds of thinking tokens on 3.5-flash).
+`gemini-2.5-*` returns 404 for new keys (retired 2026-09). 3.x uses `thinkingLevel: minimal`.
+Done-check defaults to lite: on 2 staged essays lite was correct in ~1.3 s; flash took 10–20 s and
+errored twice (n=1 each — a sample, not a benchmark). Gemini's `mediaResolution` made no difference
+(same token count, same transcription) so it is not sent.
 
-Optional env: `QUESTLING_DAILY_CHECKS` (default 150, caps auto checks only), `QUESTLING_CHECK_INTERVAL_MS`
-(default 180000), `QUESTLING_TICK_MS` (nudge tick, 30000), `QUESTLING_MOCK=1`,
-`QUESTLING_MOCK_SCRIPT=on,off,off,done,done`, `QUESTLING_LEDGER_PATH`.
+Optional env: `QUESTLING_DAILY_CHECKS` (150, caps auto checks only), `QUESTLING_CHECK_INTERVAL_MS`
+(180000), `QUESTLING_TICK_MS` (30000), `QUESTLING_MOCK=1`, `QUESTLING_MOCK_SCRIPT=on,off,done,…`,
+`QUESTLING_MOCK_CLAIM=ok,no` (done-check answers), `QUESTLING_FAKE_IDLE_SEC` (tests on an idle PC),
+`QUESTLING_LEDGER_PATH`.
 
-Usage ledger: `usage.jsonl` in Electron userData (text metadata only: model, tokens, ms, status),
-sole writer `ledger.js`.
-No key, or `QUESTLING_MOCK=1` → scripted quests/verdicts, $0. Use a key from a Google project
-with **no billing enabled** so the free tier is a hard $0 cap. Pick the model id with:
-```
-curl -H "x-goog-api-key: $KEY" https://generativelanguage.googleapis.com/v1beta/models
-```
+No key, or `QUESTLING_MOCK=1` → scripted quests/verdicts, $0. Use a key from a Google project with
+**no billing enabled** so the free tier is a hard $0 cap.
 
 If `npm start` just prints a Node version and exits: the shell has `ELECTRON_RUN_AS_NODE=1`
 (VS Code-spawned shells set it). Unset it first.
 
 ## How it works
 
-- `main.js` — frameless transparent window, `alwaysOnTop('screen-saver')`, no taskbar entry,
-  bottom-center of the primary work area; grows upward into a panel on ▴. `setContentProtection`
-  hides the pet from every screen capture, so Gemini never sees the pet itself. Screen capture is
-  `desktopCapturer` in the main process — no share prompt, works while the pet is minimized or
-  unfocused. Frames stay in memory; never written to disk.
-- `ai.js` + `gemini.js` — quest generation and the screen check, raw REST with JSON schema,
-  key sent as a header. Bad model output → keep state, pet says "my eyes blurred".
-- `preload.js` — the only bridge (`window.questling`). Renderer has no Node, no key.
-- `index.html` / `style.css` / `app.js` — bar + panel UI, state in localStorage (text only).
-- `logic.js` — progress math, verdict validation, quest fallback.
+- **Done = pet proposes, you confirm.** A `quest_done` verdict (auto or 👁) puts a proposal in its own
+  element: *Looks like "X" is done! [Yes ✓] [Not yet]*. Yes completes that quest and says "Next: …".
+  Not yet silences that quest for its next 2 auto checks. After 10 s it collapses to a ✓? chip on the bar.
+- **Bar:** pet · current quest + progress · 👁 look now · ✓ "I'm done" · ❚❚ · ▴. ✓ runs a done-check on
+  its own channel (works while paused): model agrees → done; disagrees → "Hmm, … Mark done anyway?".
+- **Panel:** per-quest checkbox (both ways), click a quest to make it current, "Link my work", a
+  "send window titles" toggle. Speech bubble shows above the bar; the transparent window is click-through
+  everywhere except bar / bubble / proposal / panel.
+- **Signals** (`focus.js`, `artifact.js`; all in memory): window titles per check ("WINWORD 'Essay.docx'
+  2m40s · chrome …") with private-window / password-manager / banking-word redaction; skip the paid check
+  when locked or idle ≥ 5 min; Word's live unsaved text via COM; a linked `.docx/.txt/.md/code` file
+  (`.docx` read with shared access, works while open in Word). Every check gets a digest (words,
+  headings, last 800 chars); the done-check gets the text (head + tail, 40k chars).
+- **Capture:** the display the cursor last rested on outside the pet (clicking the pet always puts the
+  cursor on its display), native size capped at 1600 px (done-check 2048).
+- `ai.js` + `gemini.js` raw REST + JSON schema. `ledger.js` sole writer of `usage.jsonl`.
+  `preload.js` only bridge. `logic.js` pure rules (proposeStep, currentIdx, focusSummary, redactTitle,
+  shouldSkip, artifactDigest, capMiddle, nudges, …).
 
-## Verified 2026-09-27 (Playwright `_electron`, mock mode, real Windows desktop)
+## Privacy — honest version
 
-- `npm test` 12/12.
-- Bar placed at exact bottom-center (`x=(1304-360)/2`, 12px above work area), always-on-top,
-  never steals focus; expands to 360×480 upward keeping its bottom edge; collapses on Start.
-- Flow: task → 3 quests → Start → ✓ ×2 → pet happy, progress 0 → 0.11, frame thumbnail shown.
-- Capture with the pet **minimized and unfocused**: non-blank frame (pixel variance 1130). Closes
-  the old web version's #1 risk (hidden-tab capture) — the browser tab no longer exists.
-- Full-screen capture with content protection on shows no pet.
-- localStorage contains no image data.
+Each check sends one frame to Google Gemini, plus window titles and, if you link work, a text digest.
+On the free tier **Google may keep these, use them to improve its products, and human reviewers may
+read them** (ai.google.dev/gemini-api/terms, checked 2026-09-28). Don't run it with private things on
+screen. Nothing screen-derived is written to disk or localStorage; the ledger stores only model, token
+counts, timing and status. Window titles and document text live in main-process memory and are
+dropped on pause.
+
+## Verified 2026-09-29
+
+- `npm test` 34/34 (each new rule watched RED first).
+- Mock e2e (Playwright `_electron`, scratchpad `e2e-v3.js`): proposal in its own slot and survives a
+  nudge; Not yet suppresses 2 auto checks then it asks again; Yes completes the proposed quest + Next
+  line; untick lowers progress to 0; click a quest → current + bar title; ✓ works while paused (claim-ok
+  completes, claim-no shows the confirm); last quest → party; click-through toggles; buttons not clipped;
+  localStorage has no image / verdict text.
+- Spot-tests on this PC: PowerShell tracker UTF-8 across 2 monitors; Word COM live text; `.docx`
+  readable while locked open; display under cursor on monitor 2 captured at 1600×900, `display_id` set.
+- Fresh Sonnet hostile review: 0 Critical, 8 Important, 4 Minor — fixed (see git log).
 
 ## Not done
 
-- Live-screen real checks, live daily-cap test, free-tier limits per model (ledger + 429 backoff make them observable).
-- Packaging to a single `.exe` (electron-builder), autostart, public repo.
+- Real use: Bruno driving v3 on a real task; live-screen checks; the daily-cap test.
+- ✓ pressed *during* an in-flight auto check is covered by construction (separate slot), not by a
+  test — the mock answers instantly.
+- Phase R (UI Automation text, OCR, Google Docs, git diff) waits on the research prompt
+  `brainstorms/research-prompt-questling-screen-aware.md`.
+- Packaging to `.exe`, autostart, public repo. Deferred minors: override bumps epoch (#9), ledger append
+  failure discards a paid response / `read()` reparses per check (#10), backoff not cumulative (#12),
+  Word COM can stall a check up to 8 s (screenshot then older than the text), no docx entity edge cases
+  beyond the five XML entities.
 
-Brief: `brainstorms/brief-20260927-183530-questling.md` (see its desktop-overlay revision).
+Brief: `brainstorms/brief-20260927-183530-questling.md` (revision 2026-09-28 v3).
 Brain node: `brain/situational/memory/aipet.md`.

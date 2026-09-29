@@ -53,11 +53,87 @@ function offTaskStep({ off, suppress }, onTask) {
   return { worried: n >= 2, state: { off: n, suppress: false } };
 }
 
-/** Auto-complete on 2 consecutive quest_done for the same quest; `locked` = user undid it. */
-function doneStep({ idx, n }, curIdx, questDone, locked) {
-  const streak = questDone ? (idx === curIdx ? n + 1 : 1) : 0;
-  if (locked) return { complete: false, state: { idx: curIdx, n: streak } };
-  return { complete: streak >= 2, state: { idx: curIdx, n: streak >= 2 ? 0 : streak } };
+/** A `quest_done` verdict becomes a proposal unless the user said "not yet" for that quest.
+ * `suppress[idx]` = auto checks left to stay quiet; manual checks never use it up. */
+function proposeStep(state, { idx, questDone, auto }) {
+  const left = state.suppress[idx] || 0;
+  if (!questDone) return { propose: false, state };
+  if (left > 0) {
+    const suppress = auto ? { ...state.suppress, [idx]: left - 1 } : state.suppress;
+    return { propose: false, state: { ...state, suppress } };
+  }
+  return { propose: true, state };
+}
+
+/** User answered "Not yet" to a proposal: stay quiet on that quest for its next 2 auto checks. */
+function notYet(state, idx) {
+  return { ...state, suppress: { ...state.suppress, [idx]: 2 } };
+}
+
+/** The quest being worked on: the user's pick if still open, else the first open one, -1 if all done. */
+function currentIdx({ current, done }) {
+  if (Number.isInteger(current) && done[current] === false) return current;
+  return done.findIndex((d) => !d);
+}
+
+const TITLE_DENY_PROC = /keepass|1password|bitwarden|lastpass|dashlane/i;
+const TITLE_DENY_WORDS = /incognito|inprivate|private browsing|navegaci[oó]n privada|bank|banco|banking|paypal|password|contrase/i;
+
+/** Window title safe to send, or null. Private windows, password managers, banking words are dropped. */
+function redactTitle(proc, title) {
+  if (TITLE_DENY_PROC.test(proc || '') || TITLE_DENY_WORDS.test(title || '')) return null;
+  return title || null;
+}
+
+const fmtDur = (ms) => {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${s % 60 ? `${s % 60}s` : ''}`;
+};
+
+/** "WINWORD 'Essay.docx' 2m40s · chrome 'YouTube' 30s" — time per window within [since, now], longest first.
+ * Each event is active until the next one; `titles:false` sends process names only. Windows under 5 s are noise. */
+function focusSummary(events, since, now, { titles = true } = {}) {
+  const totals = new Map();
+  events.forEach((e, i) => {
+    const end = i + 1 < events.length ? events[i + 1].ts : now;
+    const ms = Math.min(end, now) - Math.max(e.ts, since);
+    if (ms < 5000) return;
+    const title = titles ? redactTitle(e.process, e.title) : null;
+    const key = `${e.process}\u0000${title || ''}`;
+    totals.set(key, (totals.get(key) || 0) + ms);
+  });
+  return [...totals.entries()]
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 4)
+    .map(([k, ms]) => {
+      const [proc, title] = k.split('\u0000');
+      return `${proc}${title ? ` '${title}'` : ''} ${fmtDur(ms)}`;
+    })
+    .join(' · ');
+}
+
+/** Skip the paid check silently when the user is away: locked, or idle >= max(interval, 5 min). */
+function shouldSkip(idleSec, locked, baseMs) {
+  return !!locked || idleSec >= Math.max(baseMs / 1000, 300);
+}
+
+/** Keep the head (30%) and the tail (70%) of a long document — the end is where the writing stopped. */
+function capMiddle(text, max) {
+  if (text.length <= max) return text;
+  const head = Math.floor(max * 0.3);
+  return `${text.slice(0, head)}
+[... middle of the document left out ...]
+${text.slice(text.length - (max - head))}`;
+}
+
+/** Cheap summary of long work that goes with every check: size, headings, and where the writing stopped. */
+function artifactDigest(text) {
+  const t = text || '';
+  return {
+    words: t.split(/\s+/).filter(Boolean).length,
+    headings: t.split('\n').filter((l) => /^#{1,6}\s/.test(l)).map((l) => l.trim().slice(0, 80)).slice(0, 12),
+    tail: t.slice(-800),
+  };
 }
 
 /** Deadline checkpoints. Returns {speak, fired}; speak = latest newly-crossed, only if behind schedule. */
@@ -96,7 +172,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateVerdict, questFallback, isStale, offTaskStep, doneStep, nudgeDue, summarizeUsage, nextInterval, dayKey };
+const exported = { computeProgress, validateVerdict, questFallback, isStale, offTaskStep, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).
