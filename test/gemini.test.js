@@ -131,3 +131,32 @@ test('ai.look: unknown purpose is an error without a network call', async () => 
   assert.equal((await ai.look({ ...lookArgs, purpose: 'nope' })).error, true);
   assert.equal(calls, 0);
 });
+
+// --- Vercel limits come from the environment: 6 s, no retries ---
+test('env QUESTLING_TIMEOUT_MS / QUESTLING_RETRIES override the defaults (Vercel: 6 s, none)', async () => {
+  process.env.QUESTLING_TIMEOUT_MS = '6000';
+  process.env.QUESTLING_RETRIES = '0';
+  try {
+    let ms = null, calls = 0;
+    const orig = AbortSignal.timeout;
+    AbortSignal.timeout = (n) => { ms = n; return orig.call(AbortSignal, n); };
+    globalThis.fetch = async () => { calls++; return err(503); };
+    try { await assert.rejects(callGemini(args), (e) => e.status === 503); } finally { AbortSignal.timeout = orig; }
+    assert.equal(ms, 6000);
+    assert.equal(calls, 1, 'no retry');
+  } finally { delete process.env.QUESTLING_TIMEOUT_MS; delete process.env.QUESTLING_RETRIES; }
+});
+
+test('ai.quests: with QUESTLING_RETRIES=0 a flash failure is NOT retried on lite (one call, then local fallback)', async () => {
+  process.env.QUESTLING_RETRIES = '0';
+  process.env.QUESTLING_TIMEOUT_MS = '6000';
+  try {
+    delete process.env.QUESTLING_MOCK;
+    const ai = require('../ai.js');
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return err(503); };
+    const r = await ai.quests({ text: 'essay', now: '2026-10-02T09:00:00Z', tzOffset: 0 });
+    assert.equal(calls, 1);
+    assert.equal(r.fallback, true);
+  } finally { delete process.env.QUESTLING_RETRIES; delete process.env.QUESTLING_TIMEOUT_MS; }
+});

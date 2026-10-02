@@ -1,0 +1,66 @@
+/* Web demo only (html.web). Everything here is a demo tool: a fake desktop plus a scene switcher. */
+html.web, html.web body {
+  height: 100%;
+  overflow: hidden;
+  background: #1c1b24 var(--desk) center top / cover no-repeat;
+}
+html.web main.ql {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  width: 400px;
+  height: auto;
+  max-height: calc(100% - 24px);
+  margin-left: -200px;
+  padding: 0;
+}
+.ql-demo-scenes {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 70vw;
+  z-index: 10;
+}
+.ql-demo-scenes button {
+  border: 1px solid var(--ql-line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--ql-surface);
+  color: var(--ql-ink);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0.92;
+}
+.ql-demo-scenes button:hover { opacity: 1; }
+.ql-demo-hint {
+  position: fixed;
+  top: 44px;
+  right: 10px;
+  max-width: min(420px, 70vw);
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--ql-surface);
+  color: var(--ql-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  z-index: 10;
+}
+.ql-demo-tag {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ql-surface);
+  color: var(--ql-muted);
+  font-size: 0.7rem;
+  z-index: 10;
+}
+/* things that need the real desktop */
+html.web #link-btn, html.web #link-name, html.web #usage-line { display: none; }
+html.web .ql-link { display: none; }

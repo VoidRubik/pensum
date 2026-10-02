@@ -1,0 +1,11 @@
+{
+  "installCommand": "echo skip",
+  "buildCommand": "node web/build.js",
+  "outputDirectory": "public",
+  "functions": {
+    "api/model.js": {
+      "includeFiles": "{demo/**,ai.js,gemini.js,ledger.js,logic.js}",
+      "maxDuration": 10
+    }
+  }
+}

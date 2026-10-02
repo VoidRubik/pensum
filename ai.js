@@ -77,7 +77,7 @@ async function quests({ text, now, tzOffset }) {
     model,
     systemInstruction: PERSONA,
     generationConfig: thinkingFor(model),
-    timeoutMs: 12000,
+    timeoutMs: Number(process.env.QUESTLING_TIMEOUT_MS) || 12000,
     retries: 0,
     contents: [{ role: 'user', parts: [{ text: `Task: "${text}". Current time: ${now}, timezone offset (minutes): ${tzOffset}.
 Break this into 3 to 5 quests, each verb-led and under 60 characters. Each finish condition is an end state visible on screen
@@ -89,7 +89,7 @@ starter = the first sloppy step: under 60 seconds of work, under 80 characters. 
     // Flash is the slow tier: on a timeout/503 retry once on lite instead of waiting again.
     let result;
     try { result = await real('quests', req(QUEST_MODEL())); } catch (e) {
-      if (e.status && e.status !== 503) throw e;
+      if ((e.status && e.status !== 503) || process.env.QUESTLING_RETRIES === '0') throw e;
       result = await real('quests', req(LOOK_MODEL()));
     }
     const v = validateQuests(result);
