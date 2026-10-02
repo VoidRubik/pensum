@@ -1,21 +1,26 @@
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, screen, desktopCapturer, powerMonitor, dialog, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage } = require('electron');
 
 try { process.loadEnvFile(path.join(__dirname, '.env')); } catch {}
 const ai = require('./ai.js');
 const ledger = require('./ledger.js');
 const focus = require('./focus.js');
 const artifact = require('./artifact.js');
-const { nextInterval, dayKey, shouldSkip, artifactDigest, capMiddle, rateGate } = require('./logic.js');
+const capture = require('./capture.js');
+const L = require('./logic.js');
+
+L.setTimeScale(Number(process.env.QUESTLING_TIME_SCALE) || 1);
+const TEST = !!process.env.QUESTLING_TEST;
 
 const WIDTH = 400;
-const BAR_H = 76;
-const MAX_H = 780; // bar + panel + bubble + proposal; also clamped to the work area
-const MAX_SIDE = { check: 1600, done: 2048 };
+const BAR_H = 92;
+const MAX_H = 780; // bar + panel + bubble + card; also clamped to the work area
+const SAMPLE_MS = 15000; // change-detection sampler (spike 0a: capture 100-430 ms)
+const CHANGED_T = 0.004; // fraction of pixels moved > 24/255; one typed line measured 5-6 %, idle noise 0 %
+const SETTLE_MS = 3000; // ignore diffs right after a foreground change (title-bar recolour is not work)
 
 let win = null;
 let tray = null;
-let watching = false;
 
 // Bottom-center of the primary display, growing upward. The transparent window is click-through
 // except over the bar / bubble / panel (renderer toggles via set-click-through).
@@ -43,7 +48,7 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   win.setAlwaysOnTop(true, 'screen-saver');
-  // Keeps the pet out of its own screenshots, so Gemini never judges the pet.
+  // Keeps the pet out of any screenshot. (Playwright/CDP page.screenshot is unaffected.)
   win.setContentProtection(true);
   placeBottomCenter(BAR_H);
   win.setIgnoreMouseEvents(true, { forward: true });
@@ -68,151 +73,135 @@ function createTray() {
   tray.setToolTip('Questling');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show / hide', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
-    { label: 'Pause watching', click: () => { setWatching(false); win.webContents.send('paused'); } },
+    { label: 'Pause', click: () => { stopSession(); win.webContents.send('paused'); } },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
 }
 
-// Where the user works = the display their cursor last rested on OUTSIDE the pet (clicking the pet
-// itself always puts the cursor on the pet's display). Sampled every second while watching.
-let workDisplay = null;
-function sampleCursor() {
-  const pt = screen.getCursorScreenPoint();
-  const b = win && !win.isDestroyed() ? win.getBounds() : null;
-  const onPet = b && pt.x >= b.x && pt.x < b.x + b.width && pt.y >= b.y && pt.y < b.y + b.height;
-  if (!onPet) workDisplay = screen.getDisplayNearestPoint(pt);
-}
-setInterval(sampleCursor, 1000).unref();
-
-// Native size of the work display capped to maxSide; primary as fallback.
-async function grabScreen(maxSide, quality) {
-  sampleCursor();
-  const display = workDisplay || screen.getPrimaryDisplay();
-  const { width, height } = display.size;
-  const scale = Math.min(1, maxSide / Math.max(width, height));
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) },
-  });
-  const all = screen.getAllDisplays();
-  const byId = (d) => sources.find((s) => s.display_id === String(d.id));
-  // display_id can come back empty: then match by position, else (single source) take it.
-  const source = byId(display) || byId(screen.getPrimaryDisplay())
-    || (sources.length === all.length ? sources[all.findIndex((d) => d.id === display.id)] : null)
-    || (sources.length === 1 ? sources[0] : null);
-  if (!source || source.thumbnail.isEmpty()) throw new Error('screen capture returned nothing');
-  return {
-    jpegBase64: source.thumbnail.toJPEG(quality).toString('base64'),
-    thumb: source.thumbnail.resize({ width: 160 }).toDataURL(),
-    size: source.thumbnail.getSize(),
-  };
-}
-
-const BASE_MS = () => Number(process.env.QUESTLING_CHECK_INTERVAL_MS) || 180000;
+// --- model gateway: every model call passes gateCall() first ---
 const DAILY_CAP = () => Number(process.env.QUESTLING_DAILY_CALLS) || 300; // all model kinds
 const PER_MIN = () => Number(process.env.QUESTLING_PER_MIN) || 8;
 let stamps = [];
-// Gate for every model call. Real calls only: mock mode costs nothing. Returns an error reply, or null to proceed.
+let cappedDay = null; // local day key when Google said per-day quota is gone
+// Real calls only: mock mode costs nothing. Returns an error reply, or null to proceed.
 function gateCall() {
   if (ai.isMock()) return null;
-  if (ledger.today().calls >= DAILY_CAP()) return { error: true, limited: true, capped: true, pet_line: 'out of looks for today' };
-  const g = rateGate(stamps, Date.now(), { perMin: PER_MIN() });
+  if (cappedDay === L.dayKey(Date.now()) || ledger.today().calls >= DAILY_CAP()) {
+    return { error: true, limited: true, capped: true, pet_line: 'out of looks for today' };
+  }
+  const g = L.rateGate(stamps, Date.now(), { perMin: PER_MIN() });
   stamps = g.stamps;
   if (!g.ok) return { error: true, limited: true, retryMs: g.retryMs, pet_line: 'slow down a little, one moment' };
   return null;
 }
-let timer = null;
-let inflight = null; // single-flight: a check already running is joined, never doubled
-let doneInflight = null; // done-check has its own slot: never joins an auto check, works while paused
-let cappedDay = null; // local day key when Google said per-day quota is gone
-let lastLookAt = null;
+
+// --- session: the chosen work window, the signal stream ---
+let work = null; // { id, hwnd, title } the only window frames are ever taken from
+let sampler = null;
+let prevGray = null;
+let lastFgChange = 0;
+let winState = { alive: true, visible: true };
 let locked = false;
+let sessionGen = 0;
 // QUESTLING_FAKE_IDLE_SEC lets tests run on an idle PC.
 const idleSec = () => Number(process.env.QUESTLING_FAKE_IDLE_SEC ?? powerMonitor.getSystemIdleTime());
 
-function stopTimer() { clearTimeout(timer); timer = null; }
-function schedule(ms) {
-  stopTimer();
-  timer = setTimeout(() => {
-    // Away (locked / idle): skip the paid check silently.
-    if (watching && !win.isDestroyed() && !shouldSkip(idleSec(), locked, BASE_MS())) {
-      win.webContents.send('auto-check');
-    }
-    schedule(BASE_MS());
-  }, ms);
+function emit(extra = {}) {
+  if (!win || win.isDestroyed()) return;
+  const fg = focus.current();
+  win.webContents.send('signal', {
+    ts: Date.now(),
+    changed: false,
+    fgHwnd: fg?.hwnd || 0,
+    onWork: !!work && fg?.hwnd === work.hwnd,
+    windowAlive: winState.alive,
+    windowVisible: winState.visible,
+    idleSec: idleSec(),
+    locked,
+    ...extra,
+  });
 }
 
-function setWatching(on) {
-  watching = !!on;
-  stopTimer();
-  if (watching) focus.start();
-  else { ai.resetMemory(); inflight = null; focus.stop(); lastLookAt = null; }
-  if (watching && cappedDay !== dayKey(Date.now())) schedule(BASE_MS());
+async function sample() {
+  const gen = sessionGen;
+  if (!work || TEST) return emit();
+  const gray = await capture.grabGray(work.id).catch(() => null);
+  if (gen !== sessionGen) return; // session ended or window re-picked while capturing
+  if (!gray) { winState = { alive: winState.alive, visible: false }; prevGray = null; return emit(); }
+  const settled = Date.now() - lastFgChange > SETTLE_MS;
+  const changed = !!prevGray && settled && L.diffFraction(prevGray, gray) >= CHANGED_T;
+  prevGray = gray;
+  emit({ changed });
 }
 
-// Screen-derived context for one check, in memory only: time per window since the last look, plus long-work text.
-async function gatherSignals(req, { full }) {
-  const now = Date.now();
-  const focusLine = focus.summary(lastLookAt || now - BASE_MS(), now, { titles: req.titles !== false });
-  if (!full) lastLookAt = now; // a done-check must not eat the window the next auto check reports
-  const got = await artifact.getText({ focusProc: focus.current()?.process, linkedPath: req.linkedPath });
-  return {
-    focus: focusLine,
-    source: got?.source || null,
-    digest: got && !full ? artifactDigest(got.text) : null,
-    text: got && full ? capMiddle(got.text, 40000) : null,
-  };
+function stopSession() {
+  sessionGen++;
+  clearInterval(sampler);
+  sampler = null;
+  work = null;
+  prevGray = null;
+  winState = { alive: true, visible: true };
+  ai.resetMemory();
+  focus.stop();
 }
 
-async function runCheck({ quest, idx, epoch, ctx, auto, ...req }) {
-  // Result is stamped with THIS request's idx/epoch; a joiner from another epoch gets dropped as stale.
-  let frame;
-  try {
-    frame = await grabScreen(MAX_SIDE.check, 70);
-  } catch {
-    return { error: true, pet_line: "couldn't see your screen, trying again soon" };
-  }
-  const sig = await gatherSignals(req, { full: false });
-  const v = await ai.check({ jpegBase64: frame.jpegBase64, quest, ctx: { ...ctx, ...sig }, auto });
-  if (v.error && v.status === 429) {
-    const next = nextInterval(BASE_MS(), v);
-    // Per-day quota gone: keep the timer (rolls over at midnight), the gate below makes every tick free.
-    if (next === null) { cappedDay = dayKey(Date.now()); return { ...v, capped: true, pet_line: 'out of looks for today' }; }
-    if (watching) schedule(next);
-  }
-  return { ...(v.error ? v : { ...v, thumb: frame.thumb }), idx, epoch };
+function startSession(picked) {
+  stopSession();
+  work = picked;
+  winState = { alive: true, visible: true };
+  lastFgChange = Date.now();
+  focus.start(
+    () => { lastFgChange = Date.now(); emit(); },
+    (st) => { winState = st; emit(); },
+  );
+  focus.setWork(work.hwnd);
+  sampler = setInterval(sample, L.dur(SAMPLE_MS));
+  sampler.unref?.();
 }
 
-ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests(req));
-ipcMain.handle('check', async (_e, req) => {
-  if (!watching) return { error: true, paused: true, pet_line: 'paused' };
-  const stamp = { idx: req.idx, epoch: req.epoch };
-  if (!ai.isMock() && cappedDay === dayKey(Date.now())) return { error: true, capped: true, pet_line: 'out of looks for today', ...stamp };
-  const limited = inflight ? null : gateCall();
-  if (limited) return { ...limited, ...stamp };
-  if (!inflight) { const p = runCheck(req).finally(() => { if (inflight === p) inflight = null; }); inflight = p; }
-  return inflight;
+ipcMain.handle('list-windows', () => capture.listWindows());
+
+ipcMain.handle('pick-window', async (_e, id) => {
+  if (typeof id !== 'string') return { ok: false };
+  if (TEST) { startSession({ id, hwnd: capture.hwndOf(id), title: 'test window' }); return { ok: true, title: 'test window' }; }
+  const w = (await capture.listWindows()).find((x) => x.id === id);
+  if (!w) return { ok: false };
+  startSession({ id: w.id, hwnd: w.hwnd, title: w.title });
+  return { ok: true, title: w.title };
 });
 
-// "Am I done?" — own channel and slot, quest model, sharper frame, full linked text. Works while paused.
-ipcMain.handle('done-check', async (_e, req) => {
-  const limited = doneInflight ? null : gateCall();
-  if (limited) return { ...limited, idx: req.idx, epoch: req.epoch };
-  if (!doneInflight) {
-    const p = (async () => {
-      try {
-        const frame = await grabScreen(MAX_SIDE.done, 85);
-        const sig = await gatherSignals(req, { full: true });
-        const r = await ai.doneCheck({ jpegBase64: frame.jpegBase64, quest: req.quest, ctx: { ...req.ctx, ...sig } });
-        return { ...r, idx: req.idx, epoch: req.epoch };
-      } catch {
-        return { error: true, pet_line: "couldn't see your screen, try again", idx: req.idx, epoch: req.epoch };
-      }
-    })().finally(() => { if (doneInflight === p) doneInflight = null; });
-    doneInflight = p;
+ipcMain.on('stop-session', () => stopSession());
+
+// Test hook: push a scripted signal through the same emitter the sampler uses.
+if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
+
+// --- model IPC ---
+ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests(req));
+
+// One vision call about the chosen window. The renderer decides when; main never calls on its own.
+ipcMain.handle('look', async (_e, req) => {
+  const stamp = { idx: req.idx, epoch: req.epoch, purpose: req.purpose };
+  const limited = gateCall();
+  if (limited) return { ...limited, ...stamp };
+  if (!work) return { error: true, noWindow: true, ...stamp };
+  const frame = await capture.grabWindow(work.id, req.purpose === 'done' ? 2048 : 1600, req.purpose === 'done' ? 85 : 70).catch(() => null);
+  if (!frame) {
+    winState = { ...winState, visible: false };
+    emit();
+    return { error: true, windowGone: true, ...stamp };
   }
-  return doneInflight;
+  const got = await artifact.getText({ focusProc: focus.current()?.process, linkedPath: req.linkedPath });
+  const ctx = {
+    ...req.ctx,
+    allow: req.allow,
+    source: got?.source || null,
+    digest: got && req.purpose !== 'done' ? L.artifactDigest(got.text) : null,
+    text: got && req.purpose === 'done' ? L.capMiddle(got.text, 40000) : null,
+  };
+  const v = await ai.look({ purpose: req.purpose, jpegBase64: frame.jpegBase64, quest: req.quest, ctx });
+  if (v.error && v.status === 429 && v.perDay) cappedDay = L.dayKey(Date.now());
+  return { ...v, ...stamp };
 });
 
 ipcMain.handle('link-work', async () => {
@@ -223,25 +212,24 @@ ipcMain.handle('link-work', async () => {
   if (r.canceled || !r.filePaths[0]) return null;
   const file = r.filePaths[0];
   const text = await artifact.readFile(file);
-  return { path: file, name: path.basename(file), readable: !!text, words: text ? artifactDigest(text).words : 0 };
+  return { path: file, name: path.basename(file), readable: !!text, words: text ? L.artifactDigest(text).words : 0 };
 });
 
-ipcMain.on('set-watching', (_e, on) => setWatching(on));
 ipcMain.handle('usage', () => ({ ...ledger.today(), cap: DAILY_CAP() }));
 ipcMain.on('set-size', (_e, h) => { if (Number.isFinite(h)) placeBottomCenter(h); });
 ipcMain.on('set-click-through', (_e, through) => win.setIgnoreMouseEvents(!!through, { forward: true }));
-ipcMain.handle('info', () => ({ mock: ai.isMock(), tickMs: Number(process.env.QUESTLING_TICK_MS) || 0 }));
+ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1 }));
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.whenReady().then(() => {
     ledger.init(app.getPath('userData'));
-    powerMonitor.on('lock-screen', () => { locked = true; });
-    powerMonitor.on('unlock-screen', () => { locked = false; });
+    powerMonitor.on('lock-screen', () => { locked = true; emit(); });
+    powerMonitor.on('unlock-screen', () => { locked = false; emit(); });
     createWindow();
     createTray();
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', () => focus.stop());
+  app.on('before-quit', () => { stopSession(); });
 }

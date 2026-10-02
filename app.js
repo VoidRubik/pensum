@@ -1,67 +1,133 @@
-// Renderer: bar, speech bubble, proposal slot, expandable panel. All AI calls, screen capture and the
-// auto-check timer live in main.js behind window.questling (preload.js). Rules (epoch, off-task,
-// proposals, nudges) are pure functions in logic.js.
+// Renderer: owns all decisions (quest state, epoch, when to look, which card to show). Main only
+// owns devices and the key: it streams `signal`s and answers `look` / `makeQuests` (preload.js).
+// Rules are pure functions in logic.js. The model proposes; quest state changes only in click handlers.
 (() => {
   const $ = (id) => document.getElementById(id);
   const main = document.querySelector('main');
   const api = window.questling;
   const L = window.QuestlingLogic;
   const STORAGE_KEY = 'questling-state-v1';
-  const PREFS_KEY = 'questling-prefs-v1';
   const BUBBLE_MS = 6000;
-  const PROPOSAL_MS = 10000;
   const HELLO = "tell me what you're working on";
+  const AWAY_SEC = 300; // idle this long or locked = away: no looks, pet sleeps
+  const STUCK_QUIET_MS = 240000; // no visible change this long -> offer a tiny step (never calls the model by itself)
+  const OFFER_GAP_MS = 900000; // at most one offer per 15 min
+  const STEP_TIMER_MS = 120000;
 
-  // state = persisted, text only. Screen-derived text (verdict reasons, titles, documents) never lands here.
-  let state = load(STORAGE_KEY);
-  let prefs = load(PREFS_KEY) || { titles: true };
+  // state = persisted, text only. Screen-derived text (evidence, titles, documents) never lands here.
+  let state = L.migrate(load(STORAGE_KEY));
   let expanded = false;
-  let watching = false;
-  let epoch = 0; // bumped on pause/start/new task/quest change/override/checkbox; stale verdicts dropped
-  let off = { off: 0, suppress: false };
+  let sessionOn = false;
+  let work = null; // { id, title } the chosen window; kept across pause so resume needs no new pick
+  let windowLost = false;
+  let away = false;
+  let epoch = 0; // bumped on pause/start/new task/quest change/checkbox; stale looks are dropped
   let sup = { suppress: {} }; // "not yet" suppression per quest
-  let notYetNote = null; // { idx, title, at } goes into the next prompts for that quest
-  let proposal = null; // { idx, timer } — one slot, own element, nothing else writes to it
-  let errStreak = 0;
-  let checking = false;
-  let doneChecking = false;
+  let notYetNote = null;
+  let looking = false;
+  let card = null; // { kind, idx, onPrimary, onQuiet }
+  let celebrating = false;
+  let lastSig = 0;
+  let lastChangeAt = 0;
+  let lastOfferAt = 0;
   let bubbleTimer = null;
+  let stepTimer = null;
 
   function load(key) {
     try { return JSON.parse(localStorage.getItem(key)) || null; } catch { return null; }
   }
-  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  function savePrefs() { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); }
-
-  // --- pet + bubble ---
-  function say(petState, line) {
-    main.dataset.petState = petState;
-    if (!line) return;
-    $('bubble-text').textContent = line;
-    $('bubble').classList.remove('hidden');
-    clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(() => $('bubble').classList.add('hidden'), BUBBLE_MS);
-  }
-  const petState = () => main.dataset.petState;
+  function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {} }
 
   const doneFlags = () => state.quests.map((q) => q.done);
-  // Current quest index; when everything is done, the last one (callers check allDone()).
   const curIdx = () => {
     const i = L.currentIdx({ current: state.current, done: doneFlags() });
     return i === -1 ? state.quests.length - 1 : i;
   };
   const allDone = () => !!state && state.quests.length > 0 && state.quests.every((q) => q.done);
   const nextTitle = () => state.quests[L.currentIdx({ current: null, done: doneFlags() })]?.title;
+  const activeMs = (i) => (state.activeMs && state.activeMs[i]) || 0;
 
+  // --- pet: one base state, transient overrides. The 8 names are the DESIGN_PROMPT contract. ---
+  function applyPet() {
+    let s;
+    if (celebrating) s = 'celebrate';
+    else if (looking) s = 'thinking';
+    else if (card) s = card.kind === 'step' ? 'helper' : 'curious';
+    else if (!sessionOn) s = state ? 'sleepy' : 'idle';
+    else if (windowLost) s = 'asleep';
+    else if (away) s = 'sleepy';
+    else s = 'working';
+    main.dataset.petState = s;
+  }
+
+  function say(line) {
+    $('bubble-text').textContent = line;
+    $('bubble').classList.remove('hidden');
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(() => $('bubble').classList.add('hidden'), BUBBLE_MS);
+  }
+  $('bubble-x').addEventListener('click', () => { clearTimeout(bubbleTimer); $('bubble').classList.add('hidden'); });
+
+  // --- action card: one at a time, above the bar ---
+  function showCard(spec) {
+    clearInterval(stepTimer);
+    card = spec;
+    $('card').className = `ql-card ql-card--${spec.kind} solid`;
+    $('card-title').textContent = spec.title;
+    $('card-body').textContent = spec.body || '';
+    $('card-evidence').textContent = spec.evidence || '';
+    $('card-evidence').classList.toggle('hidden', !spec.evidence);
+    $('card-count').classList.add('hidden');
+    $('card-primary').textContent = spec.primary;
+    $('card-quiet').textContent = spec.quiet;
+    $('card-primary').classList.remove('hidden');
+    applyPet();
+  }
+  function hideCard() {
+    clearInterval(stepTimer);
+    card = null;
+    $('card').classList.add('hidden');
+    applyPet();
+  }
+  $('card-x').addEventListener('click', hideCard);
+  $('card-primary').addEventListener('click', () => card?.onPrimary());
+  $('card-quiet').addEventListener('click', () => card?.onQuiet());
+
+  // --- bar ---
   function updateBar() {
     $('quest-line').textContent = !state ? HELLO : allDone() ? 'all quests done!' : state.quests[curIdx()].title;
     $('done-btn').classList.toggle('hidden', !state || allDone());
-    $('start-row').classList.toggle('hidden', watching);
-    $('overrides').classList.toggle('hidden', !watching);
-    $('check-now').classList.toggle('hidden', !watching);
-    $('pause-btn').classList.toggle('hidden', !watching);
-    $('watching-indicator').classList.toggle('hidden', !watching);
-    $('panel-head').classList.toggle('hidden', !watching || $('thumb').getAttribute('src') === null);
+    $('stuck-btn').classList.toggle('hidden', !sessionOn || windowLost || allDone());
+    $('pause-btn').classList.toggle('hidden', !state || allDone());
+    $('pause-btn').textContent = sessionOn ? '❚❚' : '▶';
+    $('pause-btn').title = sessionOn ? 'pause' : 'resume';
+    $('company').classList.toggle('hidden', !sessionOn || windowLost);
+    $('repick').classList.toggle('hidden', !(sessionOn && windowLost));
+    applyPet();
+  }
+
+  function renderProgress() {
+    const bar = $('progress');
+    bar.innerHTML = '';
+    if (!state) return;
+    const plan = document.createElement('span');
+    plan.className = 'ql-seg is-plan';
+    bar.appendChild(plan);
+    const cur = allDone() ? -1 : curIdx();
+    state.quests.forEach((q, i) => {
+      const seg = document.createElement('span');
+      seg.className = 'ql-seg' + (q.done ? ' is-done' : i === cur ? ' is-current' : '');
+      if (i === cur) seg.style.setProperty('--fill', String(Math.min(1, activeMs(i) / (q.minutes * 60000))));
+      bar.appendChild(seg);
+    });
+    const c = Math.max(0, cur);
+    state.progress = L.computeProgress({
+      done: state.quests.filter((q) => q.done).length,
+      total: state.quests.length,
+      activeMs: cur === -1 ? 0 : activeMs(c),
+      minutes: state.quests[c].minutes,
+      previous: state.progress || 0,
+    });
   }
 
   // --- window size follows content; click-through everywhere except solid elements ---
@@ -72,7 +138,7 @@
     api.setSize(h);
   }
   const ro = new ResizeObserver(() => requestAnimationFrame(fit));
-  ['panel', 'proposal', 'bubble', 'bar'].forEach((id) => ro.observe($(id)));
+  ['panel', 'card', 'bubble', 'bar'].forEach((id) => ro.observe($(id)));
 
   let through = true;
   document.addEventListener('mousemove', (e) => {
@@ -87,147 +153,148 @@
     if (on && !state) setTimeout(() => $('task-text').focus(), 50);
     if (on) refreshUsage();
   }
-
-  function setWatching(on) {
-    watching = on;
-    epoch++;
-    api.setWatching(on);
-    if (!on) { $('thumb').removeAttribute('src'); }
-    updateBar();
-  }
+  $('toggle').addEventListener('click', () => setExpanded(!expanded));
 
   async function refreshUsage() {
     const u = await api.usage();
     $('usage-line').textContent = `today: ${u.calls} calls · ${(u.tokens / 1000).toFixed(1)}k tokens · cap ${u.cap}`;
   }
 
-  // --- quests panel ---
-  function markCurrent() {
-    const cur = state && !allDone() ? curIdx() : -1;
-    [...$('quest-list').children].forEach((li, i) => li.classList.toggle('current', i === cur));
+  // --- panel: onboarding, quests, window picker ---
+  function showPanelPart(name) {
+    $('task-card').classList.toggle('hidden', name !== 'task');
+    $('quest-card').classList.toggle('hidden', name !== 'quests');
+    $('windows').classList.toggle('hidden', name !== 'windows');
   }
 
   function renderQuests() {
     const list = $('quest-list');
     list.innerHTML = '';
+    const cur = allDone() ? -1 : curIdx();
     state.quests.forEach((q, i) => {
       const li = document.createElement('li');
-      li.className = 'quest-item' + (q.done ? ' done' : '');
+      li.className = 'ql-quest' + (q.done ? ' is-done' : '') + (i === cur ? ' is-current' : '');
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = !!q.done;
       box.addEventListener('click', (e) => e.stopPropagation());
       box.addEventListener('change', () => toggleQuest(i, box.checked));
       const wrap = document.createElement('div');
-      wrap.className = 'qtext';
+      wrap.className = 'ql-quest__text';
       const input = document.createElement('input');
       input.type = 'text';
+      input.className = 'ql-quest__title';
       input.value = q.title;
       input.addEventListener('change', () => { state.quests[i].title = input.value; save(); updateBar(); });
       const finish = document.createElement('small');
+      finish.className = 'ql-quest__finish';
       finish.textContent = q.finish;
       wrap.append(input, finish);
-      li.append(box, wrap);
+      const pill = document.createElement('span');
+      pill.className = 'ql-pill';
+      pill.textContent = `${q.minutes} min`;
+      li.append(box, wrap, pill);
       li.addEventListener('click', () => setCurrent(i));
       list.appendChild(li);
     });
-    markCurrent();
+    renderProgress();
     updateBar();
-  }
-
-  function renderProgress() {
-    const p = L.computeProgress({
-      questsDone: state.quests.filter((q) => q.done).length,
-      total: state.quests.length,
-      currentEstimate: state.currentEstimate || 0,
-      previous: state.progress || 0,
-    });
-    state.progress = p;
-    $('progress-fill').style.transform = `scaleX(${p})`;
-    save();
   }
 
   function setCurrent(i) {
     if (!state || state.quests[i].done || (!allDone() && curIdx() === i)) return;
     state.current = i;
-    state.currentEstimate = 0;
-    off = { off: 0, suppress: false };
     epoch++;
     save();
-    markCurrent();
-    updateBar();
+    renderQuests();
   }
 
   function toggleQuest(i, checked) {
     state.quests[i].done = checked;
     epoch++;
-    state.currentEstimate = 0; // the new current quest must not inherit the old one's percentage
     sup.suppress[i] = 0;
-    if (!checked) state.progress = 0; // high-water mark would keep the bar up
-    if (proposal && proposal.idx === i) hideProposal();
+    if (!checked) state.progress = 0; // the high-water mark would keep the bar up
+    if (card && card.idx === i) hideCard();
     renderQuests();
-    renderProgress();
-    if (!finishIfAllDone() && checked) say('happy', `Quest done! Next: ${nextTitle()}`);
+    save();
+    if (!finishIfAllDone() && checked) say(`Quest done! Next: ${nextTitle()}`);
   }
-
-  function showCard(name) {
-    $('task-card').classList.toggle('hidden', name !== 'task');
-    $('quest-card').classList.toggle('hidden', name !== 'quests');
-  }
-
-  $('toggle').addEventListener('click', () => setExpanded(!expanded));
-
-  $('make-quests').addEventListener('click', async () => {
-    const text = $('task-text').value.trim();
-    if (!text) return;
-    $('make-quests').disabled = true;
-    say('idle', 'thinking up quests...');
-    try {
-      const data = await api.makeQuests({ text, now: new Date().toISOString(), tzOffset: new Date().getTimezoneOffset() });
-      state = { text, quests: data.quests.map((q) => ({ ...q, done: false })), current: null, deadline_iso: data.deadline_iso, progress: 0, currentEstimate: 0, startedAt: null, fired: [], linked: null };
-      resetRules();
-      hideProposal();
-      save();
-      openQuests();
-      say('happy', data.fallback ? "couldn't reach my brain, here are starter quests" : `${state.quests.length} quests ready — edit, then Start`);
-      refreshUsage();
-    } catch {
-      say('idle', "couldn't make quests, try again");
-    } finally {
-      $('make-quests').disabled = false;
-    }
-  });
 
   function openQuests() {
     const d = new Date(state.deadline_iso);
     // datetime-local wants local time without zone.
     $('deadline').value = isNaN(d) ? '' : new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     $('link-name').textContent = state.linked ? state.linked.name : '';
-    $('titles-toggle').checked = prefs.titles;
     renderQuests();
-    renderProgress();
-    showCard('quests');
+    showPanelPart('quests');
   }
 
   function resetRules() {
-    off = { off: 0, suppress: false };
     sup = { suppress: {} };
     notYetNote = null;
-    errStreak = 0;
   }
 
-  $('new-task').addEventListener('click', () => {
-    setWatching(false);
-    resetRules();
-    hideProposal();
-    state = null;
-    localStorage.removeItem(STORAGE_KEY);
-    $('task-text').value = '';
-    $('progress-fill').style.transform = 'scaleX(0)';
-    showCard('task');
-    updateBar();
-    say('idle', "hi! tell me what you're working on");
+  $('make-quests').addEventListener('click', async () => {
+    const text = $('task-text').value.trim();
+    if (!text) return;
+    $('make-quests').disabled = true;
+    say('thinking up quests...');
+    try {
+      const data = await api.makeQuests({ text, now: new Date().toISOString(), tzOffset: new Date().getTimezoneOffset() });
+      if (!data.quests) { say(data.pet_line || "couldn't make quests, try again"); return; }
+      state = L.migrate({ text, quests: data.quests.map((q) => ({ ...q, done: false })), current: null, deadline_iso: data.deadline_iso, starter: data.starter, progress: 0, activeMs: {}, startedAt: null, fired: [], linked: null });
+      resetRules();
+      hideCard();
+      save();
+      openQuests();
+      say(data.fallback ? "couldn't reach my brain, here are starter quests" : `${state.quests.length} quests ready — tweak them, then start.`);
+      refreshUsage();
+    } catch {
+      say("couldn't make quests, try again");
+    } finally {
+      $('make-quests').disabled = false;
+    }
   });
+
+  $('new-task').addEventListener('click', () => {
+    stopSession();
+    resetRules();
+    hideCard();
+    state = null;
+    work = null;
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    $('task-text').value = '';
+    renderProgress();
+    showPanelPart('task');
+    updateBar();
+    say("hi! tell me what you're working on");
+  });
+
+  // --- window picker: frames only ever come from the window picked here ---
+  async function openPicker() {
+    setExpanded(true);
+    showPanelPart('windows');
+    const grid = $('window-grid');
+    grid.textContent = 'looking for windows...';
+    let wins = [];
+    try { wins = await api.listWindows(); } catch {}
+    grid.innerHTML = '';
+    if (!wins.length) grid.textContent = 'No windows found. Open the document you want to work in, then go back and try again.';
+    wins.forEach((w) => {
+      const b = document.createElement('button');
+      b.className = 'ql-window';
+      const img = document.createElement('img');
+      img.alt = '';
+      img.src = w.thumb;
+      const t = document.createElement('span');
+      t.textContent = w.title;
+      b.append(img, t);
+      b.addEventListener('click', () => startWith(w));
+      grid.appendChild(b);
+    });
+  }
+  $('windows-cancel').addEventListener('click', () => (state ? openQuests() : showPanelPart('task')));
+  $('repick').addEventListener('click', openPicker);
 
   $('start-btn').addEventListener('click', () => {
     const d = new Date($('deadline').value);
@@ -237,22 +304,57 @@
     if (!state.startedAt || dl !== state.lastDeadline || !(dl > state.startedAt)) { state.startedAt = Date.now(); state.fired = []; }
     state.lastDeadline = dl;
     save();
-    resetRules();
-    setWatching(true);
-    setExpanded(false);
-    say('watching', "watching — I'll peek every few minutes");
+    openPicker();
   });
 
-  function pause(line) {
-    setWatching(false);
-    off = { off: 0, suppress: false }; // "not yet" (sup / notYetNote) survives a pause
-    errStreak = 0;
-    say('sleepy', line || 'paused — open me and hit Start to resume');
+  async function startWith(w) {
+    const r = await api.pickWindow(w.id);
+    if (!r.ok) { say("that window is gone — pick another"); openPicker(); return; }
+    work = { id: w.id, title: r.title || w.title };
+    sessionOn = true;
+    windowLost = false;
+    away = false;
+    epoch++;
+    resetRules();
+    lastSig = 0;
+    lastChangeAt = Date.now();
+    lastOfferAt = Date.now();
+    showPanelPart('quests');
+    setExpanded(false);
+    updateBar();
+    say(`Okay, I'll sit with you in ${work.title.slice(0, 40)}.`);
   }
-  $('pause-btn').addEventListener('click', () => pause());
+
+  function stopSession() {
+    sessionOn = false;
+    windowLost = false;
+    away = false;
+    epoch++;
+    api.stopSession();
+    updateBar();
+  }
+
+  async function pause(line) {
+    stopSession();
+    hideCard();
+    say(line || 'Paused. Tap play when you want me back.');
+  }
+  async function resume() {
+    if (!state) return;
+    if (!work) { openPicker(); return; }
+    const r = await api.pickWindow(work.id);
+    if (!r.ok) { openPicker(); return; }
+    sessionOn = true;
+    epoch++;
+    lastSig = 0;
+    lastChangeAt = Date.now();
+    updateBar();
+    say('Back with you.');
+  }
+  $('pause-btn').addEventListener('click', () => (sessionOn ? pause() : resume()));
   api.onPaused(() => pause());
 
-  // --- linked work + prefs ---
+  // --- linked work ---
   $('link-btn').addEventListener('click', async () => {
     const r = await api.linkWork();
     if (!r || !state) return;
@@ -260,176 +362,173 @@
     save();
     $('link-name').textContent = r.readable ? `${r.name} (${r.words} words) — save to update` : `${r.name} — couldn't read it`;
   });
-  $('titles-toggle').addEventListener('change', (e) => { prefs.titles = e.target.checked; savePrefs(); });
 
-  // --- proposals: the pet asks, Bruno confirms ---
-  function showProposal(idx, text) {
-    clearTimeout(proposal?.timer);
-    proposal = { idx, text, timer: setTimeout(collapseProposal, PROPOSAL_MS) };
-    $('proposal-text').textContent = text;
-    $('proposal').classList.remove('hidden');
-    $('proposal-chip').classList.add('hidden');
-    say('happy');
+  // --- the signal stream: raw facts from main; every decision is made here ---
+  function onSignal(s) {
+    if (!sessionOn || !state) return;
+    const dt = lastSig ? Math.min(Math.max(0, s.ts - lastSig), 20000) : 0;
+    lastSig = s.ts;
+    const wasLost = windowLost;
+    const wasAway = away;
+    windowLost = !s.windowAlive || !s.windowVisible;
+    away = !!s.locked || s.idleSec >= AWAY_SEC;
+    if (s.changed) lastChangeAt = s.ts;
+    if (!windowLost && !away && s.onWork && !allDone()) {
+      const i = curIdx();
+      state.activeMs = state.activeMs || {};
+      state.activeMs[i] = activeMs(i) + dt;
+      renderProgress();
+      save();
+    }
+    if (windowLost !== wasLost || away !== wasAway) {
+      if (windowLost && !wasLost) { hideCard(); say("I lost the window. Pick it again when you're ready."); }
+      updateBar();
+    }
+    // Stuck signal: quiet screen for a while -> offer, never call the model on our own.
+    if (!windowLost && !away && !looking && !card && s.ts - lastChangeAt >= L.dur(STUCK_QUIET_MS) && s.ts - lastOfferAt >= L.dur(OFFER_GAP_MS)) {
+      lastOfferAt = s.ts;
+      offerStep();
+    }
   }
-  function collapseProposal() {
-    if (!proposal) return;
-    $('proposal').classList.add('hidden');
-    $('proposal-chip').classList.remove('hidden');
+  api.onSignal(onSignal);
+
+  function offerStep() {
+    const i = curIdx();
+    showCard({
+      kind: 'ask', idx: i, title: 'Want a tiny next step?', body: `"${state.quests[i].title}" has been quiet for a few minutes.`,
+      primary: 'Tiny step', quiet: 'Not now',
+      onPrimary: () => { hideCard(); runLook('stuck'); },
+      onQuiet: hideCard,
+    });
   }
-  function hideProposal() {
-    clearTimeout(proposal?.timer);
-    proposal = null;
-    $('proposal').classList.add('hidden');
-    $('proposal-chip').classList.add('hidden');
+
+  // --- looks: user clicks only in this step; the model proposes, the user confirms ---
+  const ctxFor = (extra = {}) => ({
+    task: state.text,
+    quests: state.quests.map((q) => ({ title: q.title, done: q.done })),
+    notYet: notYetNote && notYetNote.idx === curIdx() ? `"${notYetNote.title}" at ${notYetNote.at}` : null,
+    ...extra,
+  });
+
+  async function runLook(purpose, extra = {}) {
+    if (!state || allDone() || looking) return;
+    const i = curIdx();
+    const myEpoch = epoch;
+    let v = null;
+    if (sessionOn && !windowLost) {
+      looking = true;
+      $('stuck-btn').disabled = true;
+      $('done-btn').disabled = true;
+      applyPet();
+      try {
+        const r = await api.look({ purpose, quest: state.quests[i], idx: i, epoch, ctx: ctxFor(extra), allow: state.session.allow, linkedPath: state.linked?.path || null });
+        if (r.capped) say(r.pet_line);
+        else if (!r.error) v = r;
+      } catch {}
+      looking = false;
+      $('stuck-btn').disabled = false;
+      $('done-btn').disabled = false;
+      refreshUsage();
+      // Drop it only if the quest changed under us (new task, quest done/unticked, another picked, paused).
+      if (epoch !== myEpoch || !state || !state.quests[i] || state.quests[i].done) { applyPet(); return; }
+    }
+    const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto: false, sup }, v);
+    sup = r.sup;
+    if (r.card) showStepOrConfirm(r.card);
+    else applyPet();
   }
-  $('proposal-chip').addEventListener('click', () => proposal && showProposal(proposal.idx, proposal.text));
+
+  function showStepOrConfirm(c) {
+    if (c.kind === 'confirm') {
+      showCard({
+        ...c, primary: 'Yes, done', quiet: 'Not yet',
+        onPrimary: () => { hideCard(); if (state.quests[c.idx] && !state.quests[c.idx].done) completeQuest(c.idx); },
+        onQuiet: () => {
+          hideCard();
+          sup = L.notYet(sup, c.idx);
+          const t = new Date();
+          notYetNote = { idx: c.idx, title: state.quests[c.idx].title, at: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` };
+          say("Okay, I'll keep you company.");
+        },
+      });
+    } else if (c.kind === 'step') {
+      showCard({
+        ...c, primary: 'Start 2 min', quiet: 'Another idea',
+        onPrimary: () => startStepTimer(c),
+        onQuiet: () => { hideCard(); runLook('stuck', { avoid: c.body }); },
+      });
+    }
+  }
+
+  // "Start 2 min": a local countdown on the card, no model call.
+  function startStepTimer(c) {
+    const end = Date.now() + L.dur(STEP_TIMER_MS);
+    $('card-count').classList.remove('hidden');
+    $('card-primary').classList.add('hidden');
+    const tickCount = () => {
+      const left = Math.max(0, end - Date.now());
+      const secs = Math.ceil(left / L.dur(1000));
+      $('card-count-text').textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+      if (left <= 0) { hideCard(); say('Time. Want another tiny step? Tap the footsteps.'); }
+    };
+    tickCount();
+    stepTimer = setInterval(tickCount, 250);
+  }
+
+  $('stuck-btn').addEventListener('click', () => { hideCard(); runLook('stuck'); });
+  $('done-btn').addEventListener('click', () => { hideCard(); runLook('done'); });
 
   function completeQuest(i) {
     state.quests[i].done = true;
-    state.currentEstimate = 0;
     if (state.current === i) state.current = null;
     if (notYetNote?.idx === i) notYetNote = null;
     epoch++;
     renderQuests();
-    renderProgress();
-    if (!finishIfAllDone()) say('happy', `Quest done! Next: ${nextTitle()}`);
+    save();
+    if (!finishIfAllDone()) {
+      celebrating = true;
+      applyPet();
+      setTimeout(() => { celebrating = false; applyPet(); }, L.dur(2400));
+      say(`Quest done! Next: ${nextTitle()}`);
+    }
   }
-
-  $('proposal-yes').addEventListener('click', () => {
-    if (!proposal || !state) return;
-    const i = proposal.idx;
-    hideProposal();
-    if (!state.quests[i].done) completeQuest(i);
-  });
-  $('proposal-no').addEventListener('click', () => {
-    if (!proposal || !state) return;
-    const i = proposal.idx;
-    hideProposal();
-    sup = L.notYet(sup, i);
-    const t = new Date();
-    notYetNote = { idx: i, title: state.quests[i].title, at: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` };
-    say('watching', "ok, I'll keep looking");
-  });
 
   function finishIfAllDone() {
     if (!allDone()) return false;
-    hideProposal();
-    if (watching) setWatching(false); // stops main's timer; no more calls
-    say('party', 'All quests done! Nice work');
+    hideCard();
+    if (sessionOn) stopSession();
+    celebrating = true;
+    applyPet();
+    setTimeout(() => { celebrating = false; applyPet(); }, L.dur(2400));
+    say('All quests done! Nice work.');
     return true;
   }
 
-  // --- verdicts ---
-  function applyVerdict(v, auto) {
-    if (!watching || !state || v.paused) return;
-    if (L.isStale(v, { idx: curIdx(), epoch })) return;
-    if (v.capped) { say('sleepy', v.pet_line); refreshUsage(); return; }
-    if (v.error) {
-      errStreak++;
-      say(errStreak >= 3 ? 'sleepy' : petState(), v.pet_line);
-      refreshUsage();
-      return;
-    }
-    errStreak = 0;
-    if (v.thumb) { $('thumb').src = v.thumb; updateBar(); }
-    const i = curIdx();
-    state.currentEstimate = v.progress_estimate;
-
-    // Only automatic checks feed the 2-in-a-row worried rule; two quick manual clicks must not fake one.
-    const o = auto ? L.offTaskStep(off, v.on_task) : { worried: false, state: off };
-    off = o.state;
-    const p = L.proposeStep(sup, { idx: i, questDone: v.quest_done, auto });
-    sup = p.state;
-    renderProgress();
-    if (p.propose && !proposal) {
-      showProposal(i, `Looks like "${state.quests[i].title}" is done!`);
-    } else {
-      say(o.worried ? 'worried' : v.on_task ? 'happy' : 'watching', v.pet_line);
-    }
-    if (petState() === 'happy') setTimeout(() => { if (watching && petState() === 'happy') say('watching'); }, 8000);
-    refreshUsage();
-  }
-
-  const ctxFor = () => ({
-    task: state.text,
-    quests: state.quests.map((q) => ({ title: q.title, done: q.done })),
-    notYet: notYetNote && notYetNote.idx === curIdx() ? `"${notYetNote.title}" at ${notYetNote.at}` : null,
-  });
-  const signalsFor = () => ({ titles: prefs.titles, linkedPath: state.linked?.path || null });
-
-  async function runCheck(auto) {
-    if (!watching || !state || checking) return;
-    checking = true;
-    $('check-now').disabled = true;
-    if (!auto) say(petState(), 'looking...');
-    const i = curIdx();
-    try {
-      const v = await api.check({ quest: state.quests[i], idx: i, epoch, auto, ctx: ctxFor(), ...signalsFor() });
-      applyVerdict(v, auto);
-    } catch {
-      say(petState(), 'my eyes blurred, trying again soon');
-    } finally {
-      checking = false;
-      $('check-now').disabled = false;
-    }
-  }
-  $('check-now').addEventListener('click', () => runCheck(false));
-  api.onAutoCheck(() => runCheck(true));
-
-  // ✓ = "I'm done with this quest": its own channel, works while paused or while an auto check is in flight.
-  $('done-btn').addEventListener('click', async () => {
-    if (!state || allDone() || doneChecking) return;
-    doneChecking = true;
-    $('done-btn').disabled = true;
-    const i = curIdx();
-    say(petState(), 'looking...');
-    try {
-      const v = await api.doneCheck({ quest: state.quests[i], idx: i, epoch, ctx: ctxFor(), ...signalsFor() });
-      // Only drop it if that quest changed under us (new task, quest done/unticked, another quest picked).
-      if (!state || !state.quests[i] || state.quests[i].done || curIdx() !== i) return;
-      if (v.error) { say(petState(), v.pet_line); }
-      else if (v.quest_done) { completeQuest(i); }
-      else { showProposal(i, `Hmm, ${v.reason.slice(0, 60)}. Mark done anyway?`); }
-    } catch {
-      say(petState(), 'my eyes blurred, try again');
-    } finally {
-      doneChecking = false;
-      $('done-btn').disabled = false;
-      refreshUsage();
-    }
-  });
-
-  $('override-working').addEventListener('click', () => {
-    if (!watching) return;
-    off = { off: 0, suppress: true };
-    epoch++;
-    say('watching', "ok, I'll trust you");
-  });
-
   // --- deadline nudges: local math, $0 ---
   const NUDGE_LINES = {
-    50: 'halfway through the time — how are we doing?',
-    25: 'a quarter of the time left',
-    10: 'nearly out of time!',
-    left10: '10 minutes left — you got this',
+    50: 'Halfway through the time. How are we doing?',
+    25: 'A quarter of the time left.',
+    10: 'Nearly out of time.',
+    left10: '10 minutes left. You can do this.',
   };
   function tick() {
-    if (!watching || !state?.startedAt) return;
+    if (!sessionOn || !state?.startedAt) return;
     const r = L.nudgeDue({ startedAt: state.startedAt, deadline: Date.parse(state.deadline_iso), now: Date.now(), progress: state.progress || 0, fired: state.fired || [] });
     if (r.fired !== state.fired) { state.fired = r.fired; save(); }
-    if (r.speak) say('worried', NUDGE_LINES[r.speak]);
+    if (r.speak) say(NUDGE_LINES[r.speak]);
   }
 
-  api.info().then(({ mock, tickMs }) => {
+  api.info().then(({ mock, timeScale }) => {
+    L.setTimeScale(timeScale);
     $('mock-note').classList.toggle('hidden', !mock);
-    setInterval(tick, tickMs || 30000);
+    setInterval(tick, L.dur(30000));
   });
   refreshUsage();
   updateBar();
 
-  if (state && state.quests?.length) {
+  if (state) {
     openQuests();
-    say('idle', 'welcome back — open me and hit Start to resume');
+    say('Welcome back. Open me and press Start to continue.');
   }
   requestAnimationFrame(fit);
 })();

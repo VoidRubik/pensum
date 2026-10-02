@@ -2,84 +2,89 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; connect-src 'self'">
 <title>Questling</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main data-pet-state="idle">
+<main class="ql" data-pet-state="idle" data-idle="a">
 
-  <section id="panel" class="panel solid hidden">
-    <div id="panel-head" class="panel-head hidden">
-      <img id="thumb" class="thumb" alt="last frame checked">
-      <span class="note">last look</span>
-    </div>
-
+  <section id="panel" class="ql-panel solid hidden">
     <div id="task-card">
-      <label for="task-text">What are you working on?</label>
-      <input id="task-text" type="text" placeholder="e.g. finish the slide deck by 6pm">
-      <button id="make-quests">Make quests</button>
+      <div class="ql-chat">
+        <p class="ql-chat__pet">What do you want to finish today?</p>
+        <input id="task-text" class="ql-input" type="text" placeholder="e.g. my water cycle essay, due at 6pm">
+      </div>
+      <div class="ql-row"><button id="make-quests" class="ql-btn ql-btn--primary">Make quests</button></div>
     </div>
 
     <div id="quest-card" class="hidden">
-      <label for="deadline">Deadline</label>
-      <input id="deadline" type="datetime-local">
-      <ul id="quest-list" class="quest-list"></ul>
-      <div id="start-row" class="row">
-        <button id="start-btn">Start</button>
-        <button id="new-task" class="secondary">New task</button>
+      <label class="ql-label" for="deadline">Deadline</label>
+      <input id="deadline" class="ql-input" type="datetime-local">
+      <ul id="quest-list" class="ql-quests"></ul>
+      <div id="start-row" class="ql-row">
+        <button id="start-btn" class="ql-btn ql-btn--primary">Start session</button>
+        <button id="new-task" class="ql-btn ql-btn--quiet">New task</button>
       </div>
-      <div id="overrides" class="row hidden">
-        <button id="override-working" class="secondary">I'm working on it</button>
+      <div class="ql-link">
+        <button id="link-btn" class="ql-btn ql-btn--quiet">Link my doc</button>
+        <span id="link-name" class="ql-note"></span>
       </div>
-
-      <div class="link-row">
-        <button id="link-btn" class="secondary">Link my work</button>
-        <span id="link-name" class="note"></span>
-      </div>
-      <label class="check-label"><input id="titles-toggle" type="checkbox" checked> send window titles</label>
     </div>
 
-    <p id="usage-line" class="note"></p>
-    <p id="mock-note" class="note hidden">Mock mode, no AI key configured.</p>
-    <p class="note">
-      Questling never saves your screen. Each check sends one frame to Google Gemini, plus window
-      titles and (if you link work) a text digest of it. On the free tier Google may keep these,
-      use them to improve its products, and let humans review them — don't run it with private
-      things on screen. Tasks live only on this PC.
+    <div id="windows" class="ql-windows hidden">
+      <p class="ql-label">Which window are we working in?</p>
+      <div id="window-grid"></div>
+      <button id="windows-cancel" class="ql-btn ql-btn--quiet">Back</button>
+    </div>
+
+    <p id="usage-line" class="ql-note"></p>
+    <p id="mock-note" class="ql-note hidden">Mock mode, no AI key configured.</p>
+    <p class="ql-note">
+      Questling only looks at the window you pick, only during a session. Frames are never saved to disk.
+      Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's
+      text to Google Gemini; on the free tier Google may use it to improve its products. Window previews
+      in the picker stay on this PC.
     </p>
   </section>
 
-  <div id="proposal" class="proposal solid hidden">
-    <p id="proposal-text"></p>
-    <div class="row">
-      <button id="proposal-yes">Yes ✓</button>
-      <button id="proposal-no" class="secondary">Not yet</button>
+  <div id="card" class="ql-card ql-card--ask solid hidden">
+    <p id="card-title" class="ql-card__title"></p>
+    <p id="card-body" class="ql-card__body"></p>
+    <small id="card-evidence" class="ql-card__evidence"></small>
+    <div id="card-count" class="ql-countdown hidden"><span id="card-count-text"></span></div>
+    <div class="ql-card__actions">
+      <button id="card-primary" class="ql-btn ql-btn--primary"></button>
+      <button id="card-quiet" class="ql-btn ql-btn--quiet"></button>
     </div>
+    <button id="card-x" class="ql-x" aria-label="dismiss">✕</button>
   </div>
 
-  <div id="bubble" class="bubble solid hidden"><p id="bubble-text"></p></div>
+  <div id="bubble" class="ql-bubble solid hidden"><p id="bubble-text"></p><button id="bubble-x" class="ql-x" aria-label="dismiss">✕</button></div>
 
-  <section id="bar" class="bar solid">
-    <svg id="pet-svg" viewBox="0 0 100 100" aria-hidden="true">
-      <ellipse class="body" cx="50" cy="55" rx="34" ry="30"/>
-      <circle class="cheek" cx="30" cy="58" r="6"/>
-      <circle class="cheek" cx="70" cy="58" r="6"/>
-      <circle class="eye" cx="38" cy="48" r="4"/>
-      <circle class="eye" cx="62" cy="48" r="4"/>
-    </svg>
-    <div class="bar-mid">
-      <div class="quest-row">
-        <span id="watching-indicator" class="watching-dot hidden" title="watching your screen"></span>
-        <span id="quest-line" class="quest-line">tell me what you're working on</span>
-      </div>
-      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+  <section id="bar" class="ql-bar solid">
+    <div class="ql-pet-slot">
+      <svg class="pet" viewBox="0 0 120 120" aria-hidden="true">
+        <g id="pet-root">
+          <ellipse id="pet-body" class="pet-fill-1" cx="60" cy="70" rx="40" ry="36"/>
+          <circle class="pet-fill-2" cx="40" cy="74" r="7"/>
+          <circle class="pet-fill-2" cx="80" cy="74" r="7"/>
+          <circle class="pet-ink" cx="46" cy="62" r="4.5"/>
+          <circle class="pet-ink" cx="74" cy="62" r="4.5"/>
+        </g>
+      </svg>
     </div>
-    <button id="proposal-chip" class="icon chip hidden" title="a quest looks done — tap to answer">✓?</button>
-    <button id="check-now" class="icon secondary hidden" title="look now">👁</button>
-    <button id="done-btn" class="icon hidden" title="I'm done with this quest">✓</button>
-    <button id="pause-btn" class="icon secondary hidden" title="pause watching">❚❚</button>
-    <button id="toggle" class="icon secondary" title="open / close">▴</button>
+    <div class="ql-bar__mid">
+      <span id="quest-line" class="ql-quest-line">tell me what you're working on</span>
+      <div id="progress" class="ql-progress"></div>
+    </div>
+    <div class="ql-disc" title="time left on this quest"></div>
+    <span id="company" class="ql-company hidden" title="keeping you company"></span>
+    <button id="stuck-btn" class="ql-icon ql-icon--stuck hidden" aria-label="I'm stuck" title="I'm stuck">…?</button>
+    <button id="done-btn" class="ql-icon hidden" data-act="done" aria-label="Done" title="I'm done with this quest">✓</button>
+    <button id="pause-btn" class="ql-icon hidden" data-act="pause" aria-label="Pause" title="pause">❚❚</button>
+    <button id="toggle" class="ql-icon" data-act="open" aria-label="Open" title="open / close">▴</button>
+    <button id="repick" class="ql-btn ql-btn--primary ql-repick hidden">Pick window again</button>
   </section>
 
 </main>

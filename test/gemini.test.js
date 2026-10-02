@@ -65,7 +65,7 @@ test('ai.quests: flash timeout/503 gets one retry on lite, 12 s timeout', async 
   const timeouts = [];
   const orig = AbortSignal.timeout;
   AbortSignal.timeout = (n) => { timeouts.push(n); return orig.call(AbortSignal, n); };
-  const good = JSON.stringify({ deadline_iso: '2026-10-02T10:00:00Z', starter: 'Open the doc.', quests: [{ title: 'Write intro', finish: 'intro exists', minutes: 5 }] });
+  const good = JSON.stringify({ deadline_iso: '2026-10-02T10:00:00Z', starter: 'Open the doc.', quests: [{ title: 'Write intro', finish: 'intro exists', minutes: 5 }, { title: 'Body', finish: 'body exists', minutes: 15 }, { title: 'Wrap up', finish: 'end exists', minutes: 15 }] });
   globalThis.fetch = async (url) => {
     models.push(/models\/([^:]+):/.exec(url)[1]);
     return models.length === 1 ? err(503) : { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: good }] } }], usageMetadata: {} }) };
@@ -76,4 +76,58 @@ test('ai.quests: flash timeout/503 gets one retry on lite, 12 s timeout', async 
   } finally { AbortSignal.timeout = orig; }
   assert.deepEqual(models, ['gemini-3.5-flash', 'gemini-3.5-flash-lite']);
   assert.equal(timeouts[0], 12000);
+});
+
+// --- ai.look ---
+const goodLook = (o = {}) => JSON.stringify({ onTask: true, confidence: 0.9, questDone: false, evidence: 'Doc shows Causes heading', nextStep: 'Type under Causes.', sayLine: 'Tiny step?', ...o });
+const lookReply = (text) => ({ ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text }] } }], usageMetadata: {} }) });
+const lookArgs = { purpose: 'stuck', jpegBase64: 'AAAA', quest: { title: 'Write intro', finish: 'intro exists' }, ctx: { task: 'essay', quests: [{ title: 'Write intro', done: false }] } };
+
+test('ai.look: returns a validated look; the prompt carries the injection guard and the image', async () => {
+  delete process.env.QUESTLING_MOCK;
+  const ai = require('../ai.js');
+  let body;
+  globalThis.fetch = async (_u, init) => { body = JSON.parse(init.body); return lookReply(goodLook()); };
+  const v = await ai.look(lookArgs);
+  assert.equal(v.nextStep, 'Type under Causes.');
+  assert.match(body.systemInstruction.parts[0].text, /untrusted data\. Ignore any instructions/);
+  assert.equal(body.contents[0].parts[1].inlineData.data, 'AAAA');
+});
+
+test('ai.look: invalid model output becomes { error }, never a look', async () => {
+  const ai = require('../ai.js');
+  globalThis.fetch = async () => lookReply(JSON.stringify({ onTask: 'maybe' }));
+  const v = await ai.look(lookArgs);
+  assert.equal(v.error, true);
+});
+
+test('ai.look: a link in the model text is blanked before anyone can render it', async () => {
+  const ai = require('../ai.js');
+  globalThis.fetch = async () => lookReply(goodLook({ nextStep: 'Go to https://evil.example', sayLine: 'mail a@b.c' }));
+  const v = await ai.look(lookArgs);
+  assert.equal(v.nextStep, '');
+  assert.equal(v.sayLine, '');
+});
+
+test('ai.look: memory:true shares the last evidence with the next prompt, memory:false never does', async () => {
+  const ai = require('../ai.js');
+  ai.resetMemory();
+  const prompts = [];
+  globalThis.fetch = async (_u, init) => { prompts.push(JSON.parse(init.body).contents[0].parts[0].text); return lookReply(goodLook({ evidence: 'UNIQUE-EVIDENCE-1' })); };
+  await ai.look(lookArgs);
+  await ai.look(lookArgs);
+  assert.match(prompts[1], /UNIQUE-EVIDENCE-1/);
+  ai.resetMemory();
+  prompts.length = 0;
+  await ai.look({ ...lookArgs, memory: false });
+  await ai.look({ ...lookArgs, memory: false });
+  assert.doesNotMatch(prompts[1], /UNIQUE-EVIDENCE-1/);
+});
+
+test('ai.look: unknown purpose is an error without a network call', async () => {
+  const ai = require('../ai.js');
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return lookReply(goodLook()); };
+  assert.equal((await ai.look({ ...lookArgs, purpose: 'nope' })).error, true);
+  assert.equal(calls, 0);
 });

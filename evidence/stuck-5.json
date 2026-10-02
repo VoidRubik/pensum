@@ -1,0 +1,63 @@
+[
+ {
+  "try": 1,
+  "wallMs": 16909,
+  "error": true,
+  "status": 0,
+  "perDay": false,
+  "retryDelayMs": 0,
+  "idx": 2,
+  "epoch": 1,
+  "purpose": "stuck"
+ },
+ {
+  "try": 2,
+  "wallMs": 16308,
+  "error": true,
+  "status": 0,
+  "perDay": false,
+  "retryDelayMs": 0,
+  "idx": 2,
+  "epoch": 1,
+  "purpose": "stuck"
+ },
+ {
+  "try": 3,
+  "wallMs": 2364,
+  "onTask": true,
+  "confidence": 0.95,
+  "questDone": false,
+  "evidence": "Text editor open with essay headings and incomplete introduction.",
+  "nextStep": "Type one sentence under the Causes heading for your water cycle essay.",
+  "sayLine": "We can take it one tiny sentence at a time.",
+  "idx": 2,
+  "epoch": 1,
+  "purpose": "stuck"
+ },
+ {
+  "try": 4,
+  "wallMs": 1761,
+  "onTask": true,
+  "confidence": 0.9,
+  "questDone": false,
+  "evidence": "Notepad open with essay headings and Causes section empty",
+  "nextStep": "Type one sentence under the Causes heading for the water cycle essay",
+  "sayLine": "Let us take it one sentence at a time.",
+  "idx": 2,
+  "epoch": 1,
+  "purpose": "stuck"
+ },
+ {
+  "try": 5,
+  "wallMs": 1509,
+  "onTask": true,
+  "confidence": 0.9,
+  "questDone": false,
+  "evidence": "Notepad open with Causes heading empty",
+  "nextStep": "Type one sentence under Causes for your water cycle essay",
+  "sayLine": "We can take it one tiny step at a time.",
+  "idx": 2,
+  "epoch": 1,
+  "purpose": "stuck"
+ }
+]

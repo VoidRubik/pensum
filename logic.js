@@ -1,56 +1,126 @@
-// Pure functions, zero deps, node --test-able. Phase 1: progress, verdict
-// validation, quest fallback. Phase 2 adds: nudge schedule, off-task rule,
-// frame diff (see brainstorms/brief-20260927-183530-questling.md, Slices).
+// Pure functions, zero deps, node --test-able. Progress, quest + look validation,
+// guards, proposal rules, nudges, usage, frame diff (see brainstorms/brief-20260927-183530-questling.md).
 
-/** Progress within [0,1] across `total` quests. Never moves backwards —
- * pass the last returned value as `previous` and a regressed estimate
- * clamps to it instead of dropping the bar. */
-function computeProgress({ questsDone, total, currentEstimate, previous }) {
+const STARTER_DEFAULT = 'Open the doc and type one ugly sentence.';
+
+/** Progress in [0,1] over total+1 segments; segment 0 ("Plan made") starts filled. The active quest
+ * adds up to 0.9 of its segment as time on it runs toward its timebox. Never moves backwards. */
+function computeProgress({ done, total, activeMs, minutes, previous }) {
   if (!total || total <= 0) throw new Error('total must be > 0');
-  const clampedEstimate = Math.max(0, Math.min(100, currentEstimate || 0));
-  const raw = (questsDone + clampedEstimate / 100) / total;
-  const value = Math.max(0, Math.min(1, raw));
+  const part = minutes > 0 ? Math.min(0.9, Math.max(0, activeMs || 0) / (minutes * 60000)) : 0;
+  const value = Math.max(0, Math.min(1, (1 + done + part) / (total + 1)));
   if (typeof previous === 'number' && value < previous) return previous;
   return value;
 }
 
-/** Schema check on model output. Returns boolean, never throws — callers
- * treat `false` as "keep state, retry next cycle" (see ai.js). */
-function validateVerdict(v) {
-  if (!v || typeof v !== 'object') return false;
-  const shape = {
-    on_task: 'boolean',
-    quest_done: 'boolean',
-    progress_estimate: 'number',
-    pet_line: 'string',
-    reason: 'string',
-  };
-  for (const [key, type] of Object.entries(shape)) {
-    if (typeof v[key] !== type) return false;
-  }
-  if (v.progress_estimate < 0 || v.progress_estimate > 100) return false;
-  return true;
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+const isStr = (x) => typeof x === 'string';
+
+/** Quest schema v2 -> clamped/cut result, or null (caller falls back to questFallback()). */
+function validateQuests(v) {
+  if (!v || typeof v !== 'object' || !isStr(v.deadline_iso) || !v.deadline_iso || !Array.isArray(v.quests)) return null;
+  if (v.quests.length < 3 || v.quests.some((x) => !x || !isStr(x.title) || !x.title.trim() || !isStr(x.finish))) return null;
+  const quests = v.quests.slice(0, 5).map((x, i) => {
+    const m = Number.isFinite(x.minutes) ? Math.round(x.minutes) : 15;
+    return { title: x.title.trim().slice(0, 60), finish: x.finish.trim(), minutes: i === 0 ? clamp(m, 2, 5) : clamp(m, 10, 25) };
+  });
+  const starter = isStr(v.starter) && v.starter.trim() ? v.starter.trim().slice(0, 80) : STARTER_DEFAULT;
+  return { deadline_iso: v.deadline_iso, starter, quests };
 }
 
 /** Used when quest generation fails or returns malformed JSON. */
 function questFallback() {
-  return [
-    { title: 'Make a first pass', finish: 'You have written or changed something toward the task.' },
-    { title: 'Get it mostly working', finish: 'The main flow runs, even roughly.' },
-    { title: 'Clean up and finish', finish: 'You would show this to someone else.' },
-  ];
+  return {
+    starter: STARTER_DEFAULT,
+    quests: [
+      { title: 'Make a first pass', finish: 'You have written or changed something toward the task.', minutes: 5 },
+      { title: 'Get it mostly working', finish: 'The main flow runs, even roughly.', minutes: 15 },
+      { title: 'Clean up and finish', finish: 'You would show this to someone else.', minutes: 15 },
+    ],
+  };
+}
+
+const LINK_OR_CODE = /https?:|www\.|:\/\/|@|`|<|>/i;
+/** Text safe to render: trimmed, within max, no links/contact details/markup. Otherwise ''. */
+function safeText(s, max) {
+  if (!isStr(s)) return '';
+  const t = s.trim();
+  return t.length > max || LINK_OR_CODE.test(t) ? '' : t;
+}
+
+const TONE_BAD = /\b(must|should|failed|lazy)\b|again\?/i;
+const toneOk = (line) => isStr(line) && !TONE_BAD.test(line);
+
+const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/** null when the line repeats (normalized) one of the last 30 spoken lines. */
+function freshLine(line, history) {
+  const n = norm(line);
+  return history.slice(-30).some((h) => norm(h) === n) ? null : line;
+}
+
+/** One validator for every vision call. Strings are cut to their limit then made safe; anything else off-shape -> null. */
+function validateLook(v) {
+  if (!v || typeof v !== 'object') return null;
+  if (typeof v.onTask !== 'boolean' || typeof v.questDone !== 'boolean') return null;
+  if (typeof v.confidence !== 'number' || !(v.confidence >= 0 && v.confidence <= 1)) return null;
+  if (!isStr(v.evidence) || !isStr(v.nextStep) || !isStr(v.sayLine)) return null;
+  return {
+    onTask: v.onTask, confidence: v.confidence, questDone: v.questDone,
+    evidence: safeText(v.evidence.slice(0, 90), 90),
+    nextStep: safeText(v.nextStep.slice(0, 120), 120),
+    sayLine: safeText(v.sayLine.slice(0, 70), 70),
+  };
+}
+
+/** null below the confidence gate (unsolicited speech stays silent; clicks fall back to a local template). */
+const gateLook = (v, min) => (v && v.confidence >= min ? v : null);
+
+const GATE = 0.7;
+/** Turn a look into UI effects. The model proposes; this never touches quest state (only click handlers do). */
+function applyLook({ quests, idx, purpose, auto, sup }, look) {
+  const g = gateLook(validateLook(look), GATE);
+  const title = quests[idx].title;
+  const out = { quests, sup, card: null };
+  if (purpose === 'done') {
+    out.card = g
+      ? { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: g.evidence }
+      : { kind: 'confirm', idx, title: 'Looks done?', body: "I can't tell from here — mark it done?", evidence: '' };
+  } else if (purpose === 'stuck') {
+    const step = g && g.nextStep && toneOk(g.nextStep) ? g.nextStep : `Tiny step: write one rough sentence for '${title}'.`;
+    out.card = { kind: 'step', idx, title: 'Next tiny step', body: step };
+  } else if (purpose === 'check' && g && g.questDone) {
+    const p = proposeStep(sup, { idx, questDone: true, auto });
+    out.sup = p.state;
+    if (p.propose) out.card = { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: g.evidence };
+  }
+  return out;
+}
+
+/** Share of grayscale pixels that moved by more than `thr` (0..255). Different sizes count as fully changed. */
+function diffFraction(a, b, thr = 24) {
+  if (a.length !== b.length || !a.length) return 1;
+  let n = 0;
+  for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > thr) n++;
+  return n / a.length;
+}
+
+let timeScale = 1;
+const setTimeScale = (n) => { timeScale = Number.isFinite(n) && n > 0 ? n : 1; };
+/** Every engine duration goes through here, so tests can run a session at N x speed. */
+const dur = (ms) => ms / timeScale;
+
+/** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
+function migrate(s) {
+  if (!s || typeof s !== 'object' || !isStr(s.text) || !Array.isArray(s.quests) || !s.quests.length) return null;
+  if (s.quests.some((q) => !q || !isStr(q.title))) return null;
+  const quests = s.quests.map((q, i) => ({ ...q, finish: isStr(q.finish) ? q.finish : '', minutes: Number.isFinite(q.minutes) ? q.minutes : i === 0 ? 5 : 15 }));
+  const session = { allow: [], driftsAsked: 0, backOnTrack: 0, ...(s.session || {}) };
+  return { ...s, quests, starter: isStr(s.starter) && s.starter ? s.starter : STARTER_DEFAULT, session };
 }
 
 /** Verdict carries the {idx, epoch} it was judged for; drop it if the renderer moved on. */
 function isStale(v, cur) {
   return v.idx !== cur.idx || v.epoch !== cur.epoch;
-}
-
-/** Worried only after 2 consecutive off-task. `suppress` (user override) eats the next verdict. */
-function offTaskStep({ off, suppress }, onTask) {
-  if (suppress) return { worried: false, state: { off: 0, suppress: false } };
-  const n = onTask ? 0 : off + 1;
-  return { worried: n >= 2, state: { off: n, suppress: false } };
 }
 
 /** A `quest_done` verdict becomes a proposal unless the user said "not yet" for that quest.
@@ -180,7 +250,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateVerdict, questFallback, isStale, offTaskStep, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).
