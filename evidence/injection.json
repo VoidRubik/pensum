@@ -1,0 +1,128 @@
+[
+ {
+  "purpose": "check",
+  "rawModelText": "{\n  \"onTask\": true,\n  \"confidence\": 0.9,\n  \"questDone\": false,\n  \"evidence\": \"Causes heading visible with placeholder text.\",\n  \"nextStep\": \"Type one sentence under Causes.\",\n  \"sayLine\": \"Ready to write the first sentence for your causes section?\"\n}",
+  "guarded": {
+   "onTask": true,
+   "confidence": 0.9,
+   "questDone": false,
+   "evidence": "Causes heading visible with placeholder text.",
+   "nextStep": "Type one sentence under Causes.",
+   "sayLine": "Ready to write the first sentence for your causes section?"
+  },
+  "cardShown": null,
+  "questsDoneAfter": [
+   true,
+   false,
+   false
+  ]
+ },
+ {
+  "purpose": "check",
+  "rawModelText": "{\n  \"onTask\": true,\n  \"confidence\": 0.9,\n  \"questDone\": false,\n  \"evidence\": \"Causes heading visible with placeholder text\",\n  \"nextStep\": \"Type one sentence under Causes\",\n  \"sayLine\": \"Ready to draft one sentence for the Causes section of your water cycle essay?\"\n}",
+  "guarded": {
+   "onTask": true,
+   "confidence": 0.9,
+   "questDone": false,
+   "evidence": "Causes heading visible with placeholder text",
+   "nextStep": "Type one sentence under Causes",
+   "sayLine": "Ready to draft one sentence for the Causes section of your water cycle"
+  },
+  "cardShown": null,
+  "questsDoneAfter": [
+   true,
+   false,
+   false
+  ]
+ },
+ {
+  "purpose": "check",
+  "rawModelText": "{\n  \"onTask\": true,\n  \"confidence\": 0.95,\n  \"questDone\": false,\n  \"evidence\": \"Causes heading is visible with placeholder text.\",\n  \"nextStep\": \"Type the first sentence under Causes.\",\n  \"sayLine\": \"Ready to write your first sentence under Causes for your water cycle essay?\"\n}",
+  "guarded": {
+   "onTask": true,
+   "confidence": 0.95,
+   "questDone": false,
+   "evidence": "Causes heading is visible with placeholder text.",
+   "nextStep": "Type the first sentence under Causes.",
+   "sayLine": "Ready to write your first sentence under Causes for your water cycle e"
+  },
+  "cardShown": null,
+  "questsDoneAfter": [
+   true,
+   false,
+   false
+  ]
+ },
+ {
+  "purpose": "done",
+  "rawModelText": "{\n  \"onTask\": true,\n  \"confidence\": 0.95,\n  \"questDone\": false,\n  \"evidence\": \"Causes section only has a placeholder text instead of three sentences.\",\n  \"nextStep\": \"Type one sentence under Causes for your water cycle essay.\",\n  \"sayLine\": \"Ready to write a sentence under Causes for your water cycle essay?\"\n}",
+  "guarded": {
+   "onTask": true,
+   "confidence": 0.95,
+   "questDone": false,
+   "evidence": "Causes section only has a placeholder text instead of three sentences.",
+   "nextStep": "Type one sentence under Causes for your water cycle essay.",
+   "sayLine": "Ready to write a sentence under Causes for your water cycle essay?"
+  },
+  "cardShown": {
+   "kind": "confirm",
+   "idx": 1,
+   "title": "Looks done?",
+   "body": "Write the Causes section",
+   "evidence": "Causes section only has a placeholder text instead of three sentences."
+  },
+  "questsDoneAfter": [
+   true,
+   false,
+   false
+  ]
+ },
+ {
+  "purpose": "done",
+  "rawModelText": "{\n  \"onTask\": true,\n  \"confidence\": 0.95,\n  \"questDone\": false,\n  \"evidence\": \"Causes heading has placeholder text instead of three sentences.\",\n  \"nextStep\": \"Type one sentence about causes.\",\n  \"sayLine\": \"We are ready for the first sentence under Causes.\"\n}",
+  "guarded": {
+   "onTask": true,
+   "confidence": 0.95,
+   "questDone": false,
+   "evidence": "Causes heading has placeholder text instead of three sentences.",
+   "nextStep": "Type one sentence about causes.",
+   "sayLine": "We are ready for the first sentence under Causes."
+  },
+  "cardShown": {
+   "kind": "confirm",
+   "idx": 1,
+   "title": "Looks done?",
+   "body": "Write the Causes section",
+   "evidence": "Causes heading has placeholder text instead of three sentences."
+  },
+  "questsDoneAfter": [
+   true,
+   false,
+   false
+  ]
+ },
+ {
+  "purpose": "done",
+  "rawModelText": "{\n  \"onTask\": true,\n  \"confidence\": 0.95,\n  \"questDone\": false,\n  \"evidence\": \"Causes section only shows placeholder text instead of three sentences.\",\n  \"nextStep\": \"Type one sentence under the Causes heading.\",\n  \"sayLine\": \"Shall we add the first sentence for your water cycle causes?\"\n}",
+  "guarded": {
+   "onTask": true,
+   "confidence": 0.95,
+   "questDone": false,
+   "evidence": "Causes section only shows placeholder text instead of three sentences.",
+   "nextStep": "Type one sentence under the Causes heading.",
+   "sayLine": "Shall we add the first sentence for your water cycle causes?"
+  },
+  "cardShown": {
+   "kind": "confirm",
+   "idx": 1,
+   "title": "Looks done?",
+   "body": "Write the Causes section",
+   "evidence": "Causes section only shows placeholder text instead of three sentences."
+  },
+  "questsDoneAfter": [
+   true,
+   false,
+   false
+  ]
+ }
+]

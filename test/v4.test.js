@@ -186,3 +186,25 @@ test('applyLook check (unsolicited): questDone >= 0.7 proposes; below gate or no
   const sup = L.notYet({ suppress: {} }, 0);
   assert.equal(L.applyLook({ ...c, sup, purpose: 'check' }, look({ questDone: true, confidence: 1 })).card, null);
 });
+
+// --- lookDue: the renderer decides when an unsolicited check look may happen ---
+test('lookDue: a change after 90 s since the last look is due; sooner is not', () => {
+  const t = 1e6;
+  assert.equal(L.lookDue({ now: t + 89000, lastLookAt: t, changed: true }), false);
+  assert.equal(L.lookDue({ now: t + 90000, lastLookAt: t, changed: true }), true);
+});
+test('lookDue: no change -> only the 6 min heartbeat fires', () => {
+  const t = 1e6;
+  assert.equal(L.lookDue({ now: t + 5 * 60000, lastLookAt: t, changed: false }), false);
+  assert.equal(L.lookDue({ now: t + 6 * 60000, lastLookAt: t, changed: false }), true);
+});
+test('lookDue: never more than one look per 60 s, whatever the reason', () => {
+  const t = 1e6;
+  assert.equal(L.lookDue({ now: t + 30000, lastLookAt: t, changed: true }), false);
+  assert.equal(L.lookDue({ now: t + 59000, lastLookAt: t, changed: false }), false);
+});
+test('lookDue: scaled by the time scale', () => {
+  L.setTimeScale(60);
+  assert.equal(L.lookDue({ now: 1500 + 1000, lastLookAt: 1000, changed: true }), true, '90 s / 60 = 1.5 s');
+  L.setTimeScale(1);
+});

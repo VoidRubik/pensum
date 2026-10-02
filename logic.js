@@ -109,6 +109,14 @@ const setTimeScale = (n) => { timeScale = Number.isFinite(n) && n > 0 ? n : 1; }
 /** Every engine duration goes through here, so tests can run a session at N x speed. */
 const dur = (ms) => ms / timeScale;
 
+/** May an unsolicited check look happen now? A change and >= 90 s since the last look, or the 6 min heartbeat;
+ * never more than one per 60 s. The renderer decides; main never calls the model on its own. */
+function lookDue({ now, lastLookAt, changed }) {
+  const since = now - lastLookAt;
+  if (since < dur(60000)) return false;
+  return (changed && since >= dur(90000)) || since >= dur(360000);
+}
+
 /** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
 function migrate(s) {
   if (!s || typeof s !== 'object' || !isStr(s.text) || !Array.isArray(s.quests) || !s.quests.length) return null;
@@ -250,7 +258,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

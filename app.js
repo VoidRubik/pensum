@@ -25,11 +25,14 @@
   let sup = { suppress: {} }; // "not yet" suppression per quest
   let notYetNote = null;
   let looking = false;
+  let quietLook = false; // an unsolicited look must not flash the 'thinking' pose
   let card = null; // { kind, idx, onPrimary, onQuiet }
   let celebrating = false;
   let lastSig = 0;
   let lastChangeAt = 0;
   let lastOfferAt = 0;
+  let lastLookAt = 0;
+  let changedSinceLook = false;
   let bubbleTimer = null;
   let stepTimer = null;
 
@@ -51,7 +54,7 @@
   function applyPet() {
     let s;
     if (celebrating) s = 'celebrate';
-    else if (looking) s = 'thinking';
+    else if (looking && !quietLook) s = 'thinking';
     else if (card) s = card.kind === 'step' ? 'helper' : 'curious';
     else if (!sessionOn) s = state ? 'sleepy' : 'idle';
     else if (windowLost) s = 'asleep';
@@ -319,6 +322,8 @@
     lastSig = 0;
     lastChangeAt = Date.now();
     lastOfferAt = Date.now();
+    lastLookAt = Date.now();
+    changedSinceLook = false;
     showPanelPart('quests');
     setExpanded(false);
     updateBar();
@@ -372,7 +377,7 @@
     const wasAway = away;
     windowLost = !s.windowAlive || !s.windowVisible;
     away = !!s.locked || s.idleSec >= AWAY_SEC;
-    if (s.changed) lastChangeAt = s.ts;
+    if (s.changed) { lastChangeAt = s.ts; changedSinceLook = true; }
     if (!windowLost && !away && s.onWork && !allDone()) {
       const i = curIdx();
       state.activeMs = state.activeMs || {};
@@ -389,6 +394,8 @@
       lastOfferAt = s.ts;
       offerStep();
     }
+    // Heartbeat: a change worth a look, or every 6 min. The renderer decides; main never calls the model alone.
+    if (!windowLost && !away && !looking && !card && !allDone() && L.lookDue({ now: s.ts, lastLookAt, changed: changedSinceLook })) runLook('check', {}, true);
   }
   api.onSignal(onSignal);
 
@@ -410,29 +417,34 @@
     ...extra,
   });
 
-  async function runLook(purpose, extra = {}) {
+  // auto = unsolicited heartbeat: silent on every failure, never shows 'thinking', only ever proposes a confirm card.
+  async function runLook(purpose, extra = {}, auto = false) {
     if (!state || allDone() || looking) return;
     const i = curIdx();
     const myEpoch = epoch;
     let v = null;
     if (sessionOn && !windowLost) {
       looking = true;
-      $('stuck-btn').disabled = true;
-      $('done-btn').disabled = true;
+      lastLookAt = Date.now();
+      changedSinceLook = false;
+      quietLook = auto;
+      if (!auto) { $('stuck-btn').disabled = true; $('done-btn').disabled = true; }
       applyPet();
       try {
         const r = await api.look({ purpose, quest: state.quests[i], idx: i, epoch, ctx: ctxFor(extra), allow: state.session.allow, linkedPath: state.linked?.path || null });
-        if (r.capped) say(r.pet_line);
+        if (r.capped) { if (!auto) say(r.pet_line); }
         else if (!r.error) v = r;
       } catch {}
       looking = false;
+      quietLook = false;
       $('stuck-btn').disabled = false;
       $('done-btn').disabled = false;
       refreshUsage();
+      if (auto && !v) { applyPet(); return; }
       // Drop it only if the quest changed under us (new task, quest done/unticked, another picked, paused).
       if (epoch !== myEpoch || !state || !state.quests[i] || state.quests[i].done) { applyPet(); return; }
     }
-    const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto: false, sup }, v);
+    const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto, sup }, v);
     sup = r.sup;
     if (r.card) showStepOrConfirm(r.card);
     else applyPet();

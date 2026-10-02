@@ -151,11 +151,13 @@ function startSession(picked) {
   work = picked;
   winState = { alive: true, visible: true };
   lastFgChange = Date.now();
-  focus.start(
-    () => { lastFgChange = Date.now(); emit(); },
-    (st) => { winState = st; emit(); },
-  );
-  focus.setWork(work.hwnd);
+  if (!TEST) { // test mode: the fake window has no real HWND, so no tracker (it would report it closed)
+    focus.start(
+      () => { lastFgChange = Date.now(); emit(); },
+      (st) => { winState = st; emit(); },
+    );
+    focus.setWork(work.hwnd);
+  }
   sampler = setInterval(sample, L.dur(SAMPLE_MS));
   sampler.unref?.();
 }
