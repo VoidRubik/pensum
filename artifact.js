@@ -44,10 +44,10 @@ async function readFile(file) {
   } catch { return null; }
 }
 
-/** Best text for "what is the user working on": Word live if Word is focused, else the linked file. */
+/** Best text for "what is the user working on": Word's live text when the PICKED window is Word, else the linked file.
+ * An unknown or different process never triggers a Word read (that would send another app's document). */
 async function getText({ focusProc, linkedPath }) {
-  // Focus unknown (tracker stopped, e.g. paused): still try Word — GetActiveObject fails fast if it isn't running.
-  if (!focusProc || /^winword$/i.test(focusProc)) {
+  if (focusProc && /^winword$/i.test(focusProc)) {
     const live = await wordLive();
     if (live) return { text: live, source: 'word-live' };
   }

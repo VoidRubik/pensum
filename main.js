@@ -7,6 +7,7 @@ const ledger = require('./ledger.js');
 const focus = require('./focus.js');
 const artifact = require('./artifact.js');
 const capture = require('./capture.js');
+const { lookFlow } = require('./look-flow.js');
 const L = require('./logic.js');
 
 L.setTimeScale(Number(process.env.QUESTLING_TIME_SCALE) || 1);
@@ -100,6 +101,7 @@ function gateCall() {
 let work = null; // { id, hwnd, title } the only window frames are ever taken from
 let sampler = null;
 let prevGray = null;
+let misses = 0; // consecutive sampler frames that came back empty
 let lastFgChange = 0;
 let winState = { alive: true, visible: true };
 let locked = false;
@@ -131,7 +133,10 @@ async function sample() {
   if (!work || TEST) return; // test mode: scripted signals only (see test-signal / webContents.send)
   const gray = await capture.grabGray(work.id).catch(() => null);
   if (gen !== sessionGen) return; // session ended or window re-picked while capturing
-  if (!gray) { winState = { alive: winState.alive, visible: false }; prevGray = null; return emit(); }
+  const st = L.stepWindow(winState, misses, !!gray);
+  winState = st.win;
+  misses = st.misses;
+  if (!gray) { prevGray = null; return emit(); }
   const settled = Date.now() - lastFgChange > SETTLE_MS;
   const changed = !!prevGray && settled && L.diffFraction(prevGray, gray) >= CHANGED_T;
   prevGray = gray;
@@ -144,6 +149,7 @@ function stopSession() {
   sampler = null;
   work = null;
   prevGray = null;
+  misses = 0;
   lastFrame = null;
   winState = { alive: true, visible: true };
   ai.resetMemory();
@@ -158,7 +164,7 @@ function startSession(picked) {
   if (!TEST) { // test mode: the fake window has no real HWND, so no tracker (it would report it closed)
     focus.start(
       () => { lastFgChange = Date.now(); emit(); },
-      (st) => { winState = st; emit(); },
+      (st) => { winState = { alive: st.alive, visible: st.visible }; if (st.proc && work) work.proc = st.proc; emit(); },
     );
     focus.setWork(work.hwnd);
   }
@@ -180,7 +186,7 @@ ipcMain.handle('pick-window', async (_e, id) => {
 ipcMain.on('stop-session', () => stopSession());
 
 // Test hook: what main is holding (no content), to prove pause/stop clears it.
-if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler });
+if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls });
 
 // Test hook: push a scripted signal through the same emitter the sampler uses.
 if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
@@ -188,33 +194,26 @@ if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; }
 // --- model IPC ---
 ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests(req));
 
-// One vision call about the chosen window. The renderer decides when; main never calls on its own.
+// One vision call about the chosen window. The renderer decides when; main never calls the model on its own.
+let lookCalls = 0; // test counter only
 ipcMain.handle('look', async (_e, req) => {
   const stamp = { idx: req.idx, epoch: req.epoch, purpose: req.purpose };
   const limited = gateCall();
   if (limited) return { ...limited, ...stamp };
-  if (!work) return { error: true, noWindow: true, ...stamp };
-  const frame = await capture.grabWindow(work.id, req.purpose === 'done' ? 2048 : 1600, req.purpose === 'done' ? 85 : 70).catch(() => null);
-  if (frame) lastFrame = { at: Date.now(), jpegBase64: frame.jpegBase64 };
-  // Coming back after the window was minimized or closed: the held frame still shows where the user left off.
-  const held = !frame && req.purpose === 'reentry' ? L.freshFrame(lastFrame, Date.now()) : null;
-  if (!frame && !held) {
-    winState = { ...winState, visible: false };
-    emit();
-    return { error: true, windowGone: true, ...stamp };
-  }
-  const got = await artifact.getText({ focusProc: focus.current()?.process, linkedPath: req.linkedPath });
-  const ctx = {
-    ...req.ctx,
-    allow: req.allow,
-    windowTitle: frame ? L.redactTitle(null, frame.title) : null, // the chosen window's title only (private-window / bank / password words are dropped)
-    source: got?.source || null,
-    digest: got && req.purpose !== 'done' ? L.artifactDigest(got.text) : null,
-    text: got && req.purpose === 'done' ? L.capMiddle(got.text, 40000) : null,
-  };
-  const v = await ai.look({ purpose: req.purpose, jpegBase64: frame ? frame.jpegBase64 : held, quest: req.quest, ctx });
+  lookCalls++;
+  const v = await lookFlow(req, {
+    gen: () => sessionGen,
+    work: () => work,
+    grab: (id, side, q) => capture.grabWindow(id, side, q),
+    heldFrame: () => L.freshFrame(lastFrame, Date.now()),
+    setFrame: (f) => { lastFrame = { at: Date.now(), jpegBase64: f.jpegBase64 }; },
+    onGone: () => { winState = { ...winState, visible: false }; emit(); },
+    getText: (a) => artifact.getText(a),
+    aiLook: (a) => ai.look(a),
+    redactTitle: (p, t) => L.redactTitle(p, t),
+  });
   if (v.error && v.status === 429 && v.perDay) cappedDay = L.dayKey(Date.now());
-  return { ...v, ...stamp };
+  return v;
 });
 
 ipcMain.handle('link-work', async () => {

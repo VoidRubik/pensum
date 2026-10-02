@@ -42,6 +42,7 @@ async function completeCurrent(page) {
     await send({ onWork: false, fgProcess: 'chrome' }); await sleep(300);
     for (let i = 0; i < 20 && !(await page.isVisible('#card:not(.hidden) #card-chips:not(.hidden)')); i++) { await send({ onWork: false, fgProcess: 'chrome' }); await sleep(150); }
     await page.click('#card-quiet'); // Back to it
+    await sleep(700); // the unsolicited re-entry obeys the speech cap (5 min / 600 = 0.5 s)
     await send({ onWork: true });
     await page.waitForSelector('.ql-card--reentry:not(.hidden)', { timeout: 3000 }); // back after >= 3 min (scaled) off the work window
     await page.click('#card-quiet');

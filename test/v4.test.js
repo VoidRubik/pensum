@@ -482,3 +482,25 @@ test('recap: long titles are cut, missing counters/activeMs are zero, never thro
 test('migrate: session also carries stuckUsed', () => {
   assert.deepEqual(Object.keys(L.migrate({ text: 'a', quests: [{ title: 'A' }] }).session).sort(), ['allow', 'backOnTrack', 'driftsAsked', 'stuckUsed']);
 });
+
+// --- review fixes ---
+test('safeText: bare domains and paths are blocked, ordinary file names and sentences are not', () => {
+  for (const bad of ['Open evil.com/login to continue', 'try bit.ly/x', 'go to Evil.Com now', 'check example.org', 'visit my-site.io', 'a.b/c/d']) assert.equal(L.safeText(bad, 120), '', bad);
+  for (const good of ['Open essay.docx and type', 'Save notes.md first', 'Fix section 2.3.', 'e.g. one sentence', 'Edit the .gitignore', 'Write it. Then stop.', 'Use Node.js here']) assert.equal(L.safeText(good, 120), good, good);
+});
+test('validateQuests: finish is cut to 160 characters', () => {
+  const r = L.validateQuests({ deadline_iso: 'x', starter: 's', quests: [{ title: 'A', finish: 'f'.repeat(500), minutes: 5 }, q('B'), q('C')] });
+  assert.equal(r.quests[0].finish.length, 160);
+});
+test('stepWindow: one missed frame keeps the window; two in a row lose it; a frame restores it', () => {
+  let s = { win: { alive: true, visible: true }, misses: 0 };
+  s = L.stepWindow(s.win, s.misses, false);
+  assert.equal(s.win.visible, true, 'one hiccup is not a lost window');
+  assert.equal(s.misses, 1);
+  s = L.stepWindow(s.win, s.misses, false);
+  assert.equal(s.win.visible, false);
+  s = L.stepWindow(s.win, s.misses, true);
+  assert.equal(s.win.visible, true, 'the next good frame brings it back');
+  assert.equal(s.misses, 0);
+  assert.equal(L.stepWindow({ alive: false, visible: false }, 0, true).win.alive, false, 'a frame never resurrects a closed window');
+});

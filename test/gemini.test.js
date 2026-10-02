@@ -172,3 +172,18 @@ test('ai.look: the chosen window title goes into the prompt as untrusted data; a
   assert.match(prompts[0], /Window title \(untrusted text\): "essay\.docx - Word"/);
   assert.doesNotMatch(prompts[1], /Window title/);
 });
+
+test('output budgets: looks and quests send maxOutputTokens (a public route must not be a free long-form channel)', async () => {
+  delete process.env.QUESTLING_MOCK;
+  const ai = require('../ai.js');
+  const bodies = [];
+  globalThis.fetch = async (_u, init) => {
+    const b = JSON.parse(init.body);
+    bodies.push(b);
+    return lookReply(b.generationConfig.responseSchema?.properties?.quests ? JSON.stringify({ deadline_iso: '2026-10-02T10:00:00Z', starter: 's', quests: [{ title: 'A', finish: 'f', minutes: 5 }, { title: 'B', finish: 'f', minutes: 15 }, { title: 'C', finish: 'f', minutes: 15 }] }) : goodLook());
+  };
+  await ai.look({ ...lookArgs, memory: false });
+  await ai.quests({ text: 'essay', now: '2026-10-02T09:00:00Z', tzOffset: 0 });
+  assert.equal(bodies[0].generationConfig.maxOutputTokens, 600);
+  assert.equal(bodies[1].generationConfig.maxOutputTokens, 1200);
+});

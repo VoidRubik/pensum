@@ -82,7 +82,7 @@ const undone = (page) => page.$$eval('.ql-quest input[type=checkbox]', (b) => b.
     await send({ onWork: false, fgProcess: 'chrome' });
     await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 3000 });
     await page.click('text=taking a break');
-    await sleep(300);
+    await sleep(700); // the unsolicited re-entry obeys the speech cap (5 min / 600 = 0.5 s)
     await send({ onWork: true, idleSec: 0 });
     await page.waitForSelector('.ql-card--reentry:not(.hidden)', { timeout: 4000 });
     ok(true, 'D: end of a break -> re-entry card');

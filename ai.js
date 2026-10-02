@@ -76,7 +76,7 @@ async function quests({ text, now, tzOffset }) {
   const req = (model) => ({
     model,
     systemInstruction: PERSONA,
-    generationConfig: thinkingFor(model),
+    generationConfig: { ...thinkingFor(model), maxOutputTokens: 1200 }, // a plan is ~300 tokens; the cap stops a hostile prompt from using this as a free LLM
     timeoutMs: Number(process.env.QUESTLING_TIMEOUT_MS) || 12000,
     retries: 0,
     contents: [{ role: 'user', parts: [{ text: `Task: "${text}". Current time: ${now}, timezone offset (minutes): ${tzOffset}.
@@ -144,7 +144,10 @@ function signalLines(ctx) {
 async function look({ purpose, jpegBase64, quest, ctx = {}, memory = true }) {
   const text = PURPOSE_TEXT[purpose];
   if (!text) return { error: true, status: 0 };
-  if (isMock()) return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_OFF ? { onTask: false } : {}) };
+  if (isMock()) {
+    if (process.env.QUESTLING_MOCK_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.QUESTLING_MOCK_DELAY_MS))); // test hook: a look takes time
+    return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_OFF ? { onTask: false } : {}) };
+  }
   const model = LOOK_MODEL();
   const myGen = gen;
   const questLines = (ctx.quests || []).map((q) => `${q.done ? '[x]' : '[ ]'} ${q.title}`).join('\n');
@@ -153,7 +156,7 @@ async function look({ purpose, jpegBase64, quest, ctx = {}, memory = true }) {
     const result = await real(`look:${purpose}`, {
       model,
       systemInstruction: PERSONA,
-      generationConfig: { ...thinkingFor(model), temperature: 0.3 },
+      generationConfig: { ...thinkingFor(model), temperature: 0.3, maxOutputTokens: 600 },
       contents: [{
         role: 'user',
         parts: [

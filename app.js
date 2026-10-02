@@ -304,6 +304,7 @@
 
   $('new-task').addEventListener('click', () => {
     stopSession();
+    queuedLook = null;
     resetRules();
     hideCard();
     state = null;
@@ -379,6 +380,7 @@
   }
 
   function stopSession() {
+    queuedLook = null;
     sessionOn = false;
     breakMode = false;
     drift = { since: null, lastAskAt: null };
@@ -466,9 +468,9 @@
     if (bp === 'timebox') showTimebox();
     else if (bp === 'drift') askDrift(`Still on "${state.quests[curIdx()].title}"?`);
     else if (bp === 'stuck' || bp === 'idle') { lastOfferAt = s.ts; offerStep(); }
-    if (returning && !card && !looking && !windowLost && !away && !breakMode) runLook('reentry', {}, true);
+    if (returning && !card && !looking && !windowLost && !away && !breakMode && mayAuto()) runLook('reentry', {}, true);
     // Heartbeat: a change worth a look, or every 6 min. The renderer decides; main never calls the model alone.
-    if (!windowLost && !away && !breakMode && !looking && !card && !allDone() && L.lookDue({ now: s.ts, lastLookAt, changed: changedSinceLook })) runLook('check', {}, true);
+    if (!windowLost && !away && !breakMode && !looking && !card && !allDone() && mayAuto() && L.lookDue({ now: s.ts, lastLookAt, changed: changedSinceLook })) runLook('check', {}, true);
   }
 
   api.onSignal(onSignal);
@@ -532,7 +534,7 @@
     lastChangeAt = Date.now();
     lastOfferAt = Date.now();
     applyPet();
-    runLook('reentry', {}, true);
+    if (mayAuto()) runLook('reentry', {}, true);
   }
 
   // --- looks: user clicks only in this step; the model proposes, the user confirms ---
@@ -544,7 +546,24 @@
   });
 
   // auto = unsolicited heartbeat: silent on every failure, never shows 'thinking', only ever proposes a confirm card.
+  // A click made while a background look is in flight is queued (latest wins), never swallowed.
+  let queuedLook = null;
+  // Paid background calls only when their result could be shown: the speech cap / quiet mode gate the call, not just the card.
+  const mayAuto = () => L.allowSpeak(speech, Date.now(), speechCapMs);
   async function runLook(purpose, extra = {}, auto = false) {
+    if (looking) {
+      if (!auto && state && !allDone()) { queuedLook = { purpose, extra }; say('One moment...'); }
+      return;
+    }
+    await doLook(purpose, extra, auto);
+    if (queuedLook && !looking) {
+      const q = queuedLook;
+      queuedLook = null;
+      await doLook(q.purpose, q.extra, false);
+    }
+  }
+
+  async function doLook(purpose, extra, auto) {
     if (!state || allDone() || looking) return;
     const i = curIdx();
     const myEpoch = epoch;

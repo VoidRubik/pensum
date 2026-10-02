@@ -15,7 +15,7 @@ public class FG{[DllImport("user32.dll")]public static extern IntPtr GetForegrou
 [DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);
 [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);}
 '@
-$last='';$lastW='';$w=[IntPtr][int64]$env:QL_WORK
+$last='';$lastW='';$wp='';$w=[IntPtr][int64]$env:QL_WORK
 while($true){
   if(-not (Get-Process -Id $env:QL_PARENT -ErrorAction SilentlyContinue)){exit}
   $h=[FG]::GetForegroundWindow()
@@ -27,7 +27,9 @@ while($true){
     if($o -ne $last){[Console]::Out.WriteLine($o);[Console]::Out.Flush();$last=$o}
   }
   if($w -ne [IntPtr]::Zero){
-    $o=@{work=@{alive=[FG]::IsWindow($w);visible=((-not [FG]::IsIconic($w)) -and [FG]::IsWindowVisible($w))}}|ConvertTo-Json -Compress
+    $al=[FG]::IsWindow($w)
+    if($al -and -not $wp){$wpid=0;[void][FG]::GetWindowThreadProcessId($w,[ref]$wpid);$wp=(Get-Process -Id $wpid -ErrorAction SilentlyContinue).ProcessName}
+    $o=@{work=@{alive=$al;visible=((-not [FG]::IsIconic($w)) -and [FG]::IsWindowVisible($w));proc=$wp}}|ConvertTo-Json -Compress
     if($o -ne $lastW){[Console]::Out.WriteLine($o);[Console]::Out.Flush();$lastW=$o}
   }
   Start-Sleep -Seconds 1
@@ -59,7 +61,7 @@ function spawnChild() {
       buf = buf.slice(i + 1);
       try {
         const e = JSON.parse(line);
-        if (e.work) { onWorkState({ alive: !!e.work.alive, visible: !!e.work.visible }); continue; }
+        if (e.work) { onWorkState({ alive: !!e.work.alive, visible: !!e.work.visible, proc: e.work.proc || null }); continue; }
         if (e.process && e.title !== 'Questling') {
           events.push({ ts: Date.now(), process: e.process, title: e.title || '', hwnd: e.hwnd || 0 });
           if (events.length > MAX_EVENTS) events.shift();

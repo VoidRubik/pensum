@@ -22,7 +22,7 @@ function validateQuests(v) {
   if (v.quests.length < 3 || v.quests.some((x) => !x || !isStr(x.title) || !x.title.trim() || !isStr(x.finish))) return null;
   const quests = v.quests.slice(0, 5).map((x, i) => {
     const m = Number.isFinite(x.minutes) ? Math.round(x.minutes) : 15;
-    return { title: x.title.trim().slice(0, 60), finish: x.finish.trim(), minutes: i === 0 ? clamp(m, 2, 5) : clamp(m, 10, 25) };
+    return { title: x.title.trim().slice(0, 60), finish: x.finish.trim().slice(0, 160), minutes: i === 0 ? clamp(m, 2, 5) : clamp(m, 10, 25) };
   });
   const starter = isStr(v.starter) && v.starter.trim() ? v.starter.trim().slice(0, 80) : STARTER_DEFAULT;
   return { deadline_iso: v.deadline_iso, starter, quests };
@@ -40,7 +40,9 @@ function questFallback() {
   };
 }
 
-const LINK_OR_CODE = /https?:|www\.|:\/\/|@|`|<|>/i;
+// Links, contact details, markup — and bare domains / paths a hostile document could make the model repeat ("evil.com/login").
+const TLDS = 'com|net|org|io|ly|co|me|app|xyz|gg|tv|info|biz|dev|ai|edu|gov|ru|cn|tk|ml|top|site|online|link|click|live|shop|store|club|page|cc|ws';
+const LINK_OR_CODE = new RegExp(`https?:|www\\.|:\\/\\/|@|\`|<|>|\\b[a-z0-9][a-z0-9-]*\\.(?:${TLDS})\\b|[a-z]\\.[a-z0-9]+\\/`, 'i');
 /** Text safe to render: trimmed, within max, no links/contact details/markup. Otherwise ''. */
 function safeText(s, max) {
   if (!isStr(s)) return '';
@@ -112,6 +114,14 @@ function diffFraction(a, b, thr = 24) {
   let n = 0;
   for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > thr) n++;
   return n / a.length;
+}
+
+/** Keeps the work window "visible" through one missed frame (resize, redraw); two in a row lose it, the next frame restores it.
+ * A frame never resurrects a window the tracker says is closed (alive stays false). */
+function stepWindow(win, misses, gotFrame) {
+  if (gotFrame) return { win: { ...win, visible: true }, misses: 0 };
+  const m = misses + 1;
+  return { win: m >= 2 ? { ...win, visible: false } : win, misses: m };
 }
 
 let timeScale = 1;
@@ -381,7 +391,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, recap, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).
