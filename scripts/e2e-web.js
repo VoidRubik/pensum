@@ -79,6 +79,14 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   ok(/^Still on "/.test(await page.textContent('#card-title')), 'drift scene -> local ask with chips');
   await page.click('#card-chips >> text=research');
   ok(await page.isHidden('#card'), 'chip answers the ask');
+  // back from a break: sleepy, then a re-entry card
+  await page.waitForTimeout(3000); // web speech cap is 2.5 s
+  await page.click('text=Back from break');
+  await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'sleepy', null, { timeout: 3000 });
+  await page.waitForSelector('.ql-card--reentry:not(.hidden)', { timeout: 20000 });
+  ok(/Next/.test(await page.textContent('#card-body')), 're-entry card names the next step');
+  await shot('09-reentry');
+  await page.click('#card-quiet');
   // window closed
   await page.click('text=Window closed');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'asleep', null, { timeout: 5000 });

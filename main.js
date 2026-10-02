@@ -104,6 +104,7 @@ let lastFgChange = 0;
 let winState = { alive: true, visible: true };
 let locked = false;
 let sessionGen = 0;
+let lastFrame = null; // { at, jpegBase64 } the last frame of the work window; RAM only, 10 min, cleared on stop/pause
 // QUESTLING_FAKE_IDLE_SEC lets tests run on an idle PC.
 const idleSec = () => Number(process.env.QUESTLING_FAKE_IDLE_SEC ?? powerMonitor.getSystemIdleTime());
 
@@ -126,6 +127,7 @@ function emit(extra = {}) {
 
 async function sample() {
   const gen = sessionGen;
+  if (lastFrame && !L.freshFrame(lastFrame, Date.now())) lastFrame = null;
   if (!work || TEST) return; // test mode: scripted signals only (see test-signal / webContents.send)
   const gray = await capture.grabGray(work.id).catch(() => null);
   if (gen !== sessionGen) return; // session ended or window re-picked while capturing
@@ -142,6 +144,7 @@ function stopSession() {
   sampler = null;
   work = null;
   prevGray = null;
+  lastFrame = null;
   winState = { alive: true, visible: true };
   ai.resetMemory();
   focus.stop();
@@ -189,7 +192,10 @@ ipcMain.handle('look', async (_e, req) => {
   if (limited) return { ...limited, ...stamp };
   if (!work) return { error: true, noWindow: true, ...stamp };
   const frame = await capture.grabWindow(work.id, req.purpose === 'done' ? 2048 : 1600, req.purpose === 'done' ? 85 : 70).catch(() => null);
-  if (!frame) {
+  if (frame) lastFrame = { at: Date.now(), jpegBase64: frame.jpegBase64 };
+  // Coming back after the window was minimized or closed: the held frame still shows where the user left off.
+  const held = !frame && req.purpose === 'reentry' ? L.freshFrame(lastFrame, Date.now()) : null;
+  if (!frame && !held) {
     winState = { ...winState, visible: false };
     emit();
     return { error: true, windowGone: true, ...stamp };
@@ -202,7 +208,7 @@ ipcMain.handle('look', async (_e, req) => {
     digest: got && req.purpose !== 'done' ? L.artifactDigest(got.text) : null,
     text: got && req.purpose === 'done' ? L.capMiddle(got.text, 40000) : null,
   };
-  const v = await ai.look({ purpose: req.purpose, jpegBase64: frame.jpegBase64, quest: req.quest, ctx });
+  const v = await ai.look({ purpose: req.purpose, jpegBase64: frame ? frame.jpegBase64 : held, quest: req.quest, ctx });
   if (v.error && v.status === 429 && v.perDay) cappedDay = L.dayKey(Date.now());
   return { ...v, ...stamp };
 });

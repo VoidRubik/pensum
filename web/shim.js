@@ -90,7 +90,7 @@
     onSignal(fn) { onSignalFn = fn; },
     async linkWork() { return null; },
     async usage() { return { calls: 0, checks: 0, tokens: 0, cap: 300 }; },
-    async info() { return { mock: false, test: false, timeScale: 1, web: true }; },
+    async info() { return { mock: false, test: false, timeScale: 1, web: true, speechCapMs: 2500 }; },
     setSize() {},
     setClickThrough() {},
     onPaused() {},
@@ -109,11 +109,19 @@
     lastDriftTs = t0 + 121000;
   }
 
+  // Away for 5+ minutes, then back: the pet sleeps, then offers a re-entry card.
+  function breakScene() {
+    setSample('essay-midway');
+    emit({ idleSec: 400 });
+    setTimeout(() => emit({ idleSec: 0, changed: true }), 1800);
+  }
+
   // --- scene bar: scripted signals instead of a real desktop ---
   const SCENES = [
     ['Writing', 'The doc has text. Press ✓ when you think the quest is done.', () => { setSample('essay-midway'); emit({ changed: true }); }],
     ['Blank page (stuck)', 'Empty section. Press the footsteps button for a tiny next step.', () => { setSample('essay-blank'); emit({ changed: true }); }],
     ['Drift', 'You wandered to a video site for 2 minutes. The pet asks, it never scolds: tap a chip.', driftScene],
+    ['Back from break', 'You were away. Watch the pet fall asleep, then offer where you left off.', breakScene],
     ['Outline done', 'The outline is finished. Press ✓ and the pet will ask you to confirm.', () => { setSample('outline-done'); emit({ changed: true }); }],
     ['Injection test', 'This doc tries to hijack the pet. Press ✓: it can only ask you, nothing completes by itself.', () => { setSample('injection'); emit({ changed: true }); }],
     ['Window closed', 'The window vanished. The pet falls asleep and offers "Pick window again".', () => { alive = false; visible = false; emit(); }],

@@ -262,6 +262,11 @@ test('allowSpeak: one unsolicited line per 5 min; two dismissals silence the ses
   assert.equal(L.allowSpeak({ lastSpokeAt: null, dismissed: 0 }, 1), true, 'nothing spoken yet');
 });
 
+test('allowSpeak: the cap is a parameter (web demo uses a short one)', () => {
+  assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 0 }, 7000, 8000), false);
+  assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 0 }, 8000, 8000), true);
+});
+
 test('breakpoint: highest priority wins — windowLost > deadline > timebox > drift > stuck > idle', () => {
   assert.equal(L.breakpoint({}), null);
   assert.equal(L.breakpoint({ idle: true }), 'idle');
@@ -299,4 +304,44 @@ test('applyLook check: off-task at >= 0.7 asks with a LOCAL template, never mode
 test('applyLook check: questDone wins over off-task (propose done, do not ask)', () => {
   const r = L.applyLook({ ...ctx({ auto: true }), purpose: 'check' }, look({ onTask: false, questDone: true, confidence: 0.9 }));
   assert.equal(r.card.kind, 'confirm');
+});
+
+// --- step 6: re-entry ---
+test('reentryTrigger: back from away, or back on the work window after >= 3 min off it', () => {
+  assert.equal(L.reentryTrigger({ wasAway: true, away: false, onWork: false, offForMs: 0 }), true);
+  assert.equal(L.reentryTrigger({ wasAway: true, away: true, onWork: false, offForMs: 0 }), false, 'still away');
+  assert.equal(L.reentryTrigger({ wasAway: false, away: false, onWork: true, offForMs: 3 * MINUTE }), true);
+  assert.equal(L.reentryTrigger({ wasAway: false, away: false, onWork: true, offForMs: 3 * MINUTE - 1 }), false);
+  assert.equal(L.reentryTrigger({ wasAway: false, away: false, onWork: false, offForMs: 99 * MINUTE }), false, 'not back yet');
+});
+test('reentryTrigger: scaled by the time scale', () => {
+  L.setTimeScale(60);
+  assert.equal(L.reentryTrigger({ wasAway: false, away: false, onWork: true, offForMs: 3000 }), true, '3 min / 60 = 3 s');
+  L.setTimeScale(1);
+});
+
+test('freshFrame: a held frame is usable for 10 min, then gone', () => {
+  const slot = { at: 1000, jpegBase64: 'AAA' };
+  assert.equal(L.freshFrame(slot, 1000 + 10 * MINUTE - 1), 'AAA');
+  assert.equal(L.freshFrame(slot, 1000 + 10 * MINUTE), null);
+  assert.equal(L.freshFrame(null, 5), null);
+});
+
+test('applyLook reentry: confident -> reentry card built from the model evidence + next step', () => {
+  const r = L.applyLook({ ...ctx(), purpose: 'reentry' }, look({ evidence: 'You were on the intro paragraph', nextStep: 'Next: write the first body sentence.' }));
+  assert.equal(r.card.kind, 'reentry');
+  assert.equal(r.card.title, 'Welcome back');
+  assert.equal(r.card.body, 'You were on the intro paragraph Next: write the first body sentence.');
+});
+test('applyLook reentry: below the gate, error, links or bad tone -> local template with the starter on a fresh quest', () => {
+  const fresh = { ...ctx(), purpose: 'reentry', starter: 'Open the doc and type one ugly sentence.', activeMs: 0 };
+  for (const v of [look({ confidence: 0.2 }), null, look({ nextStep: 'Next: you should visit http://x.com' }), look({ evidence: '' })]) {
+    const r = L.applyLook(fresh, v);
+    assert.equal(r.card.kind, 'reentry');
+    assert.equal(r.card.body, 'You were on "Write intro". Next: Open the doc and type one ugly sentence.');
+  }
+});
+test('applyLook reentry: template uses the first words of the finish line once the quest has active time', () => {
+  const r = L.applyLook({ ...ctx(), purpose: 'reentry', starter: 'Open the doc.', activeMs: 5 * MINUTE }, null);
+  assert.equal(r.card.body, 'You were on "Write intro". Next: intro exists');
 });

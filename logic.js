@@ -77,7 +77,7 @@ const gateLook = (v, min) => (v && v.confidence >= min ? v : null);
 
 const GATE = 0.7;
 /** Turn a look into UI effects. The model proposes; this never touches quest state (only click handlers do). */
-function applyLook({ quests, idx, purpose, auto, sup }, look) {
+function applyLook({ quests, idx, purpose, auto, sup, starter, activeMs }, look) {
   const g = gateLook(validateLook(look), GATE);
   const title = quests[idx].title;
   const out = { quests, sup, card: null };
@@ -88,6 +88,11 @@ function applyLook({ quests, idx, purpose, auto, sup }, look) {
   } else if (purpose === 'stuck') {
     const step = g && g.nextStep && toneOk(g.nextStep) ? g.nextStep : `Tiny step: write one rough sentence for '${title}'.`;
     out.card = { kind: 'step', idx, title: 'Next tiny step', body: step };
+  } else if (purpose === 'reentry') {
+    const ev = g && g.evidence && toneOk(g.evidence) ? g.evidence : '';
+    const nx = g && g.nextStep && toneOk(g.nextStep) ? g.nextStep : '';
+    const next = activeMs === 0 && starter ? starter : quests[idx].finish.slice(0, 60);
+    out.card = { kind: 'reentry', idx, title: 'Welcome back', body: ev && nx ? `${ev} ${nx}` : `You were on "${title}". Next: ${next}`, evidence: '' };
   } else if (purpose === 'check' && g) {
     if (g.questDone) {
       const p = proposeStep(sup, { idx, questDone: true, auto });
@@ -144,14 +149,25 @@ function driftStep(st, s, { allow, now }) {
 }
 
 /** Unsolicited speech budget: one line per 5 min; two dismissals silence the rest of the session. */
-function allowSpeak({ lastSpokeAt, dismissed }, now) {
+function allowSpeak({ lastSpokeAt, dismissed }, now, capMs = 300000) {
   if (dismissed >= 2) return false;
-  return lastSpokeAt == null || now - lastSpokeAt >= dur(300000);
+  return lastSpokeAt == null || now - lastSpokeAt >= dur(capMs);
 }
 
 const BREAKPOINTS = ['windowLost', 'deadline', 'timebox', 'drift', 'stuck', 'idle'];
 /** One prompt at a time: the highest-priority breakpoint that is due, or null. */
 const breakpoint = (flags) => BREAKPOINTS.find((k) => flags[k]) || null;
+
+/** Coming back: from away/break, or onto the work window after >= 3 min elsewhere. */
+function reentryTrigger({ wasAway, away, onWork, offForMs }) {
+  if (wasAway && !away) return true;
+  return !away && onWork && offForMs >= dur(180000);
+}
+
+/** The last work frame is held in RAM only; usable for 10 min. Returns its base64 or null. */
+function freshFrame(slot, now) {
+  return slot && now - slot.at < dur(600000) ? slot.jpegBase64 : null;
+}
 
 /** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
 function migrate(s) {
@@ -294,7 +310,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

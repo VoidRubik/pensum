@@ -40,6 +40,8 @@
   let speech = { lastSpokeAt: null, dismissed: 0 }; // unsolicited-speech budget (logic.allowSpeak)
   let breakMode = false;
   let lastFgProcess = null;
+  let speechCapMs = 300000; // web demo shortens it (info().speechCapMs)
+  let offSince = null; // first signal of the current stretch away from the work window
   let bubbleTimer = null;
   let stepTimer = null;
 
@@ -382,7 +384,7 @@
     lastSig = 0;
     lastChangeAt = Date.now();
     updateBar();
-    say('Back with you.');
+    runLook('reentry'); // the user pressed play: a reply to a click, so it is exempt from the speech cap
   }
   $('pause-btn').addEventListener('click', () => (sessionOn ? pause() : resume()));
   api.onPaused(() => pause());
@@ -422,9 +424,14 @@
     if (driftPending && s.onWork) { driftPending = false; state.session.backOnTrack++; save(); }
     if (breakMode && s.onWork && s.idleSec < 10 && !away && !windowLost) endBreak();
 
+    if (!s.onWork) offSince = offSince ?? s.ts;
+    const offFor = offSince ? s.ts - offSince : 0;
+    if (s.onWork) offSince = null;
+    const returning = L.reentryTrigger({ wasAway, away, onWork: s.onWork, offForMs: offFor });
+
     // One unsolicited prompt at a time, highest priority first (logic.breakpoint). Everything below is local and free.
     const d = L.driftStep(drift, s, { allow: state.session.allow, now: s.ts });
-    const free = !windowLost && !away && !breakMode && !looking && !card && L.allowSpeak(speech, Date.now());
+    const free = !windowLost && !away && !breakMode && !looking && !card && L.allowSpeak(speech, Date.now(), speechCapMs);
     const quiet = s.ts - lastOfferAt >= L.dur(OFFER_GAP_MS);
     const bp = free ? L.breakpoint({
       drift: d.ask,
@@ -434,6 +441,7 @@
     drift = d.ask && bp !== 'drift' ? { ...drift, since: drift.since ?? s.ts } : d.state;
     if (bp === 'drift') askDrift(`Still on "${state.quests[curIdx()].title}"?`);
     else if (bp === 'stuck' || bp === 'idle') { lastOfferAt = s.ts; offerStep(); }
+    if (returning && !card && !looking && !windowLost && !away && !breakMode) runLook('reentry', {}, true);
     // Heartbeat: a change worth a look, or every 6 min. The renderer decides; main never calls the model alone.
     if (!windowLost && !away && !breakMode && !looking && !card && !allDone() && L.lookDue({ now: s.ts, lastLookAt, changed: changedSinceLook })) runLook('check', {}, true);
   }
@@ -485,7 +493,7 @@
     lastChangeAt = Date.now();
     lastOfferAt = Date.now();
     applyPet();
-    say('Welcome back.');
+    runLook('reentry', {}, true);
   }
 
   // --- looks: user clicks only in this step; the model proposes, the user confirms ---
@@ -519,13 +527,13 @@
       $('stuck-btn').disabled = false;
       $('done-btn').disabled = false;
       refreshUsage();
-      if (auto && !v) { applyPet(); return; }
+      if (auto && !v && purpose !== 'reentry') { applyPet(); return; } // re-entry always falls back to its local template
       // Drop it only if the quest changed under us (new task, quest done/unticked, another picked, paused).
       if (epoch !== myEpoch || !state || !state.quests[i] || state.quests[i].done) { applyPet(); return; }
     }
-    const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto, sup }, v);
+    const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto, sup, starter: state.starter, activeMs: activeMs(i) }, v);
     sup = r.sup;
-    if (r.card && auto && !L.allowSpeak(speech, Date.now())) applyPet();
+    if (r.card && auto && !L.allowSpeak(speech, Date.now(), speechCapMs)) applyPet();
     else if (r.card) showStepOrConfirm(r.card, auto);
     else applyPet();
   }
@@ -543,8 +551,10 @@
           say("Okay, I'll keep you company.");
         },
       });
+    } else if (c.kind === 'reentry') {
+      showCard({ ...c, unsolicited: auto, primary: "Let's go", quiet: 'Later', onPrimary: hideCard, onQuiet: hideCard });
     } else if (c.kind === 'ask') {
-      if (L.allowSpeak(speech, Date.now())) askDrift(c.title);
+      if (L.allowSpeak(speech, Date.now(), speechCapMs)) askDrift(c.title);
     } else if (c.kind === 'step') {
       showCard({
         ...c, primary: 'Start 2 min', quiet: 'Another idea',
@@ -612,8 +622,9 @@
     if (r.speak) say(NUDGE_LINES[r.speak]);
   }
 
-  api.info().then(({ mock, timeScale }) => {
+  api.info().then(({ mock, timeScale, speechCapMs: cap }) => {
     L.setTimeScale(timeScale);
+    if (cap) speechCapMs = cap;
     $('mock-note').classList.toggle('hidden', !mock);
     setInterval(tick, L.dur(30000));
   });

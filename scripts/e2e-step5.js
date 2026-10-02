@@ -23,6 +23,14 @@ async function launch(extra) {
     { ts: Date.now(), changed: true, fgHwnd: 222, fgProcess: 'chrome', onWork: false, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o });
   return { app, page, send };
 }
+async function pushUntil(page, send, o, sel = '#card:not(.hidden) #card-chips:not(.hidden)') {
+  for (let i = 0; i < 20; i++) {
+    await send(o);
+    if (await page.isVisible(sel)) return true;
+    await sleep(150);
+  }
+  return false;
+}
 const stateOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')));
 const cardVisible = (page, sel = '.ql-card--ask') => page.isVisible(sel + ':not(.hidden)');
 const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.hidden)');
@@ -32,8 +40,8 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
   const { app, page, send } = await launch({ QUESTLING_TIME_SCALE: '600' });
   await send({ onWork: false }); await sleep(100);
   ok(!(await driftCard(page)), 'drift: no ask before 2 min (scaled)');
-  await sleep(300); await send({ onWork: false });
-  await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 3000 });
+  await sleep(200);
+  ok(await pushUntil(page, send, { onWork: false }), 'drift: ask appears once 2 min (scaled) have passed');
   ok((await page.textContent('#card-title')).startsWith('Still on "'), 'drift ask: local template title');
   ok((await page.$$('#card-chips .ql-chip')).length === 3, 'drift ask: 3 chips (research / lecture for this / taking a break)');
   ok(await page.isVisible('#card-input'), 'drift ask: free-text field');
@@ -48,12 +56,11 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
   ok(!(await driftCard(page)), 'allowed process: never asks again');
 
   // another process, after the 10 min gap (1 s) and the 5 min speech cap (0.5 s)
-  await send({ fgProcess: 'discord' }); await sleep(400); await send({ fgProcess: 'discord' });
-  await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 3000 });
-  ok(true, 'second process asks');
+  await send({ fgProcess: 'discord' }); await sleep(300);
+  ok(await pushUntil(page, send, { fgProcess: 'discord' }), 'second process asks');
   await page.click('#card-x'); // dismissal 1 (unsolicited)
-  await sleep(1300); await send({ fgProcess: 'steam' }); await sleep(400); await send({ fgProcess: 'steam' });
-  await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 3000 });
+  await sleep(1300); await send({ fgProcess: 'steam' }); await sleep(300);
+  ok(await pushUntil(page, send, { fgProcess: 'steam' }), 'third process asks');
   await page.click('#card-x'); // dismissal 2
   await sleep(1300); await send({ fgProcess: 'spotify' }); await sleep(400); await send({ fgProcess: 'spotify' }); await sleep(400); await send({ fgProcess: 'spotify' });
   ok(!(await driftCard(page)), '2 dismissals -> quiet for the rest of the session');
@@ -70,15 +77,18 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
 
   // break chip + in-window drift via a check look (mock off-task)
   const b = await launch({ QUESTLING_TIME_SCALE: '600', QUESTLING_MOCK_CHECK_OFF: '1' });
-  await b.send({ onWork: false }); await sleep(300); await b.send({ onWork: false });
-  await b.page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 3000 });
+  await b.send({ onWork: false }); await sleep(300);
+  await pushUntil(b.page, b.send, { onWork: false });
   await b.page.click('text=taking a break');
   ok(await b.page.getAttribute('main', 'data-pet-state') === 'sleepy', 'taking a break -> sleepy');
   await sleep(1300); await b.send({ onWork: false }); await sleep(400); await b.send({ onWork: false });
   ok(!(await driftCard(b.page)), 'break mode: no asks');
   await b.send({ onWork: true, fgProcess: 'notepad', idleSec: 0 });
+  await b.page.waitForSelector('.ql-card--reentry:not(.hidden)', { timeout: 3000 });
+  ok(true, 'activity on the work window ends the break -> re-entry card');
+  await b.page.click('#card-quiet');
   await b.page.waitForFunction(() => document.querySelector('main').dataset.petState === 'working', null, { timeout: 3000 });
-  ok(true, 'activity on the work window ends the break -> working');
+  ok(true, 'Later -> working');
   await b.app.close();
 
   // in-window drift: heartbeat check look says off-task at 0.9 -> ask with a LOCAL title
