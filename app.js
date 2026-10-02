@@ -13,6 +13,7 @@
   const STUCK_QUIET_MS = 240000; // no visible change this long -> offer a tiny step (never calls the model by itself)
   const OFFER_GAP_MS = 900000; // at most one offer per 15 min
   const STEP_TIMER_MS = 120000;
+  const STARTER_MS = 60000;
   const IDLE_OFFER_SEC = 75; // input idle this long (but not away) -> the same free tiny-step offer
   const CHIPS = ['research', 'lecture for this', 'taking a break'];
 
@@ -338,6 +339,7 @@
     const r = await api.pickWindow(w.id);
     if (!r.ok) { say("that window is gone — pick another"); openPicker(); return; }
     work = { id: w.id, title: r.title || w.title };
+    const repick = sessionOn; // picking again after the window was lost is not a new session
     sessionOn = true;
     windowLost = false;
     away = false;
@@ -354,6 +356,7 @@
     setExpanded(false);
     updateBar();
     say(`Okay, I'll sit with you in ${work.title.slice(0, 40)}.`);
+    if (!repick && activeMs(curIdx()) === 0) showStarter();
   }
 
   function stopSession() {
@@ -552,31 +555,61 @@
         },
       });
     } else if (c.kind === 'reentry') {
-      showCard({ ...c, unsolicited: auto, primary: "Let's go", quiet: 'Later', onPrimary: hideCard, onQuiet: hideCard });
+      const fresh = activeMs(c.idx) === 0;
+      showCard({ ...c, unsolicited: auto, primary: "Let's go", quiet: 'Later', onPrimary: fresh ? () => beginStarter(c.idx) : hideCard, onQuiet: hideCard });
     } else if (c.kind === 'ask') {
       if (L.allowSpeak(speech, Date.now(), speechCapMs)) askDrift(c.title);
     } else if (c.kind === 'step') {
       showCard({
         ...c, primary: 'Start 2 min', quiet: 'Another idea',
-        onPrimary: () => startStepTimer(c),
+        onPrimary: () => startStepTimer(),
         onQuiet: () => { hideCard(); runLook('stuck', { avoid: c.body }); },
       });
     }
   }
 
-  // "Start 2 min": a local countdown on the card, no model call.
-  function startStepTimer(c) {
-    const end = Date.now() + L.dur(STEP_TIMER_MS);
+  // A local countdown on the card, no model call. --left (1 -> 0) drives the ring, mmss the label.
+  function runCountdown(totalMs, onDone) {
+    clearInterval(stepTimer);
+    const total = L.dur(totalMs);
+    const end = Date.now() + total;
     $('card-count').classList.remove('hidden');
     $('card-primary').classList.add('hidden');
     const tickCount = () => {
       const left = Math.max(0, end - Date.now());
-      const secs = Math.ceil(left / L.dur(1000));
-      $('card-count-text').textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
-      if (left <= 0) { hideCard(); say('Time. Want another tiny step? Tap the footsteps.'); }
+      $('card-count-text').textContent = L.mmss(left);
+      $('card-count').style.setProperty('--left', String(left / total));
+      if (left <= 0) { clearInterval(stepTimer); onDone(); }
     };
     tickCount();
     stepTimer = setInterval(tickCount, 250);
+  }
+
+  function startStepTimer() {
+    runCountdown(STEP_TIMER_MS, () => { hideCard(); say('Time. Want another tiny step? Tap the footsteps.'); });
+  }
+
+  // First sloppy step: a 60 s countdown at session start (and from the re-entry card of an untouched quest). No model call.
+  function showStarter() {
+    if (!state || allDone()) return;
+    const idx = curIdx();
+    showCard({
+      kind: 'starter', idx, title: 'Tiny start', body: state.starter, primary: 'Go', quiet: 'Not now',
+      onPrimary: () => beginStarter(idx),
+      onQuiet: hideCard,
+    });
+  }
+  function beginStarter(idx) {
+    $('card-title').textContent = 'Tiny start';
+    $('card-quiet').textContent = 'Skip';
+    runCountdown(STARTER_MS, () => askStarted(idx));
+  }
+  function askStarted(idx) {
+    showCard({
+      kind: 'starter', idx, title: 'Did it start?', body: '', primary: 'Yes', quiet: '60 more',
+      onPrimary: () => { hideCard(); say('Nice. Keep going.'); },
+      onQuiet: () => { showStarter(); beginStarter(idx); },
+    });
   }
 
   $('stuck-btn').addEventListener('click', () => { hideCard(); runLook('stuck'); });

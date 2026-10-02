@@ -345,3 +345,19 @@ test('applyLook reentry: template uses the first words of the finish line once t
   const r = L.applyLook({ ...ctx(), purpose: 'reentry', starter: 'Open the doc.', activeMs: 5 * MINUTE }, null);
   assert.equal(r.card.body, 'You were on "Write intro". Next: intro exists');
 });
+
+// --- step 7: countdown label ---
+test('mmss: whole seconds rounded up, m:ss', () => {
+  assert.equal(L.mmss(61000), '1:01');
+  assert.equal(L.mmss(60000), '1:00');
+  assert.equal(L.mmss(59001), '1:00');
+  assert.equal(L.mmss(1), '0:01');
+  assert.equal(L.mmss(0), '0:00');
+  assert.equal(L.mmss(-5), '0:00');
+  assert.equal(L.mmss(120000), '2:00');
+});
+test('mmss: shows the unscaled time while the engine runs at N x', () => {
+  L.setTimeScale(60);
+  assert.equal(L.mmss(1000), '1:00', '1 s of engine time = 60 s on the label');
+  L.setTimeScale(1);
+});

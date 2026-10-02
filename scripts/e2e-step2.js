@@ -25,6 +25,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.waitForSelector('.ql-window');
   await page.click('.ql-window');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
+  if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   ok(await page.getAttribute('main', 'data-pet-state') === 'working', 'session on -> pet working');
   await page.click('#stuck-btn');
   await page.waitForSelector('.ql-card--step:not(.hidden)');

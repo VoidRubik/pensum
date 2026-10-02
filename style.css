@@ -216,3 +216,8 @@ main[data-pet-state="asleep"] .pet { opacity: 0.6; }
   cursor: pointer;
 }
 .ql-card .ql-input { margin-bottom: 8px; padding: 5px 8px; }
+
+.ql-countdown { display: flex; align-items: center; gap: 8px; }
+.ql-countdown svg { width: 28px; height: 28px; transform: rotate(-90deg); }
+.ql-countdown__track { fill: none; stroke: var(--ql-line); stroke-width: 3; }
+.ql-countdown__arc { fill: none; stroke: var(--ql-accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: calc(var(--left, 1) * 100.5) 100.5; }

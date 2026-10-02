@@ -1,0 +1,50 @@
+// First sloppy step: starter card at session start, 60 s countdown (scaled), "Did it start?" Yes / 60 more. No model call.
+const { _electron } = require('playwright-core');
+const fs = require('fs'), os = require('os'), path = require('path');
+const Q = require('node:path').resolve(__dirname, '..').split(require('node:path').sep).join('/');
+let pass = 0, fail = 0;
+const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') + m); };
+
+(async () => {
+  const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
+  const ledger = path.join(ud, 'usage.jsonl');
+  // Real mode (no QUESTLING_MOCK) so a stray model call would show up in the ledger; quests come from the local fallback if no key is set.
+  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: ledger, QUESTLING_TIME_SCALE: '30' };
+  delete env.ELECTRON_RUN_AS_NODE;
+  delete env.QUESTLING_MOCK;
+  const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
+  const page = await app.firstWindow();
+  await page.waitForSelector('#bar');
+  await page.click('#toggle');
+  await page.fill('#task-text', 'my water cycle essay');
+  await page.click('#make-quests');
+  await page.waitForSelector('.ql-quest');
+  const linesBefore = fs.existsSync(ledger) ? fs.readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length : 0;
+  await page.click('#start-btn');
+  await page.waitForSelector('.ql-window');
+  await page.click('.ql-window');
+  await page.waitForSelector('.ql-card--starter:not(.hidden)', { timeout: 4000 });
+  ok(await page.textContent('#card-title') === 'Tiny start', 'session start -> starter card');
+  const starter = await page.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')).starter);
+  ok((await page.textContent('#card-body')) === starter && starter.length > 0 && starter.length <= 80, 'card shows the plan starter (<= 80 chars): ' + starter.slice(0, 40));
+  ok((await page.textContent('#card-primary')) === 'Go', 'primary: Go');
+  await page.click('#card-primary');
+  ok(await page.isVisible('#card-count'), 'Go -> countdown ring shown');
+  ok(/^\d:\d\d$/.test(await page.textContent('#card-count-text')), 'label is m:ss');
+  const left = await page.$eval('#card-count', (e) => e.style.getPropertyValue('--left'));
+  ok(left !== '' && Number(left) <= 1, '--left drives the ring (' + left + ')');
+  await page.waitForSelector('#card-title:text("Did it start?")', { timeout: 6000 });
+  ok(true, 'at 0 -> "Did it start?"');
+  ok((await page.textContent('#card-quiet')) === '60 more' && (await page.textContent('#card-primary')) === 'Yes', 'buttons: Yes / 60 more');
+  await page.click('#card-quiet');
+  ok(await page.isVisible('#card-count'), '60 more -> countdown again');
+  await page.waitForSelector('#card-title:text("Did it start?")', { timeout: 6000 });
+  await page.click('#card-primary');
+  ok(await page.isHidden('#card'), 'Yes -> card closes');
+  ok(await page.$$eval('.ql-quest input[type=checkbox]', (b) => b.every((x) => !x.checked)), 'nothing completed');
+  const linesAfter = fs.existsSync(ledger) ? fs.readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length : 0;
+  ok(linesAfter === linesBefore, `no model call during the whole starter flow (ledger lines ${linesBefore} -> ${linesAfter})`);
+  await app.close();
+  console.log(`\n${pass} pass, ${fail} fail`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(2); });

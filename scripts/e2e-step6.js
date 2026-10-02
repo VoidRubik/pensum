@@ -21,6 +21,7 @@ async function launch(extra) {
   await page.waitForSelector('.ql-window');
   await page.click('.ql-window');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
+  if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   const send = (o) => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('signal', s),
     { ts: Date.now(), changed: true, fgHwnd: 111, fgProcess: 'notepad', onWork: true, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o });
   return { app, page, send };

@@ -169,6 +169,12 @@ function freshFrame(slot, now) {
   return slot && now - slot.at < dur(600000) ? slot.jpegBase64 : null;
 }
 
+/** m:ss label for a countdown. leftMs is engine time (already divided by the time scale), shown as real minutes. */
+function mmss(leftMs) {
+  const secs = Math.max(0, Math.ceil(leftMs / dur(1000)));
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+}
+
 /** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
 function migrate(s) {
   if (!s || typeof s !== 'object' || !isStr(s.text) || !Array.isArray(s.quests) || !s.quests.length) return null;
@@ -310,7 +316,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

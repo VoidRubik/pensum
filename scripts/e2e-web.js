@@ -45,6 +45,9 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await shot('03-picker');
   await page.click('.ql-window');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
+  await page.waitForSelector('.ql-card--starter:not(.hidden)');
+  ok((await page.textContent('#card-body')).length > 5, 'starter card greets the session start');
+  await page.click('#card-quiet');
   ok(await state() === 'working', 'session on -> working');
   await shot('04-working');
   // stuck on the blank page

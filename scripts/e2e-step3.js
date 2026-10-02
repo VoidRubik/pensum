@@ -19,6 +19,7 @@ async function launch(extra) {
   await page.waitForSelector('.ql-window');
   await page.click('.ql-window');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
+  if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   return { app, page };
 }
 const sig = (o) => ({ ts: Date.now(), changed: false, fgHwnd: 111, onWork: true, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o });
