@@ -5,8 +5,8 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'public');
-const REQUIRED = ['index.html', 'style.css', 'app.js', 'logic.js', 'web', 'demo/samples', 'demo/recorded.json'];
-const OPTIONAL = ['pet.css', 'ui.css']; // Claude Design assets, added when they land
+const REQUIRED = ['index.html', 'style.css', 'app.js', 'logic.js', 'web', 'demo/samples', 'demo/recorded.json', 'pet.css'];
+const OPTIONAL = ['ui.css']; // Claude Design asset, added when it lands
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });

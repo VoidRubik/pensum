@@ -138,6 +138,7 @@
     $('pause-btn').title = sessionOn ? 'pause' : 'resume';
     $('company').classList.toggle('hidden', !sessionOn || windowLost);
     $('repick').classList.toggle('hidden', !(sessionOn && windowLost));
+    $('bar').classList.toggle('is-complete', allDone());
     renderDisc();
     applyPet();
   }
@@ -681,7 +682,7 @@
     if (!finishIfAllDone()) {
       celebrating = true;
       applyPet();
-      setTimeout(() => { celebrating = false; applyPet(); }, L.dur(2400));
+      setTimeout(() => { celebrating = false; applyPet(); }, L.dur(3600));
       say(`Quest done! Next: ${nextTitle()}`);
     }
   }
@@ -711,7 +712,7 @@
     if (sessionOn) stopSession();
     celebrating = true;
     applyPet();
-    setTimeout(() => { celebrating = false; applyPet(); }, L.dur(2400));
+    setTimeout(() => { celebrating = false; applyPet(); }, L.dur(3600));
     showRecap();
     return true;
   }

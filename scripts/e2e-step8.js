@@ -59,19 +59,25 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
   ok(STATES.every((s) => seen.includes(s)), 'all 8 states reached through the UI: ' + seen.join(', '));
   ok(seen.every((s) => STATES.includes(s)), 'no state outside the contract names');
 
-  // CSS follows the attributes (placeholder motion; selectors are the DESIGN_PROMPT contract)
+  // CSS follows the attributes: exactly one pet state group shows, and it carries a motion rule
   const anim = await page.evaluate(() => {
     const m = document.querySelector('main'); const pet = document.querySelector('.pet'); const out = {};
-    for (const s of ['working', 'curious', 'thinking', 'helper', 'celebrate', 'sleepy', 'asleep']) { m.dataset.petState = s; out[s] = getComputedStyle(pet).animationName; }
+    const probe = () => {
+      const shown = [...pet.querySelectorAll('.ps')].filter((g) => getComputedStyle(g).display !== 'none');
+      if (shown.length !== 1) return 'groups:' + shown.length;
+      const a = [...shown[0].querySelectorAll('[class]')].map((n) => getComputedStyle(n).animationName).filter((n) => n !== 'none');
+      return shown[0].getAttribute('class') + '|' + a.join(',');
+    };
+    for (const s of ['working', 'curious', 'thinking', 'helper', 'celebrate', 'sleepy', 'asleep']) { m.dataset.petState = s; out[s] = probe(); }
     m.dataset.petState = 'idle';
-    for (const v of ['a', 'b', 'c', 'd']) { m.dataset.idle = v; out['idle-' + v] = getComputedStyle(pet).animationName; }
+    for (const v of ['a', 'b', 'c', 'd']) { m.dataset.idle = v; out['idle-' + v] = probe(); }
     return out;
   });
-  ok(Object.values(anim).every((n) => n && n !== 'none'), 'every state/variant has a motion rule: ' + JSON.stringify(anim).slice(0, 120));
+  ok(Object.values(anim).every((n) => /^ps ps-\w+\|.+/.test(n)), 'every state/variant shows one group with a motion rule: ' + JSON.stringify(anim).slice(0, 160));
   ok(new Set(['idle-a', 'idle-b', 'idle-c', 'idle-d'].map((k) => anim[k])).size === 4, 'the four idle variants are four different motions');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const reduced = await page.evaluate(() => getComputedStyle(document.querySelector('.pet')).animationName);
-  ok(reduced === 'none', 'prefers-reduced-motion: animations off (static pose)');
+  const reduced = await page.evaluate(() => [...document.querySelectorAll('.pet [class]')].filter((n) => getComputedStyle(n).animationName !== 'none').length);
+  ok(reduced === 0, 'prefers-reduced-motion: animations off (static pose)');
   await app.close();
   console.log(`\n${pass} pass, ${fail} fail`);
   process.exit(fail ? 1 : 0);

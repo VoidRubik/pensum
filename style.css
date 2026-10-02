@@ -57,6 +57,7 @@ main.ql {
 }
 
 .ql-bar {
+  position: relative;
   height: 64px;
   flex: none;
   display: flex;
@@ -65,11 +66,9 @@ main.ql {
   padding: 6px 10px 6px 6px;
   border-radius: var(--ql-radius-pill);
 }
-.ql-pet-slot { width: 64px; height: 64px; flex: none; }
-.pet { width: 100%; height: 100%; overflow: visible; }
-.pet-fill-1 { fill: var(--ql-pet-1); stroke: #6fb99e; stroke-width: 1.5; }
-.pet-fill-2 { fill: var(--ql-pet-2); }
-.pet-ink { fill: var(--ql-ink); }
+.ql-pet-slot { position: relative; width: 52px; height: 52px; flex: none; }
+/* Pet art is 88px in a 52px slot: it overflows up/left of the pill. The window keeps headroom for it (main.js BAR_H). */
+.pet { position: absolute; left: -12px; bottom: -4px; width: 88px; height: 88px; overflow: visible; }
 
 .ql-bar__mid { flex: 1; min-width: 0; }
 .ql-quest-line {
@@ -81,9 +80,34 @@ main.ql {
   text-overflow: ellipsis;
 }
 .ql-progress { display: flex; gap: 3px; margin-top: 6px; }
-.ql-seg { flex: 1; height: 5px; border-radius: var(--ql-radius-pill); background: var(--ql-line); overflow: hidden; }
+.ql-seg { position: relative; flex: 1; height: 6px; border-radius: var(--ql-radius-pill); background: var(--ql-line); overflow: hidden; }
 .ql-seg.is-plan, .ql-seg.is-done { background: var(--ql-accent); }
-.ql-seg.is-current { background: linear-gradient(90deg, var(--ql-accent) calc(var(--fill, 0) * 100%), var(--ql-line) 0); }
+/* Current segment: fill width + one soft highlight sliding through it. Only this 6px element repaints; nothing else animates in the bar. */
+.ql-seg.is-current::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--fill, 0) * 100%);
+  background: linear-gradient(90deg, var(--ql-accent) 0 35%, #c9f5e3 50%, var(--ql-accent) 65% 100%) 0 0 / 200% 100%;
+  animation: q-flow 2.4s linear infinite;
+}
+@keyframes q-flow { to { background-position: -200% 0; } }
+/* All quests done: one soft flare around the pill, opacity only, 3 pulses then gone. */
+.ql-bar.is-complete::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--ql-radius-pill);
+  box-shadow: 0 0 18px 6px rgba(111, 214, 170, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  animation: q-flare 1.4s ease-out 3;
+}
+@keyframes q-flare { 0% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ql-seg.is-current::before { animation: none; }
+  .ql-bar.is-complete::after { animation: none; }
+}
 .ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-accent); flex: none; }
 .ql-disc {
   width: 24px;
@@ -229,35 +253,6 @@ main.ql {
 .ql-countdown svg { width: 28px; height: 28px; transform: rotate(-90deg); }
 .ql-countdown__track { fill: none; stroke: var(--ql-line); stroke-width: 3; }
 .ql-countdown__arc { fill: none; stroke: var(--ql-accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: calc(var(--left, 1) * 100.5) 100.5; }
-
-/* Placeholder pet motion — selectors are the DESIGN_PROMPT contract; pet.css from Claude Design replaces these.
-   transform + opacity only. */
-.pet { transform-origin: 50% 100%; transform-box: fill-box; }
-@keyframes ql-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, 0.97); } }
-@keyframes ql-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-@keyframes ql-hop { 0%, 60%, 100% { transform: translateY(0); } 80% { transform: translateY(-8px); } }
-@keyframes ql-wiggle { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-@keyframes ql-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-@keyframes ql-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
-@keyframes ql-think { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-@keyframes ql-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-@keyframes ql-jump { 0% { transform: scale(1.1, 0.88); } 30% { transform: translateY(-14px) scale(0.92, 1.1); } 60% { transform: translateY(0) scale(1.08, 0.92); } 100% { transform: scale(1, 1); } }
-@keyframes ql-sleep { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
-main[data-pet-state="idle"][data-idle="a"] .pet { animation: ql-breathe calc(4s / var(--speed, 1)) ease-in-out infinite; }
-main[data-pet-state="idle"][data-idle="b"] .pet { animation: ql-sway calc(5s / var(--speed, 1)) ease-in-out infinite; }
-main[data-pet-state="idle"][data-idle="c"] .pet { animation: ql-hop calc(3s / var(--speed, 1)) ease-in-out infinite; }
-main[data-pet-state="idle"][data-idle="d"] .pet { animation: ql-wiggle calc(3.5s / var(--speed, 1)) ease-in-out infinite; }
-main[data-pet-state="working"] .pet { animation: ql-bob 6s ease-in-out infinite; }
-main[data-pet-state="curious"] .pet { animation: ql-tilt 2s ease-in-out infinite; }
-main[data-pet-state="thinking"] .pet { animation: ql-think 1.2s ease-in-out infinite; }
-main[data-pet-state="helper"] .pet { animation: ql-nudge 1.6s ease-in-out infinite; }
-main[data-pet-state="celebrate"] .pet { animation: ql-jump 2.4s ease-out 1; }
-main[data-pet-state="sleepy"] .pet { animation: ql-sleep 4s ease-in-out infinite; opacity: 0.75; }
-main[data-pet-state="asleep"] .pet { animation: ql-sleep 6s ease-in-out infinite; opacity: 0.55; }
-.pet { transition: opacity 0.4s ease; }
-@media (prefers-reduced-motion: reduce) {
-  .pet { animation: none !important; transition: opacity 0.2s ease; }
-}
 
 .ql-recap__praise { font-weight: 600; margin: 0 0 8px; }
 .ql-recap__list { margin: 0 0 10px; padding-left: 18px; color: var(--ql-muted); font-size: 0.85rem; }
