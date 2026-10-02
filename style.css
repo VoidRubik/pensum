@@ -70,8 +70,6 @@ main.ql {
 .pet-fill-1 { fill: var(--ql-pet-1); stroke: #6fb99e; stroke-width: 1.5; }
 .pet-fill-2 { fill: var(--ql-pet-2); }
 .pet-ink { fill: var(--ql-ink); }
-main[data-pet-state="sleepy"] .pet,
-main[data-pet-state="asleep"] .pet { opacity: 0.6; }
 
 .ql-bar__mid { flex: 1; min-width: 0; }
 .ql-quest-line {
@@ -221,3 +219,32 @@ main[data-pet-state="asleep"] .pet { opacity: 0.6; }
 .ql-countdown svg { width: 28px; height: 28px; transform: rotate(-90deg); }
 .ql-countdown__track { fill: none; stroke: var(--ql-line); stroke-width: 3; }
 .ql-countdown__arc { fill: none; stroke: var(--ql-accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: calc(var(--left, 1) * 100.5) 100.5; }
+
+/* Placeholder pet motion — selectors are the DESIGN_PROMPT contract; pet.css from Claude Design replaces these.
+   transform + opacity only. */
+.pet { transform-origin: 50% 100%; transform-box: fill-box; }
+@keyframes ql-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, 0.97); } }
+@keyframes ql-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes ql-hop { 0%, 60%, 100% { transform: translateY(0); } 80% { transform: translateY(-8px); } }
+@keyframes ql-wiggle { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes ql-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes ql-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
+@keyframes ql-think { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes ql-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes ql-jump { 0% { transform: scale(1.1, 0.88); } 30% { transform: translateY(-14px) scale(0.92, 1.1); } 60% { transform: translateY(0) scale(1.08, 0.92); } 100% { transform: scale(1, 1); } }
+@keyframes ql-sleep { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
+main[data-pet-state="idle"][data-idle="a"] .pet { animation: ql-breathe calc(4s / var(--speed, 1)) ease-in-out infinite; }
+main[data-pet-state="idle"][data-idle="b"] .pet { animation: ql-sway calc(5s / var(--speed, 1)) ease-in-out infinite; }
+main[data-pet-state="idle"][data-idle="c"] .pet { animation: ql-hop calc(3s / var(--speed, 1)) ease-in-out infinite; }
+main[data-pet-state="idle"][data-idle="d"] .pet { animation: ql-wiggle calc(3.5s / var(--speed, 1)) ease-in-out infinite; }
+main[data-pet-state="working"] .pet { animation: ql-bob 6s ease-in-out infinite; }
+main[data-pet-state="curious"] .pet { animation: ql-tilt 2s ease-in-out infinite; }
+main[data-pet-state="thinking"] .pet { animation: ql-think 1.2s ease-in-out infinite; }
+main[data-pet-state="helper"] .pet { animation: ql-nudge 1.6s ease-in-out infinite; }
+main[data-pet-state="celebrate"] .pet { animation: ql-jump 2.4s ease-out 1; }
+main[data-pet-state="sleepy"] .pet { animation: ql-sleep 4s ease-in-out infinite; opacity: 0.75; }
+main[data-pet-state="asleep"] .pet { animation: ql-sleep 6s ease-in-out infinite; opacity: 0.55; }
+.pet { transition: opacity 0.4s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .pet { animation: none !important; transition: opacity 0.2s ease; }
+}

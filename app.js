@@ -62,16 +62,21 @@
 
   // --- pet: one base state, transient overrides. The 8 names are the DESIGN_PROMPT contract. ---
   function applyPet() {
-    let s;
-    if (celebrating) s = 'celebrate';
-    else if (looking && !quietLook) s = 'thinking';
-    else if (card) s = card.kind === 'step' ? 'helper' : 'curious';
-    else if (!sessionOn) s = state ? 'sleepy' : 'idle';
-    else if (breakMode) s = 'sleepy';
-    else if (windowLost) s = 'asleep';
-    else if (away) s = 'sleepy';
-    else s = 'working';
-    main.dataset.petState = s;
+    main.dataset.petState = L.petStep({
+      celebrating, looking, quietLook, cardKind: card ? card.kind : null,
+      sessionOn, hasTask: !!state, breakMode, windowLost, away,
+    });
+  }
+
+  // Idle never loops identically: a random variant every 7-16 s at a slightly different speed (only while idle).
+  function scheduleIdle() {
+    setTimeout(() => {
+      if (main.dataset.petState === 'idle') {
+        main.dataset.idle = L.pickIdle(main.dataset.idle, Math.random());
+        main.style.setProperty('--speed', L.idleSpeed(Math.random()).toFixed(2));
+      }
+      scheduleIdle();
+    }, L.idleDelay(Math.random()));
   }
 
   function say(line) {
@@ -660,6 +665,7 @@
     if (cap) speechCapMs = cap;
     $('mock-note').classList.toggle('hidden', !mock);
     setInterval(tick, L.dur(30000));
+    scheduleIdle();
   });
   refreshUsage();
   updateBar();

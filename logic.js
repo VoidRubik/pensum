@@ -175,6 +175,29 @@ function mmss(leftMs) {
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 }
 
+const PET_STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate', 'sleepy', 'asleep'];
+const IDLE_VARIANTS = ['a', 'b', 'c', 'd'];
+
+/** Which of the 8 pet states to show. One base state plus transient overrides; priority top to bottom. */
+function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away }) {
+  if (celebrating) return 'celebrate';
+  if (looking && !quietLook) return 'thinking';
+  if (cardKind) return cardKind === 'step' ? 'helper' : 'curious';
+  if (!sessionOn) return hasTask ? 'sleepy' : 'idle';
+  if (windowLost) return 'asleep';
+  if (breakMode || away) return 'sleepy';
+  return 'working';
+}
+
+/** Next idle variant: random, never the same twice in a row. r in [0,1). */
+function pickIdle(prev, r) {
+  const pool = IDLE_VARIANTS.filter((v) => v !== prev);
+  return pool[Math.min(pool.length - 1, Math.floor(r * pool.length))];
+}
+/** Idle moments last 7-16 s (engine time), at a speed of 0.85-1.15 so the loop never repeats identically. */
+const idleDelay = (r) => dur(7000 + r * 9000);
+const idleSpeed = (r) => 0.85 + r * 0.3;
+
 /** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
 function migrate(s) {
   if (!s || typeof s !== 'object' || !isStr(s.text) || !Array.isArray(s.quests) || !s.quests.length) return null;
@@ -316,7 +339,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

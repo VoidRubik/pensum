@@ -361,3 +361,60 @@ test('mmss: shows the unscaled time while the engine runs at N x', () => {
   assert.equal(L.mmss(1000), '1:00', '1 s of engine time = 60 s on the label');
   L.setTimeScale(1);
 });
+
+// --- step 8: pet state machine ---
+const base = { celebrating: false, looking: false, quietLook: false, cardKind: null, sessionOn: true, hasTask: true, breakMode: false, windowLost: false, away: false };
+test('PET_STATES / IDLE_VARIANTS: exactly the names the design contract uses', () => {
+  assert.deepEqual(L.PET_STATES, ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate', 'sleepy', 'asleep']);
+  assert.deepEqual(L.IDLE_VARIANTS, ['a', 'b', 'c', 'd']);
+});
+test('petStep: base states', () => {
+  assert.equal(L.petStep(base), 'working');
+  assert.equal(L.petStep({ ...base, sessionOn: false, hasTask: false }), 'idle');
+  assert.equal(L.petStep({ ...base, sessionOn: false }), 'sleepy', 'paused / waiting to start');
+  assert.equal(L.petStep({ ...base, breakMode: true }), 'sleepy');
+  assert.equal(L.petStep({ ...base, away: true }), 'sleepy');
+  assert.equal(L.petStep({ ...base, windowLost: true }), 'asleep');
+  assert.equal(L.petStep({ ...base, windowLost: true, away: true }), 'asleep', 'a lost window beats away');
+});
+test('petStep: transient states override the base, in priority order', () => {
+  assert.equal(L.petStep({ ...base, cardKind: 'ask' }), 'curious');
+  for (const k of ['confirm', 'reentry', 'starter', 'timebox']) assert.equal(L.petStep({ ...base, cardKind: k }), 'curious', k);
+  assert.equal(L.petStep({ ...base, cardKind: 'step' }), 'helper');
+  assert.equal(L.petStep({ ...base, cardKind: 'step', looking: true }), 'thinking', 'a call in flight beats the card');
+  assert.equal(L.petStep({ ...base, looking: true, cardKind: 'ask', celebrating: true }), 'celebrate', 'celebrate beats everything');
+});
+test('petStep: an unsolicited (quiet) look never flashes thinking', () => {
+  assert.equal(L.petStep({ ...base, looking: true, quietLook: true }), 'working');
+});
+test('petStep: only names from PET_STATES, for any combination of flags', () => {
+  const flags = Object.keys(base);
+  for (let m = 0; m < 1 << flags.length; m++) {
+    const c = {};
+    flags.forEach((f, i) => { c[f] = f === 'cardKind' ? ((m >> i) & 1 ? 'step' : null) : !!((m >> i) & 1); });
+    assert.ok(L.PET_STATES.includes(L.petStep(c)), JSON.stringify(c));
+  }
+});
+
+test('pickIdle: never the same variant twice in a row, all four reachable', () => {
+  const seen = new Set();
+  for (const prev of L.IDLE_VARIANTS) {
+    for (let i = 0; i < 40; i++) {
+      const v = L.pickIdle(prev, i / 40);
+      assert.notEqual(v, prev);
+      assert.ok(L.IDLE_VARIANTS.includes(v));
+      seen.add(v);
+    }
+  }
+  assert.equal(seen.size, 4);
+  assert.ok(L.IDLE_VARIANTS.includes(L.pickIdle(undefined, 0.5)), 'no previous variant');
+});
+test('idleDelay / idleSpeed: 7-16 s and 0.85-1.15, scaled delay', () => {
+  assert.equal(L.idleDelay(0), 7000);
+  assert.equal(L.idleDelay(0.999999) <= 16000, true);
+  assert.equal(L.idleSpeed(0), 0.85);
+  assert.ok(Math.abs(L.idleSpeed(1) - 1.15) < 1e-9);
+  L.setTimeScale(10);
+  assert.equal(L.idleDelay(0), 700);
+  L.setTimeScale(1);
+});
