@@ -73,6 +73,12 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   ok(await page.$$eval('.ql-quest input[type=checkbox]', (b) => b.filter((x) => x.checked).length === 1), 'injection: only the click-completed quest is done');
   await shot('07-injection');
   await page.click('#card-quiet');
+  // drift: local ask with chips, no model call, no scolding
+  await page.click('text=Drift');
+  await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 5000 });
+  ok(/^Still on "/.test(await page.textContent('#card-title')), 'drift scene -> local ask with chips');
+  await page.click('#card-chips >> text=research');
+  ok(await page.isHidden('#card'), 'chip answers the ask');
   // window closed
   await page.click('text=Window closed');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'asleep', null, { timeout: 5000 });

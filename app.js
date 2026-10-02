@@ -13,6 +13,8 @@
   const STUCK_QUIET_MS = 240000; // no visible change this long -> offer a tiny step (never calls the model by itself)
   const OFFER_GAP_MS = 900000; // at most one offer per 15 min
   const STEP_TIMER_MS = 120000;
+  const IDLE_OFFER_SEC = 75; // input idle this long (but not away) -> the same free tiny-step offer
+  const CHIPS = ['research', 'lecture for this', 'taking a break'];
 
   // state = persisted, text only. Screen-derived text (evidence, titles, documents) never lands here.
   let state = L.migrate(load(STORAGE_KEY));
@@ -33,6 +35,11 @@
   let lastOfferAt = 0;
   let lastLookAt = 0;
   let changedSinceLook = false;
+  let drift = { since: null, lastAskAt: null };
+  let driftPending = false; // a drift ask is open/answered and the user has not come back to the work window yet
+  let speech = { lastSpokeAt: null, dismissed: 0 }; // unsolicited-speech budget (logic.allowSpeak)
+  let breakMode = false;
+  let lastFgProcess = null;
   let bubbleTimer = null;
   let stepTimer = null;
 
@@ -57,6 +64,7 @@
     else if (looking && !quietLook) s = 'thinking';
     else if (card) s = card.kind === 'step' ? 'helper' : 'curious';
     else if (!sessionOn) s = state ? 'sleepy' : 'idle';
+    else if (breakMode) s = 'sleepy';
     else if (windowLost) s = 'asleep';
     else if (away) s = 'sleepy';
     else s = 'working';
@@ -81,6 +89,19 @@
     $('card-evidence').textContent = spec.evidence || '';
     $('card-evidence').classList.toggle('hidden', !spec.evidence);
     $('card-count').classList.add('hidden');
+    const chips = $('card-chips');
+    chips.innerHTML = '';
+    (spec.chips || []).forEach((label) => {
+      const b = document.createElement('button');
+      b.className = 'ql-chip';
+      b.textContent = label;
+      b.addEventListener('click', () => spec.onChip(label));
+      chips.appendChild(b);
+    });
+    chips.classList.toggle('hidden', !spec.chips);
+    $('card-input').value = '';
+    $('card-input').classList.toggle('hidden', !spec.chips);
+    if (spec.unsolicited) speech.lastSpokeAt = Date.now();
     $('card-primary').textContent = spec.primary;
     $('card-quiet').textContent = spec.quiet;
     $('card-primary').classList.remove('hidden');
@@ -92,7 +113,8 @@
     $('card').classList.add('hidden');
     applyPet();
   }
-  $('card-x').addEventListener('click', hideCard);
+  $('card-x').addEventListener('click', () => { if (card?.unsolicited) speech.dismissed++; hideCard(); });
+  $('card-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.value.trim()) card?.onChip(e.target.value.trim()); });
   $('card-primary').addEventListener('click', () => card?.onPrimary());
   $('card-quiet').addEventListener('click', () => card?.onQuiet());
 
@@ -324,6 +346,8 @@
     lastOfferAt = Date.now();
     lastLookAt = Date.now();
     changedSinceLook = false;
+    drift = { since: null, lastAskAt: null };
+    speech = { lastSpokeAt: null, dismissed: 0 };
     showPanelPart('quests');
     setExpanded(false);
     updateBar();
@@ -332,6 +356,10 @@
 
   function stopSession() {
     sessionOn = false;
+    breakMode = false;
+    drift = { since: null, lastAskAt: null };
+    driftPending = false;
+    speech = { lastSpokeAt: null, dismissed: 0 };
     windowLost = false;
     away = false;
     epoch++;
@@ -385,28 +413,79 @@
       renderProgress();
       save();
     }
+    if (wasAway && !away) { lastChangeAt = s.ts; lastOfferAt = s.ts; }
     if (windowLost !== wasLost || away !== wasAway) {
       if (windowLost && !wasLost) { hideCard(); say("I lost the window. Pick it again when you're ready."); }
       updateBar();
     }
-    // Stuck signal: quiet screen for a while -> offer, never call the model on our own.
-    if (!windowLost && !away && !looking && !card && s.ts - lastChangeAt >= L.dur(STUCK_QUIET_MS) && s.ts - lastOfferAt >= L.dur(OFFER_GAP_MS)) {
-      lastOfferAt = s.ts;
-      offerStep();
-    }
+    if (s.fgProcess) lastFgProcess = s.fgProcess;
+    if (driftPending && s.onWork) { driftPending = false; state.session.backOnTrack++; save(); }
+    if (breakMode && s.onWork && s.idleSec < 10 && !away && !windowLost) endBreak();
+
+    // One unsolicited prompt at a time, highest priority first (logic.breakpoint). Everything below is local and free.
+    const d = L.driftStep(drift, s, { allow: state.session.allow, now: s.ts });
+    const free = !windowLost && !away && !breakMode && !looking && !card && L.allowSpeak(speech, Date.now());
+    const quiet = s.ts - lastOfferAt >= L.dur(OFFER_GAP_MS);
+    const bp = free ? L.breakpoint({
+      drift: d.ask,
+      stuck: quiet && s.ts - lastChangeAt >= L.dur(STUCK_QUIET_MS),
+      idle: quiet && s.idleSec >= IDLE_OFFER_SEC,
+    }) : null;
+    drift = d.ask && bp !== 'drift' ? { ...drift, since: drift.since ?? s.ts } : d.state;
+    if (bp === 'drift') askDrift(`Still on "${state.quests[curIdx()].title}"?`);
+    else if (bp === 'stuck' || bp === 'idle') { lastOfferAt = s.ts; offerStep(); }
     // Heartbeat: a change worth a look, or every 6 min. The renderer decides; main never calls the model alone.
-    if (!windowLost && !away && !looking && !card && !allDone() && L.lookDue({ now: s.ts, lastLookAt, changed: changedSinceLook })) runLook('check', {}, true);
+    if (!windowLost && !away && !breakMode && !looking && !card && !allDone() && L.lookDue({ now: s.ts, lastLookAt, changed: changedSinceLook })) runLook('check', {}, true);
   }
+
   api.onSignal(onSignal);
 
   function offerStep() {
     const i = curIdx();
     showCard({
       kind: 'ask', idx: i, title: 'Want a tiny next step?', body: `"${state.quests[i].title}" has been quiet for a few minutes.`,
-      primary: 'Tiny step', quiet: 'Not now',
+      primary: 'Tiny step', quiet: 'Not now', unsolicited: true,
       onPrimary: () => { hideCard(); runLook('stuck'); },
       onQuiet: hideCard,
     });
+  }
+
+  // Soft drift ask. Local text only; the user answers with a chip, free text, or goes back to work.
+  function askDrift(title) {
+    const i = curIdx();
+    state.session.driftsAsked++;
+    driftPending = true;
+    save();
+    showCard({
+      kind: 'ask', idx: i, title, body: '', unsolicited: true, chips: CHIPS,
+      primary: "I'm on task", quiet: 'Back to it',
+      onChip: (label) => onTaskNote(label),
+      onPrimary: () => onTaskNote('on task'),
+      onQuiet: () => { hideCard(); },
+    });
+  }
+  function onTaskNote(note) {
+    hideCard();
+    if (note === 'taking a break') { startBreak(); return; }
+    if (lastFgProcess) {
+      state.session.allow = L.addAllow(state.session.allow, { process: lastFgProcess, note });
+      save();
+      say(`Okay, I'll treat ${lastFgProcess} as part of the task.`);
+    }
+    driftPending = false;
+  }
+  function startBreak() {
+    breakMode = true;
+    driftPending = false;
+    applyPet();
+    say("Enjoy your break. I'll be here.");
+  }
+  function endBreak() {
+    breakMode = false;
+    lastChangeAt = Date.now();
+    lastOfferAt = Date.now();
+    applyPet();
+    say('Welcome back.');
   }
 
   // --- looks: user clicks only in this step; the model proposes, the user confirms ---
@@ -446,14 +525,15 @@
     }
     const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto, sup }, v);
     sup = r.sup;
-    if (r.card) showStepOrConfirm(r.card);
+    if (r.card && auto && !L.allowSpeak(speech, Date.now())) applyPet();
+    else if (r.card) showStepOrConfirm(r.card, auto);
     else applyPet();
   }
 
-  function showStepOrConfirm(c) {
+  function showStepOrConfirm(c, auto = false) {
     if (c.kind === 'confirm') {
       showCard({
-        ...c, primary: 'Yes, done', quiet: 'Not yet',
+        ...c, unsolicited: auto, primary: 'Yes, done', quiet: 'Not yet',
         onPrimary: () => { hideCard(); if (state.quests[c.idx] && !state.quests[c.idx].done) completeQuest(c.idx); },
         onQuiet: () => {
           hideCard();
@@ -463,6 +543,8 @@
           say("Okay, I'll keep you company.");
         },
       });
+    } else if (c.kind === 'ask') {
+      if (L.allowSpeak(speech, Date.now())) askDrift(c.title);
     } else if (c.kind === 'step') {
       showCard({
         ...c, primary: 'Start 2 min', quiet: 'Another idea',

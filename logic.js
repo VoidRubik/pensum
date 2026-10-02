@@ -88,10 +88,15 @@ function applyLook({ quests, idx, purpose, auto, sup }, look) {
   } else if (purpose === 'stuck') {
     const step = g && g.nextStep && toneOk(g.nextStep) ? g.nextStep : `Tiny step: write one rough sentence for '${title}'.`;
     out.card = { kind: 'step', idx, title: 'Next tiny step', body: step };
-  } else if (purpose === 'check' && g && g.questDone) {
-    const p = proposeStep(sup, { idx, questDone: true, auto });
-    out.sup = p.state;
-    if (p.propose) out.card = { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: g.evidence };
+  } else if (purpose === 'check' && g) {
+    if (g.questDone) {
+      const p = proposeStep(sup, { idx, questDone: true, auto });
+      out.sup = p.state;
+      if (p.propose) out.card = { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: g.evidence };
+    } else if (!g.onTask) {
+      // Drift lines are never model text: only the model's judgment (onTask=false, confident) is used.
+      out.card = { kind: 'ask', idx, title: `Still on "${title}"?`, body: '', evidence: '', drift: true };
+    }
   }
   return out;
 }
@@ -116,6 +121,37 @@ function lookDue({ now, lastLookAt, changed }) {
   if (since < dur(60000)) return false;
   return (changed && since >= dur(90000)) || since >= dur(360000);
 }
+
+const sameProc = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+/** Is this foreground process one the user said belongs to the task? */
+const allowMatches = (allow, proc) => !!proc && allow.some((a) => sameProc(a.process, proc));
+/** "I'm on task" notes: newest per process wins, max 8, note cut to 60. */
+function addAllow(allow, { process, note }) {
+  if (!isStr(process) || !process.trim()) return allow;
+  const p = process.trim();
+  return [...allow.filter((a) => !sameProc(a.process, p)), { process: p, note: isStr(note) ? note.trim().slice(0, 60) : '' }].slice(-8);
+}
+
+/** Local drift rule ($0, no screenshots): off the work window, in a process the user hasn't allowed, for 2 min
+ * -> ask; at most one ask per 10 min. st = { since, lastAskAt }. */
+function driftStep(st, s, { allow, now }) {
+  const off = !s.onWork && !!s.fgProcess && !allowMatches(allow, s.fgProcess);
+  if (!off) return { state: { ...st, since: null }, ask: false };
+  const since = st.since ?? s.ts;
+  const gapOk = st.lastAskAt == null || now - st.lastAskAt >= dur(600000);
+  if (now - since >= dur(120000) && gapOk) return { state: { since: now, lastAskAt: now }, ask: true };
+  return { state: { ...st, since }, ask: false };
+}
+
+/** Unsolicited speech budget: one line per 5 min; two dismissals silence the rest of the session. */
+function allowSpeak({ lastSpokeAt, dismissed }, now) {
+  if (dismissed >= 2) return false;
+  return lastSpokeAt == null || now - lastSpokeAt >= dur(300000);
+}
+
+const BREAKPOINTS = ['windowLost', 'deadline', 'timebox', 'drift', 'stuck', 'idle'];
+/** One prompt at a time: the highest-priority breakpoint that is due, or null. */
+const breakpoint = (flags) => BREAKPOINTS.find((k) => flags[k]) || null;
 
 /** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
 function migrate(s) {
@@ -258,7 +294,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

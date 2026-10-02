@@ -208,3 +208,95 @@ test('lookDue: scaled by the time scale', () => {
   assert.equal(L.lookDue({ now: 1500 + 1000, lastLookAt: 1000, changed: true }), true, '90 s / 60 = 1.5 s');
   L.setTimeScale(1);
 });
+
+// --- step 5: drift, speech cap, breakpoint priority, allow list ---
+const sig = (o = {}) => ({ ts: 0, onWork: false, fgProcess: 'chrome', ...o });
+const MINUTE = 60000;
+
+test('driftStep: asks only after 2 min off the work window, then not again for 10 min', () => {
+  let st = { since: null, lastAskAt: null };
+  let r = L.driftStep(st, sig({ ts: 0 }), { allow: [], now: 0 });
+  assert.equal(r.ask, false); st = r.state;
+  r = L.driftStep(st, sig({ ts: 119000 }), { allow: [], now: 119000 });
+  assert.equal(r.ask, false); st = r.state;
+  r = L.driftStep(st, sig({ ts: 120000 }), { allow: [], now: 120000 });
+  assert.equal(r.ask, true); st = r.state;
+  r = L.driftStep(st, sig({ ts: 120000 + 5 * MINUTE }), { allow: [], now: 120000 + 5 * MINUTE });
+  assert.equal(r.ask, false, 'inside the 10 min gap');
+  r = L.driftStep(st, sig({ ts: 120000 + 12 * MINUTE }), { allow: [], now: 120000 + 12 * MINUTE });
+  assert.equal(r.ask, true, 'after the gap, still drifting');
+});
+test('driftStep: back on the work window resets the clock', () => {
+  let st = { since: null, lastAskAt: null };
+  st = L.driftStep(st, sig({ ts: 0 }), { allow: [], now: 0 }).state;
+  st = L.driftStep(st, sig({ ts: 60000, onWork: true }), { allow: [], now: 60000 }).state;
+  assert.equal(st.since, null);
+  st = L.driftStep(st, sig({ ts: 100000 }), { allow: [], now: 100000 }).state;
+  assert.equal(L.driftStep(st, sig({ ts: 100000 + 119000 }), { allow: [], now: 100000 + 119000 }).ask, false);
+});
+test('driftStep: an allowed process never counts as drift', () => {
+  const allow = [{ process: 'Chrome', note: 'research' }];
+  let st = { since: null, lastAskAt: null };
+  st = L.driftStep(st, sig({ ts: 0 }), { allow, now: 0 }).state;
+  const r = L.driftStep(st, sig({ ts: 10 * MINUTE }), { allow, now: 10 * MINUTE });
+  assert.equal(r.ask, false);
+  assert.equal(r.state.since, null);
+});
+test('driftStep: unknown foreground process (null) is not drift', () => {
+  let st = { since: null, lastAskAt: null };
+  st = L.driftStep(st, sig({ ts: 0, fgProcess: null }), { allow: [], now: 0 }).state;
+  assert.equal(L.driftStep(st, sig({ ts: 10 * MINUTE, fgProcess: null }), { allow: [], now: 10 * MINUTE }).ask, false);
+});
+test('driftStep: scaled by the time scale', () => {
+  L.setTimeScale(60);
+  let st = L.driftStep({ since: null, lastAskAt: null }, sig({ ts: 0 }), { allow: [], now: 0 }).state;
+  assert.equal(L.driftStep(st, sig({ ts: 2000 }), { allow: [], now: 2000 }).ask, true, '2 min / 60 = 2 s');
+  L.setTimeScale(1);
+});
+
+test('allowSpeak: one unsolicited line per 5 min; two dismissals silence the session', () => {
+  assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 0 }, 5 * MINUTE - 1), false);
+  assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 0 }, 5 * MINUTE), true);
+  assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 1 }, 99 * MINUTE), true);
+  assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 2 }, 99 * MINUTE), false);
+  assert.equal(L.allowSpeak({ lastSpokeAt: null, dismissed: 0 }, 1), true, 'nothing spoken yet');
+});
+
+test('breakpoint: highest priority wins — windowLost > deadline > timebox > drift > stuck > idle', () => {
+  assert.equal(L.breakpoint({}), null);
+  assert.equal(L.breakpoint({ idle: true }), 'idle');
+  assert.equal(L.breakpoint({ idle: true, stuck: true }), 'stuck');
+  assert.equal(L.breakpoint({ idle: true, stuck: true, drift: true }), 'drift');
+  assert.equal(L.breakpoint({ stuck: true, drift: true, timebox: true }), 'timebox');
+  assert.equal(L.breakpoint({ drift: true, timebox: true, deadline: true }), 'deadline');
+  assert.equal(L.breakpoint({ deadline: true, windowLost: true, idle: true }), 'windowLost');
+});
+
+test('allowMatches / addAllow: case-insensitive, capped at 8, no duplicates', () => {
+  assert.equal(L.allowMatches([{ process: 'Chrome', note: 'x' }], 'chrome'), true);
+  assert.equal(L.allowMatches([{ process: 'Chrome', note: 'x' }], 'winword'), false);
+  assert.equal(L.allowMatches([], null), false);
+  let a = [];
+  a = L.addAllow(a, { process: 'chrome', note: 'research' });
+  a = L.addAllow(a, { process: 'Chrome', note: 'lecture' });
+  assert.equal(a.length, 1);
+  assert.equal(a[0].note, 'lecture', 'newest note wins');
+  for (let i = 0; i < 12; i++) a = L.addAllow(a, { process: `app${i}`, note: 'n' });
+  assert.equal(a.length, 8);
+  assert.equal(L.addAllow([], { process: '', note: 'x' }).length, 0, 'empty process ignored');
+  assert.equal(L.addAllow([], { process: 'p', note: 'x'.repeat(200) })[0].note.length, 60, 'note cut to 60');
+});
+
+test('applyLook check: off-task at >= 0.7 asks with a LOCAL template, never model text; below the gate = silence', () => {
+  const c = ctx({ auto: true });
+  const off = L.applyLook({ ...c, purpose: 'check' }, look({ onTask: false, confidence: 0.9, sayLine: 'Stop watching cats!', evidence: 'cat videos', nextStep: 'go away' }));
+  assert.equal(off.card.kind, 'ask');
+  assert.equal(off.card.title, 'Still on "Write intro"?');
+  assert.doesNotMatch(JSON.stringify(off.card), /cat|Stop|go away/);
+  assert.equal(L.applyLook({ ...c, purpose: 'check' }, look({ onTask: false, confidence: 0.5 })).card, null);
+  assert.equal(L.applyLook({ ...c, purpose: 'check' }, look({ onTask: true })).card, null);
+});
+test('applyLook check: questDone wins over off-task (propose done, do not ask)', () => {
+  const r = L.applyLook({ ...ctx({ auto: true }), purpose: 'check' }, look({ onTask: false, questDone: true, confidence: 0.9 }));
+  assert.equal(r.card.kind, 'confirm');
+});

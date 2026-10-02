@@ -47,7 +47,7 @@
   }
 
   const emit = (o = {}) => onSignalFn({
-    ts: Date.now(), changed: false, fgHwnd: 111, onWork: true, windowAlive: alive, windowVisible: visible,
+    ts: Date.now(), changed: false, fgHwnd: 111, fgProcess: 'winword', onWork: true, windowAlive: alive, windowVisible: visible,
     idleSec: 0, locked: false, ...o,
   });
 
@@ -96,10 +96,24 @@
     onPaused() {},
   };
 
+  // Drift needs 2 minutes off the work window. The scene sends two signals 121 s apart in signal time
+  // (the engine only reads signal timestamps for this rule), so the demo does not wait. lastDriftTs keeps
+  // repeated clicks ahead of the 10 min ask gap.
+  let lastDriftTs = 0;
+  function driftScene() {
+    setSample('video-site');
+    const t0 = Math.max(Date.now(), lastDriftTs + 11 * 60000);
+    const off = { fgHwnd: 222, fgProcess: 'chrome', onWork: false };
+    emit({ ...off, ts: t0 });
+    emit({ ...off, ts: t0 + 121000 });
+    lastDriftTs = t0 + 121000;
+  }
+
   // --- scene bar: scripted signals instead of a real desktop ---
   const SCENES = [
     ['Writing', 'The doc has text. Press ✓ when you think the quest is done.', () => { setSample('essay-midway'); emit({ changed: true }); }],
     ['Blank page (stuck)', 'Empty section. Press the footsteps button for a tiny next step.', () => { setSample('essay-blank'); emit({ changed: true }); }],
+    ['Drift', 'You wandered to a video site for 2 minutes. The pet asks, it never scolds: tap a chip.', driftScene],
     ['Outline done', 'The outline is finished. Press ✓ and the pet will ask you to confirm.', () => { setSample('outline-done'); emit({ changed: true }); }],
     ['Injection test', 'This doc tries to hijack the pet. Press ✓: it can only ask you, nothing completes by itself.', () => { setSample('injection'); emit({ changed: true }); }],
     ['Window closed', 'The window vanished. The pet falls asleep and offers "Pick window again".', () => { alive = false; visible = false; emit(); }],

@@ -203,3 +203,16 @@ main[data-pet-state="asleep"] .pet { opacity: 0.6; }
 }
 .ql-window img { width: 100%; border-radius: 6px; }
 .ql-window span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ql-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ql-chip {
+  border: 1px solid var(--ql-line);
+  border-radius: var(--ql-radius-pill);
+  padding: 3px 10px;
+  background: var(--ql-surface-2);
+  color: var(--ql-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.ql-card .ql-input { margin-bottom: 8px; padding: 5px 8px; }

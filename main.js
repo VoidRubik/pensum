@@ -114,6 +114,7 @@ function emit(extra = {}) {
     ts: Date.now(),
     changed: false,
     fgHwnd: fg?.hwnd || 0,
+    fgProcess: fg?.process || null, // process name only, never the window title
     onWork: !!work && fg?.hwnd === work.hwnd,
     windowAlive: winState.alive,
     windowVisible: winState.visible,
@@ -125,7 +126,7 @@ function emit(extra = {}) {
 
 async function sample() {
   const gen = sessionGen;
-  if (!work || TEST) return emit();
+  if (!work || TEST) return; // test mode: scripted signals only (see test-signal / webContents.send)
   const gray = await capture.grabGray(work.id).catch(() => null);
   if (gen !== sessionGen) return; // session ended or window re-picked while capturing
   if (!gray) { winState = { alive: winState.alive, visible: false }; prevGray = null; return emit(); }

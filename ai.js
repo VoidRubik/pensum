@@ -143,7 +143,7 @@ function signalLines(ctx) {
 async function look({ purpose, jpegBase64, quest, ctx = {}, memory = true }) {
   const text = PURPOSE_TEXT[purpose];
   if (!text) return { error: true, status: 0 };
-  if (isMock()) return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_DONE ? { questDone: true } : {}) };
+  if (isMock()) return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_OFF ? { onTask: false } : {}) };
   const model = LOOK_MODEL();
   const myGen = gen;
   const questLines = (ctx.quests || []).map((q) => `${q.done ? '[x]' : '[ ]'} ${q.title}`).join('\n');
