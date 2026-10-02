@@ -99,6 +99,12 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await page.click('.ql-window');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'working');
   ok(true, 're-pick -> working');
+  // end of the session: recap
+  await page.click('#toggle');
+  await page.click('#end-btn');
+  await page.waitForSelector('#recap:not(.hidden)');
+  ok((await page.textContent('#recap-praise')).length > 10, 'End session -> recap: ' + (await page.textContent('#recap-praise')).slice(0, 60));
+  await shot('10-recap');
   // permissions / storage
   ok(await page.evaluate(() => window.__devAsks.length) === 0 && dialogs === 0, 'no device or permission requests at all');
   const dump = await page.evaluate(() => JSON.stringify(localStorage));
