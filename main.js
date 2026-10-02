@@ -6,7 +6,7 @@ const ai = require('./ai.js');
 const ledger = require('./ledger.js');
 const focus = require('./focus.js');
 const artifact = require('./artifact.js');
-const { nextInterval, dayKey, shouldSkip, artifactDigest, capMiddle } = require('./logic.js');
+const { nextInterval, dayKey, shouldSkip, artifactDigest, capMiddle, rateGate } = require('./logic.js');
 
 const WIDTH = 400;
 const BAR_H = 76;
@@ -110,7 +110,18 @@ async function grabScreen(maxSide, quality) {
 }
 
 const BASE_MS = () => Number(process.env.QUESTLING_CHECK_INTERVAL_MS) || 180000;
-const DAILY_CAP = () => Number(process.env.QUESTLING_DAILY_CHECKS) || 150;
+const DAILY_CAP = () => Number(process.env.QUESTLING_DAILY_CALLS) || 300; // all model kinds
+const PER_MIN = () => Number(process.env.QUESTLING_PER_MIN) || 8;
+let stamps = [];
+// Gate for every model call. Real calls only: mock mode costs nothing. Returns an error reply, or null to proceed.
+function gateCall() {
+  if (ai.isMock()) return null;
+  if (ledger.today().calls >= DAILY_CAP()) return { error: true, limited: true, capped: true, pet_line: 'out of looks for today' };
+  const g = rateGate(stamps, Date.now(), { perMin: PER_MIN() });
+  stamps = g.stamps;
+  if (!g.ok) return { error: true, limited: true, retryMs: g.retryMs, pet_line: 'slow down a little, one moment' };
+  return null;
+}
 let timer = null;
 let inflight = null; // single-flight: a check already running is joined, never doubled
 let doneInflight = null; // done-check has its own slot: never joins an auto check, works while paused
@@ -173,19 +184,21 @@ async function runCheck({ quest, idx, epoch, ctx, auto, ...req }) {
   return { ...(v.error ? v : { ...v, thumb: frame.thumb }), idx, epoch };
 }
 
-ipcMain.handle('quests', (_e, req) => ai.quests(req));
+ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests(req));
 ipcMain.handle('check', async (_e, req) => {
   if (!watching) return { error: true, paused: true, pet_line: 'paused' };
-  const capped = !ai.isMock() && (cappedDay === dayKey(Date.now()) || (req.auto && ledger.today().checks >= DAILY_CAP()));
-  if (capped) {
-    return { error: true, capped: true, pet_line: 'out of looks for today', idx: req.idx, epoch: req.epoch };
-  }
+  const stamp = { idx: req.idx, epoch: req.epoch };
+  if (!ai.isMock() && cappedDay === dayKey(Date.now())) return { error: true, capped: true, pet_line: 'out of looks for today', ...stamp };
+  const limited = inflight ? null : gateCall();
+  if (limited) return { ...limited, ...stamp };
   if (!inflight) { const p = runCheck(req).finally(() => { if (inflight === p) inflight = null; }); inflight = p; }
   return inflight;
 });
 
 // "Am I done?" — own channel and slot, quest model, sharper frame, full linked text. Works while paused.
 ipcMain.handle('done-check', async (_e, req) => {
+  const limited = doneInflight ? null : gateCall();
+  if (limited) return { ...limited, idx: req.idx, epoch: req.epoch };
   if (!doneInflight) {
     const p = (async () => {
       try {

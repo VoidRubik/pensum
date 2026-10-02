@@ -98,7 +98,7 @@
 
   async function refreshUsage() {
     const u = await api.usage();
-    $('usage-line').textContent = `today: ${u.checks} looks · ${(u.tokens / 1000).toFixed(1)}k tokens · cap ${u.cap}`;
+    $('usage-line').textContent = `today: ${u.calls} calls · ${(u.tokens / 1000).toFixed(1)}k tokens · cap ${u.cap}`;
   }
 
   // --- quests panel ---

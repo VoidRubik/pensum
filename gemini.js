@@ -1,6 +1,7 @@
 // Raw fetch to the Gemini REST API. No SDK. Models come from ai.js (env-overridable).
 // Errors carry status / retryDelayMs / perDay / usage; the message never includes the request body.
-async function callGemini({ model, contents, responseSchema, systemInstruction, generationConfig }) {
+// timeoutMs per attempt; retries only on a timeout/network failure or a 503 (never 400/429).
+async function callGemini({ model, contents, responseSchema, systemInstruction, generationConfig, timeoutMs = 8000, retries = 1 }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw Object.assign(new Error('GEMINI_API_KEY not set'), { code: 'NO_KEY' });
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -11,19 +12,24 @@ async function callGemini({ model, contents, responseSchema, systemInstruction, 
   if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] };
 
   const t0 = Date.now();
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20000),
-    });
-  } catch (e) {
-    throw Object.assign(new Error(`Gemini request failed: ${e.name}`), { code: 'NETWORK', ms: Date.now() - t0 });
+  let res, json;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      if (attempt < retries) continue;
+      throw Object.assign(new Error(`Gemini request failed: ${e.name}`), { code: 'NETWORK', ms: Date.now() - t0 });
+    }
+    json = await res.json().catch(() => null);
+    if (res.status === 503 && attempt < retries) continue;
+    break;
   }
   const ms = Date.now() - t0;
-  const json = await res.json().catch(() => null);
   if (!res.ok) throw apiError(res.status, json, ms);
 
   const m = json?.usageMetadata || {};

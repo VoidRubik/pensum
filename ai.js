@@ -77,17 +77,24 @@ async function real(kind, auto, args) {
 
 async function quests({ text, now, tzOffset }) {
   if (isMock()) return { deadline_iso: defaultDeadline(now), quests: questFallback(), mock: true };
-  const model = QUEST_MODEL();
-  try {
-    const result = await real('quests', false, {
-      model,
-      systemInstruction: PERSONA,
-      generationConfig: thinkingFor(model),
-      contents: [{ role: 'user', parts: [{ text: `Task: "${text}". Current time: ${now}, timezone offset (minutes): ${tzOffset}.
+  const req = (model) => ({
+    model,
+    systemInstruction: PERSONA,
+    generationConfig: thinkingFor(model),
+    timeoutMs: 12000,
+    retries: 0,
+    contents: [{ role: 'user', parts: [{ text: `Task: "${text}". Current time: ${now}, timezone offset (minutes): ${tzOffset}.
 Break this into 3 to 6 granular quests. Each finish condition must be checkable from the screen or
 from the text of the user's document (e.g. "the conclusion paragraph exists", not "essay is good"). Also infer deadline_iso (ISO 8601) if the task implies one, otherwise 1 hour from now.` }] }],
       responseSchema: QUEST_SCHEMA,
-    });
+  });
+  try {
+    // Flash is the slow tier: on a timeout/503 retry once on lite instead of waiting again.
+    let result;
+    try { result = await real('quests', false, req(QUEST_MODEL())); } catch (e) {
+      if (e.status && e.status !== 503) throw e;
+      result = await real('quests', false, req(CHECK_MODEL()));
+    }
     if (!Array.isArray(result?.quests) || result.quests.length === 0 || !result.deadline_iso) {
       throw new Error('malformed quest response');
     }

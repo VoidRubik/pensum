@@ -266,3 +266,24 @@ test('capMiddle: short text untouched; long text keeps head + tail, so "where it
   assert.ok(c.startsWith('H'.repeat(20)));
   assert.ok(c.endsWith('T'.repeat(50)), 'the end of the document must be kept');
 });
+
+test('summarizeUsage: calls counts every model kind so the daily cap trips', () => {
+  const t = new Date(2026, 8, 28, 9).getTime();
+  const lines = [{ ts: t, kind: 'quests' }, { ts: t, kind: 'look:stuck' }, { ts: t, kind: 'look:check', auto: true }, { ts: t, kind: 'check' }];
+  const s = summarizeUsage(lines, '2026-09-28');
+  assert.equal(s.calls, 4);
+});
+
+test('rateGate: allows perMin calls inside 60 s, blocks the next with a retry time, frees after the window', () => {
+  let stamps = [];
+  for (let i = 0; i < 3; i++) {
+    const r = L.rateGate(stamps, 1000 + i, { perMin: 3 });
+    assert.equal(r.ok, true);
+    stamps = r.stamps;
+  }
+  const blocked = L.rateGate(stamps, 5000, { perMin: 3 });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.retryMs, 1000 + 60000 - 5000);
+  assert.equal(blocked.stamps.length, 3, 'a blocked call is not recorded');
+  assert.equal(L.rateGate(stamps, 1000 + 60001, { perMin: 3 }).ok, true);
+});

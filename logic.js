@@ -156,13 +156,21 @@ const dayKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${St
 
 /** Today's totals from ledger lines. Day = local date. */
 function summarizeUsage(lines, day) {
-  const out = { checks: 0, autoChecks: 0, tokens: 0 };
+  const out = { checks: 0, autoChecks: 0, calls: 0, tokens: 0 };
   for (const l of lines) {
     if (dayKey(l.ts) !== day) continue;
+    out.calls++;
     if (l.kind === 'check') { out.checks++; if (l.auto) out.autoChecks++; }
     out.tokens += (l.promptTokens || 0) + (l.outputTokens || 0) + (l.thoughtsTokens || 0);
   }
   return out;
+}
+
+/** Sliding-window limiter. Returns {ok, stamps, retryMs}; a blocked call is not recorded. */
+function rateGate(stamps, now, { perMin }) {
+  const live = stamps.filter((t) => now - t < 60000);
+  if (live.length >= perMin) return { ok: false, stamps: live, retryMs: live[0] + 60000 - now };
+  return { ok: true, stamps: [...live, now], retryMs: 0 };
 }
 
 /** Next auto-check delay in ms, or null = stop for the day. 429 per-minute backs off, cap 15 min. */
@@ -172,7 +180,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateVerdict, questFallback, isStale, offTaskStep, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, nextInterval, dayKey };
+const exported = { computeProgress, validateVerdict, questFallback, isStale, offTaskStep, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).
