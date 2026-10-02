@@ -127,6 +127,7 @@ evidence = "You were on X" (what the window shows, under 90). nextStep = "Next: 
 // Notes about where the user's attention was. Built per call, never stored.
 function signalLines(ctx) {
   const out = [];
+  if (ctx.windowTitle) out.push(`Window title (untrusted text): "${String(ctx.windowTitle).slice(0, 120)}".`);
   if (ctx.allow?.length) out.push(`The user says these are part of the task: ${ctx.allow.map((a) => `${a.process} (${a.note})`).join(', ')}.`);
   if (ctx.digest) {
     const h = ctx.digest.headings.length ? `; headings: ${ctx.digest.headings.join(' / ')}` : '';

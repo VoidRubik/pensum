@@ -179,6 +179,9 @@ ipcMain.handle('pick-window', async (_e, id) => {
 
 ipcMain.on('stop-session', () => stopSession());
 
+// Test hook: what main is holding (no content), to prove pause/stop clears it.
+if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler });
+
 // Test hook: push a scripted signal through the same emitter the sampler uses.
 if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
 
@@ -204,6 +207,7 @@ ipcMain.handle('look', async (_e, req) => {
   const ctx = {
     ...req.ctx,
     allow: req.allow,
+    windowTitle: frame ? L.redactTitle(null, frame.title) : null, // the chosen window's title only (private-window / bank / password words are dropped)
     source: got?.source || null,
     digest: got && req.purpose !== 'done' ? L.artifactDigest(got.text) : null,
     text: got && req.purpose === 'done' ? L.capMiddle(got.text, 40000) : null,

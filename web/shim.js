@@ -145,5 +145,8 @@
     bar.appendChild(b);
   });
   setHint('Pick a scene, then use the pet at the bottom. Real Gemini answers (recorded ones if the demo is busy).');
-  document.body.append(bar, hint, tag); // this script is loaded at the end of <body>
+  document.body.append(bar, hint, tag);
+  // The demo reads no screen at all; say what it really does instead of the desktop app's privacy text.
+  const note = document.getElementById('privacy-note');
+  if (note) note.textContent = 'This web demo cannot see your screen or windows: it asks for no permissions. The picture on the fake desktop is a staged sample. Each look sends that sample, plus the task and quest text you typed, to Google Gemini through this site; on the free tier Google may use it to improve its products. Do not type anything private. The desktop app only looks at the one window you pick, during a session.'; // this script is loaded at the end of <body>
 })();

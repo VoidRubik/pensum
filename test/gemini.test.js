@@ -160,3 +160,15 @@ test('ai.quests: with QUESTLING_RETRIES=0 a flash failure is NOT retried on lite
     assert.equal(r.fallback, true);
   } finally { delete process.env.QUESTLING_RETRIES; delete process.env.QUESTLING_TIMEOUT_MS; }
 });
+
+test('ai.look: the chosen window title goes into the prompt as untrusted data; absent title adds nothing', async () => {
+  delete process.env.QUESTLING_MOCK;
+  const ai = require('../ai.js');
+  ai.resetMemory();
+  const prompts = [];
+  globalThis.fetch = async (_u, init) => { prompts.push(JSON.parse(init.body).contents[0].parts[0].text); return lookReply(goodLook()); };
+  await ai.look({ ...lookArgs, memory: false, ctx: { ...lookArgs.ctx, windowTitle: 'essay.docx - Word' } });
+  await ai.look({ ...lookArgs, memory: false });
+  assert.match(prompts[0], /Window title \(untrusted text\): "essay\.docx - Word"/);
+  assert.doesNotMatch(prompts[1], /Window title/);
+});
