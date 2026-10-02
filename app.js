@@ -136,7 +136,16 @@
     $('pause-btn').title = sessionOn ? 'pause' : 'resume';
     $('company').classList.toggle('hidden', !sessionOn || windowLost);
     $('repick').classList.toggle('hidden', !(sessionOn && windowLost));
+    renderDisc();
     applyPet();
+  }
+
+  // Time disc: shrinks as active time on this quest runs toward its timebox; dims while paused / away / lost.
+  function renderDisc() {
+    const d = $('disc');
+    const q = state && !allDone() ? state.quests[curIdx()] : null;
+    d.style.setProperty('--left', String(q ? L.discLeft({ activeMs: activeMs(curIdx()), minutes: q.minutes }) : 0));
+    d.classList.toggle('is-paused', !sessionOn || away || windowLost || breakMode);
   }
 
   function renderProgress() {
@@ -154,6 +163,7 @@
       bar.appendChild(seg);
     });
     const c = Math.max(0, cur);
+    renderDisc();
     state.progress = L.computeProgress({
       done: state.quests.filter((q) => q.done).length,
       total: state.quests.length,
@@ -441,13 +451,16 @@
     const d = L.driftStep(drift, s, { allow: state.session.allow, now: s.ts });
     const free = !windowLost && !away && !breakMode && !looking && !card && L.allowSpeak(speech, Date.now(), speechCapMs);
     const quiet = s.ts - lastOfferAt >= L.dur(OFFER_GAP_MS);
+    const cur = curIdx();
     const bp = free ? L.breakpoint({
+      timebox: !allDone() && L.timeboxDue({ activeMs: activeMs(cur), minutes: state.quests[cur].minutes, firedAt: state.timeboxFired[cur] }),
       drift: d.ask,
       stuck: quiet && s.ts - lastChangeAt >= L.dur(STUCK_QUIET_MS),
       idle: quiet && s.idleSec >= IDLE_OFFER_SEC,
     }) : null;
     drift = d.ask && bp !== 'drift' ? { ...drift, since: drift.since ?? s.ts } : d.state;
-    if (bp === 'drift') askDrift(`Still on "${state.quests[curIdx()].title}"?`);
+    if (bp === 'timebox') showTimebox();
+    else if (bp === 'drift') askDrift(`Still on "${state.quests[curIdx()].title}"?`);
     else if (bp === 'stuck' || bp === 'idle') { lastOfferAt = s.ts; offerStep(); }
     if (returning && !card && !looking && !windowLost && !away && !breakMode) runLook('reentry', {}, true);
     // Heartbeat: a change worth a look, or every 6 min. The renderer decides; main never calls the model alone.
@@ -463,6 +476,20 @@
       primary: 'Tiny step', quiet: 'Not now', unsolicited: true,
       onPrimary: () => { hideCard(); runLook('stuck'); },
       onQuiet: hideCard,
+    });
+  }
+
+  // The minutes planned for this quest are used up: keep going (+10) or move on. Shown once per timebox length.
+  function showTimebox() {
+    const i = curIdx();
+    const q = state.quests[i];
+    state.timeboxFired[i] = q.minutes;
+    save();
+    showCard({
+      kind: 'timebox', idx: i, title: `Quest ${i + 1} had its ${q.minutes} minutes.`, body: 'Keep going or move on?', unsolicited: true,
+      primary: '+10 min', quiet: 'Next quest',
+      onPrimary: () => { q.minutes += 10; save(); hideCard(); renderQuests(); },
+      onQuiet: () => { hideCard(); const n = L.nextQuestIdx(doneFlags(), i); if (n >= 0) setCurrent(n); },
     });
   }
 

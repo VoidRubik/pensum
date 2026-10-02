@@ -85,7 +85,17 @@ main.ql {
 .ql-seg.is-plan, .ql-seg.is-done { background: var(--ql-accent); }
 .ql-seg.is-current { background: linear-gradient(90deg, var(--ql-accent) calc(var(--fill, 0) * 100%), var(--ql-line) 0); }
 .ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-accent); flex: none; }
-.ql-disc { width: 24px; height: 24px; flex: none; }
+.ql-disc {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: conic-gradient(var(--ql-accent) calc(var(--left, 1) * 360deg), var(--ql-line) 0);
+  -webkit-mask: radial-gradient(circle, transparent 5px, #000 6px);
+  mask: radial-gradient(circle, transparent 5px, #000 6px);
+  transition: opacity 0.4s ease;
+}
+.ql-disc.is-paused { opacity: 0.45; }
 
 .ql-icon {
   width: 32px;

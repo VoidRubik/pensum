@@ -198,13 +198,33 @@ function pickIdle(prev, r) {
 const idleDelay = (r) => dur(7000 + r * 9000);
 const idleSpeed = (r) => 0.85 + r * 0.3;
 
+/** Fraction of the quest's timebox still left, 1 -> 0, for the time disc. */
+function discLeft({ activeMs, minutes }) {
+  if (!(minutes > 0)) return 0;
+  return Math.max(0, Math.min(1, 1 - Math.max(0, activeMs) / (minutes * 60000)));
+}
+
+/** True once the active minutes are used up, and again only after the minutes were extended and used up. */
+function timeboxDue({ activeMs, minutes, firedAt }) {
+  return minutes > 0 && activeMs >= minutes * 60000 && firedAt !== minutes;
+}
+
+/** Next open quest after idx (wrapping), or -1 if no other quest is open. */
+function nextQuestIdx(done, idx) {
+  for (let k = 1; k < done.length; k++) {
+    const j = (idx + k) % done.length;
+    if (!done[j]) return j;
+  }
+  return -1;
+}
+
 /** Persisted state of any older shape -> current shape, or null (back to onboarding). Idempotent. */
 function migrate(s) {
   if (!s || typeof s !== 'object' || !isStr(s.text) || !Array.isArray(s.quests) || !s.quests.length) return null;
   if (s.quests.some((q) => !q || !isStr(q.title))) return null;
   const quests = s.quests.map((q, i) => ({ ...q, finish: isStr(q.finish) ? q.finish : '', minutes: Number.isFinite(q.minutes) ? q.minutes : i === 0 ? 5 : 15 }));
   const session = { allow: [], driftsAsked: 0, backOnTrack: 0, ...(s.session || {}) };
-  return { ...s, quests, starter: isStr(s.starter) && s.starter ? s.starter : STARTER_DEFAULT, session };
+  return { ...s, quests, starter: isStr(s.starter) && s.starter ? s.starter : STARTER_DEFAULT, session, timeboxFired: s.timeboxFired || {} };
 }
 
 /** Verdict carries the {idx, epoch} it was judged for; drop it if the renderer moved on. */
@@ -339,7 +359,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

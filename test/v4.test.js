@@ -418,3 +418,30 @@ test('idleDelay / idleSpeed: 7-16 s and 0.85-1.15, scaled delay', () => {
   assert.equal(L.idleDelay(0), 700);
   L.setTimeScale(1);
 });
+
+// --- step 9: time disc + timebox ---
+test('discLeft: 1 -> 0 as active time runs toward the timebox, clamped', () => {
+  assert.equal(L.discLeft({ activeMs: 0, minutes: 10 }), 1);
+  assert.equal(L.discLeft({ activeMs: 5 * MINUTE, minutes: 10 }), 0.5);
+  assert.equal(L.discLeft({ activeMs: 10 * MINUTE, minutes: 10 }), 0);
+  assert.equal(L.discLeft({ activeMs: 99 * MINUTE, minutes: 10 }), 0);
+  assert.equal(L.discLeft({ activeMs: -5, minutes: 10 }), 1);
+  assert.equal(L.discLeft({ activeMs: 5, minutes: 0 }), 0, 'no timebox = empty ring, no division by zero');
+});
+test('timeboxDue: fires once when the minutes are used up; again only after the minutes change', () => {
+  assert.equal(L.timeboxDue({ activeMs: 10 * MINUTE - 1, minutes: 10, firedAt: undefined }), false);
+  assert.equal(L.timeboxDue({ activeMs: 10 * MINUTE, minutes: 10, firedAt: undefined }), true);
+  assert.equal(L.timeboxDue({ activeMs: 11 * MINUTE, minutes: 10, firedAt: 10 }), false, 'already fired for 10');
+  assert.equal(L.timeboxDue({ activeMs: 11 * MINUTE, minutes: 20, firedAt: 10 }), false, 'extended to 20, not used up yet');
+  assert.equal(L.timeboxDue({ activeMs: 20 * MINUTE, minutes: 20, firedAt: 10 }), true, 'fires again at the new end');
+});
+test('nextQuestIdx: next open quest after this one, wrapping; -1 when no other is open', () => {
+  assert.equal(L.nextQuestIdx([false, false, false], 0), 1);
+  assert.equal(L.nextQuestIdx([false, true, false], 0), 2);
+  assert.equal(L.nextQuestIdx([false, true, true], 2), 0, 'wraps');
+  assert.equal(L.nextQuestIdx([false, true, true], 0), -1);
+  assert.equal(L.nextQuestIdx([true, true], 0), -1);
+});
+test('migrate: timeboxFired defaults to {}', () => {
+  assert.deepEqual(L.migrate({ text: 'a', quests: [{ title: 'A' }] }).timeboxFired, {});
+});

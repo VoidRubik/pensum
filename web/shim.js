@@ -116,12 +116,22 @@
     setTimeout(() => emit({ idleSec: 0, changed: true }), 1800);
   }
 
+  // Fast-forward 5 active minutes: 16 signals 20 s apart in signal time (no change flag, so no model call).
+  let lastTimeTs = 0;
+  function timeScene() {
+    setSample('essay-midway');
+    const t0 = Math.max(Date.now(), lastTimeTs);
+    for (let i = 1; i <= 16; i++) emit({ ts: t0 + i * 20000 });
+    lastTimeTs = t0 + 16 * 20000;
+  }
+
   // --- scene bar: scripted signals instead of a real desktop ---
   const SCENES = [
     ['Writing', 'The doc has text. Press ✓ when you think the quest is done.', () => { setSample('essay-midway'); emit({ changed: true }); }],
     ['Blank page (stuck)', 'Empty section. Press the footsteps button for a tiny next step.', () => { setSample('essay-blank'); emit({ changed: true }); }],
     ['Drift', 'You wandered to a video site for 2 minutes. The pet asks, it never scolds: tap a chip.', driftScene],
     ['Back from break', 'You were away. Watch the pet fall asleep, then offer where you left off.', breakScene],
+    ['Time is up', 'Five active minutes pass: the disc empties and the pet asks whether to keep going (+10 min) or move on.', timeScene],
     ['Outline done', 'The outline is finished. Press ✓ and the pet will ask you to confirm.', () => { setSample('outline-done'); emit({ changed: true }); }],
     ['Injection test', 'This doc tries to hijack the pet. Press ✓: it can only ask you, nothing completes by itself.', () => { setSample('injection'); emit({ changed: true }); }],
     ['Window closed', 'The window vanished. The pet falls asleep and offers "Pick window again".', () => { alive = false; visible = false; emit(); }],
