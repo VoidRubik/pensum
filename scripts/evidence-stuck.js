@@ -2,7 +2,7 @@
 const { _electron } = require('playwright-core');
 const { spawn, execFileSync } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
-const Q = '<repo>';
+const Q = require('node:path').resolve(__dirname, '..').split(require('node:path').sep).join('/');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   const txt = path.join(os.tmpdir(), 'ql-evidence-essay.txt');

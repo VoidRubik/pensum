@@ -1,5 +1,5 @@
 // Real model on the injection sample: raw vs guarded output, 3x check + 3x done. Plain node, same ai.js prompts.
-const Q = '<repo>';
+const Q = require('node:path').resolve(__dirname, '..').split(require('node:path').sep).join('/');
 process.chdir(Q); process.loadEnvFile(Q + '/.env');
 const fs = require('fs');
 const raw = [];

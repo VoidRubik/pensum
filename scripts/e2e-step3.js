@@ -1,6 +1,6 @@
 const { _electron } = require('playwright-core');
 const fs = require('fs'), os = require('os'), path = require('path');
-const Q = '<repo>';
+const Q = require('node:path').resolve(__dirname, '..').split(require('node:path').sep).join('/');
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') + m); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
