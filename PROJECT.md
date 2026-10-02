@@ -1,102 +1,97 @@
 # questling
 
-AI screen-pet — a small always-on-top bar at the bottom-center of your screen (Wispr-Flow style).
-Tell it a task + deadline, it breaks it into editable quests, watches your screen, and **proposes**
-when a quest looks done — you confirm with one click.
+A tiny companion that helps when you can't help yourself: **starting, getting unstuck, coming back.**
+It floats at the bottom of the screen (Electron, always on top, click-through outside its surfaces),
+plans your goal into small quests, and looks only at **the one window you pick**, only during a session.
+A web demo (Vercel) runs the same renderer on staged samples.
 
-**Grade: Partial** — Windows desktop overlay (Electron). v3 (2026-09-29) built: propose-and-confirm
-done, speech bubble, multi-monitor capture, window-title / idle / Word-text signals. Mock end-to-end
-(27 checks) **Built**. Real Gemini (free tier): done-check verified on staged essay pages (n=2, lite);
-earlier quests + checks verified 2026-09-28. **Live test 2026-09-29: Bruno reports all 12 v3 feature
-tests pass** (done-check on live Word, not-yet, proposal chip, confirm, linked .docx, multi-monitor,
-bubble, paused ✓, off-task + override, titles toggle, idle/lock skip, finish). Caveats: that run's
-`usage.jsonl` holds 0 auto-check lines (all calls manual, ~6.5 min), so the auto path had no real-call
-evidence; the daily-cap test is still not done. Bruno's verdict: core works, UI ugly, not yet useful.
+**Grade: Partial.** v4 (2026-10-01) is built and tested on staged windows and samples with mock and real
+Gemini. Never done: the author using it on real work, the live Vercel deployment, the real-window-close
+path end to end, the final art (the pet is a placeholder blob until the Claude Design files land), the
+Win10 capture border check. Every decision and caveat: `DECISIONS.md`.
+
+## What it does
+
+- **Plan:** one question ("What do you want to finish today?") → 3–5 quests (quest 1 ≤ 5 min, each with
+  minutes and an on-screen finish line) + a first "sloppy step". The progress bar starts with a filled
+  *Plan made* segment.
+- **Starting:** a 60 s "Tiny start" card with a countdown ring; "Did it start?" Yes / 60 more. No model call.
+- **Getting unstuck:** the footsteps button → one vision look at the picked window → one tiny next step
+  that names something on screen (`[Start 2 min]` `[Another idea]`).
+- **Finishing:** ✓ never completes anything by itself: the pet shows what it sees and asks; only the
+  click on *Yes, done* completes a quest. A heartbeat look can propose the same card.
+- **Drifting:** a local rule (foreground process ≠ the work window and not allowed, 2 min, 1 ask / 10 min;
+  no screenshot, no model) asks "Still on …?" with chips *research · lecture for this · taking a break*
+  and free text. Drift lines are never model text.
+- **Coming back:** re-entry card after away / break / 3 min elsewhere / resume ("You were on … Next: …"),
+  with a local template fallback.
+- **Time disc + timebox**, **session recap** with one specific praise line, 8 pet states
+  (`idle`×4 variants, `working`, `curious`, `thinking`, `helper`, `celebrate`, `sleepy`, `asleep`).
+- **Quiet by design:** at most one unsolicited line per 5 min; two ✕ silence the session; paid background
+  looks only run when their card could be shown.
 
 ## Run it
 
 ```
 npm install
-npm start          # launches the overlay; tray icon (mint dot) has Show/hide, Pause, Quit
-npm test           # node --test, pure logic (34 tests)
+npm start          # the overlay; tray icon has Show/hide, Pause, Quit
+npm test           # node --test, 127 unit tests, zero deps
+node web/build.js && node scripts/dev-server.js   # the web demo locally on :4173
 ```
 
-Put your key in `.env` (gitignored, never commit or paste it anywhere):
-```
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-3.5-flash              # quests (default)
-GEMINI_CHECK_MODEL=gemini-3.5-flash-lite   # screen checks (default)
-GEMINI_DONE_MODEL=                         # done-check (default: the check model)
-```
-`gemini-2.5-*` returns 404 for new keys (retired 2026-09). 3.x uses `thinkingLevel: minimal`.
-Done-check defaults to lite: on 2 staged essays lite was correct in ~1.3 s; flash took 10–20 s and
-errored twice (n=1 each — a sample, not a benchmark). Gemini's `mediaResolution` made no difference
-(same token count, same transcription) so it is not sent.
+`.env` (gitignored; never commit or paste it): `GEMINI_API_KEY=…`. Models: quests
+`gemini-3.5-flash` (`GEMINI_MODEL`), every look `gemini-3.5-flash-lite` (`GEMINI_CHECK_MODEL`). Use a key
+from a Google project with **billing off** so the free tier is a hard $0 cap. No key or `QUESTLING_MOCK=1`
+→ scripted answers, $0. If `npm start` prints a Node version and exits, unset `ELECTRON_RUN_AS_NODE`.
 
-Optional env: `QUESTLING_DAILY_CHECKS` (150, caps auto checks only), `QUESTLING_CHECK_INTERVAL_MS`
-(180000), `QUESTLING_TICK_MS` (30000), `QUESTLING_MOCK=1`, `QUESTLING_MOCK_SCRIPT=on,off,done,…`,
-`QUESTLING_MOCK_CLAIM=ok,no` (done-check answers), `QUESTLING_FAKE_IDLE_SEC` (tests on an idle PC),
-`QUESTLING_LEDGER_PATH`.
+Test/ops env: `QUESTLING_TEST=1` (fake window, scripted signals only, no tracker), `QUESTLING_TIME_SCALE=N`
+(divide every engine duration), `QUESTLING_FAKE_IDLE_SEC`, `QUESTLING_LEDGER_PATH`, `QUESTLING_DAILY_CALLS`
+(300), `QUESTLING_PER_MIN` (8), `QUESTLING_MOCK_DELAY_MS`, `QUESTLING_MOCK_CHECK_DONE|OFF`.
 
-No key, or `QUESTLING_MOCK=1` → scripted quests/verdicts, $0. Use a key from a Google project with
-**no billing enabled** so the free tier is a hard $0 cap.
+## Architecture (pinned)
 
-If `npm start` just prints a Node version and exits: the shell has `ELECTRON_RUN_AS_NODE=1`
-(VS Code-spawned shells set it). Unset it first.
-
-## How it works
-
-- **Done = pet proposes, you confirm.** A `quest_done` verdict (auto or 👁) puts a proposal in its own
-  element: *Looks like "X" is done! [Yes ✓] [Not yet]*. Yes completes that quest and says "Next: …".
-  Not yet silences that quest for its next 2 auto checks. After 10 s it collapses to a ✓? chip on the bar.
-- **Bar:** pet · current quest + progress · 👁 look now · ✓ "I'm done" · ❚❚ · ▴. ✓ runs a done-check on
-  its own channel (works while paused): model agrees → done; disagrees → "Hmm, … Mark done anyway?".
-- **Panel:** per-quest checkbox (both ways), click a quest to make it current, "Link my work", a
-  "send window titles" toggle. Speech bubble shows above the bar; the transparent window is click-through
-  everywhere except bar / bubble / proposal / panel.
-- **Signals** (`focus.js`, `artifact.js`; all in memory): window titles per check ("WINWORD 'Essay.docx'
-  2m40s · chrome …") with private-window / password-manager / banking-word redaction; skip the paid check
-  when locked or idle ≥ 5 min; Word's live unsaved text via COM; a linked `.docx/.txt/.md/code` file
-  (`.docx` read with shared access, works while open in Word). Every check gets a digest (words,
-  headings, last 800 chars); the done-check gets the text (head + tail, 40k chars).
-- **Capture:** the display the cursor last rested on outside the pet (clicking the pet always puts the
-  cursor on its display), native size capped at 1600 px (done-check 2048).
-- `ai.js` + `gemini.js` raw REST + JSON schema. `ledger.js` sole writer of `usage.jsonl`.
-  `preload.js` only bridge. `logic.js` pure rules (proposeStep, currentIdx, focusSummary, redactTitle,
-  shouldSkip, artifactDigest, capMiddle, nudges, …).
+- **main.js owns devices and the key:** window capture (`capture.js`, chosen window only, no display
+  fallback), the PowerShell foreground/alive tracker (`focus.js`), idle/lock, the model gateway + rate gate
+  + usage ledger, the RAM-only last work frame. It emits one raw `signal` stream; **it never calls the model
+  on its own.** The look pipeline is `look-flow.js` (dependencies injected; re-checks the session after
+  every await so a pause mid-look sends nothing).
+- **app.js (renderer) owns every decision:** quest state, the epoch, drift/stuck/idle/timebox/re-entry,
+  the speech budget, which card shows. Rules are pure functions in `logic.js`.
+- **preload.js** is the whole renderer surface (12 functions). **ai.js + gemini.js:** raw REST, JSON schema,
+  one LOOK schema for all vision calls, injection-aware system prompt, `safeText` (links, domains,
+  contact details), `toneOk`, output caps.
+- **Web:** `web/shim.js` implements the same `window.questling` surface on a fake desktop with a scene bar;
+  `api/model.js` (Vercel function) reads a whitelisted sample server-side (never an upload), rate-limited
+  per IP and globally, 6 s, no retries; any failure → recorded real answers (`demo/recorded.json`, tagged).
+  `web/build.js` copies only the renderer into `public/`.
+- **Design hand-off:** `DESIGN_PROMPT.md` is the contract for the Claude Design assets (pet.svg, pet.css,
+  ui.css, icons.svg); `test/design-prompt.test.js` fails if it drifts from the code.
 
 ## Privacy — honest version
 
-Each check sends one frame to Google Gemini, plus window titles and, if you link work, a text digest.
-On the free tier **Google may keep these, use them to improve its products, and human reviewers may
-read them** (ai.google.dev/gemini-api/terms, checked 2026-09-28). Don't run it with private things on
-screen. Nothing screen-derived is written to disk or localStorage; the ledger stores only model, token
-counts, timing and status. Window titles and document text live in main-process memory and are
-dropped on pause.
+Each look sends one frame of the picked window, its title (private-window / password / banking words
+dropped), and, if you link a doc or use Word, the doc's text to Google Gemini. On the free tier **Google may
+use it to improve its products, and humans may review it.** Frames are never written to disk; the ledger
+stores only model, token counts, timing, status. Pause / End session clear the chosen window, the sampler,
+the focus events and the RAM frame. The web demo reads no screen at all.
 
-## Verified 2026-09-29
+## Verified (2026-10-01)
 
-- `npm test` 34/34 (each new rule watched RED first).
-- Mock e2e (Playwright `_electron`, scratchpad `e2e-v3.js`): proposal in its own slot and survives a
-  nudge; Not yet suppresses 2 auto checks then it asks again; Yes completes the proposed quest + Next
-  line; untick lowers progress to 0; click a quest → current + bar title; ✓ works while paused (claim-ok
-  completes, claim-no shows the confirm); last quest → party; click-through toggles; buttons not clipped;
-  localStorage has no image / verdict text.
-- Spot-tests on this PC: PowerShell tracker UTF-8 across 2 monitors; Word COM live text; `.docx`
-  readable while locked open; display under cursor on monitor 2 captured at 1600×900, `display_id` set.
-- Fresh Sonnet hostile review: 0 Critical, 8 Important, 4 Minor — fixed (see git log).
+Unit 127/127 · e2e (Playwright `_electron`, fresh profile, scripted signals) step2 19, step3 11, step5 22,
+step6 10, step7 12, step8 8, step9 16, step10 14, step11 11, review 6 · web e2e 20 (fresh Chrome context,
+all permissions denied) · `check-live.js` against the local server 27 · real Gemini: stuck steps 3/5 and
+4/5 name something on screen (latency tails to 16 s), injection sample 6/6 not obeyed (n=6, one sample,
+not a security result). A fresh hostile review found 0 Critical / 7 Important; all 7 fixed test-first.
 
 ## Not done
 
-- Real use: Bruno driving v3 on a real task; live-screen checks; the daily-cap test.
-- ✓ pressed *during* an in-flight auto check is covered by construction (separate slot), not by a
-  test — the mock answers instantly.
-- Phase R (UI Automation text, OCR, Google Docs, git diff) waits on the research prompt
-  `brainstorms/research-prompt-questling-screen-aware.md`.
-- Packaging to `.exe`, autostart, public repo. Deferred minors: override bumps epoch (#9), ledger append
-  failure discards a paid response / `read()` reparses per check (#10), backoff not cumulative (#12),
-  Word COM can stall a check up to 8 s (screenshot then older than the text), no docx entity edge cases
-  beyond the five XML entities.
+- Real use on a real task; the daily-cap behaviour at 300 calls.
+- The public push, Vercel import and `check-live.js` / `e2e-web.js` against the live URL (blocked on the
+  owner's OK and a billing-off key).
+- Claude Design art; packaging to `.exe`; autostart; Phase R research results.
+- Deferred minors (see `DECISIONS.md`): stale `offSince` after pause, re-pick resets the dismissal budget,
+  `toneOk` not applied to confirm-card evidence, an open card survives a quest switch, New task during the
+  picker await, no client-side look timeout.
 
-Brief: `brainstorms/brief-20260927-183530-questling.md` (revision 2026-09-28 v3).
+Brief: `brainstorms/brief-20260927-183530-questling.md` (revision 2026-09-30, helper pivot).
 Brain node: `brain/situational/memory/aipet.md`.
