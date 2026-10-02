@@ -7,8 +7,11 @@ when a quest looks done — you confirm with one click.
 **Grade: Partial** — Windows desktop overlay (Electron). v3 (2026-09-29) built: propose-and-confirm
 done, speech bubble, multi-monitor capture, window-title / idle / Word-text signals. Mock end-to-end
 (27 checks) **Built**. Real Gemini (free tier): done-check verified on staged essay pages (n=2, lite);
-earlier quests + checks verified 2026-09-28. **Unrun at real stakes**: Bruno has not yet used v3 on real
-work; live-screen checks, the Word/linked-file path with a real essay, and the daily-cap test are not done.
+earlier quests + checks verified 2026-09-28. **Live test 2026-09-29: Bruno reports all 12 v3 feature
+tests pass** (done-check on live Word, not-yet, proposal chip, confirm, linked .docx, multi-monitor,
+bubble, paused ✓, off-task + override, titles toggle, idle/lock skip, finish). Caveats: that run's
+`usage.jsonl` holds 0 auto-check lines (all calls manual, ~6.5 min), so the auto path had no real-call
+evidence; the daily-cap test is still not done. Bruno's verdict: core works, UI ugly, not yet useful.
 
 ## Run it
 
