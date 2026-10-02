@@ -25,11 +25,28 @@
       <ul id="quest-list" class="ql-quests"></ul>
       <div id="start-row" class="ql-row">
         <button id="start-btn" class="ql-btn ql-btn--primary">Start session</button>
+        <button id="end-btn" class="ql-btn ql-btn--primary hidden">End session</button>
         <button id="new-task" class="ql-btn ql-btn--quiet">New task</button>
       </div>
       <div class="ql-link">
         <button id="link-btn" class="ql-btn ql-btn--quiet">Link my doc</button>
         <span id="link-name" class="ql-note"></span>
+      </div>
+    </div>
+
+    <div id="recap" class="ql-recap hidden">
+      <p id="recap-praise" class="ql-recap__praise"></p>
+      <ul id="recap-list" class="ql-recap__list"></ul>
+      <dl class="ql-recap__stats">
+        <dt>Done</dt><dd id="rs-done"></dd>
+        <dt>On quest</dt><dd id="rs-min"></dd>
+        <dt>Drifts caught</dt><dd id="rs-drifts"></dd>
+        <dt>Back on track</dt><dd id="rs-back"></dd>
+        <dt>Stuck steps used</dt><dd id="rs-stuck"></dd>
+      </dl>
+      <div class="ql-row">
+        <button id="recap-close" class="ql-btn ql-btn--primary">Back to quests</button>
+        <button id="recap-new" class="ql-btn ql-btn--quiet">New task</button>
       </div>
     </div>
 

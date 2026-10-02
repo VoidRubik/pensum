@@ -130,6 +130,8 @@
   function updateBar() {
     $('quest-line').textContent = !state ? HELLO : allDone() ? 'all quests done!' : state.quests[curIdx()].title;
     $('done-btn').classList.toggle('hidden', !state || allDone());
+    $('start-btn').classList.toggle('hidden', sessionOn);
+    $('end-btn').classList.toggle('hidden', !sessionOn);
     $('stuck-btn').classList.toggle('hidden', !sessionOn || windowLost || allDone());
     $('pause-btn').classList.toggle('hidden', !state || allDone());
     $('pause-btn').textContent = sessionOn ? '❚❚' : '▶';
@@ -208,6 +210,7 @@
     $('task-card').classList.toggle('hidden', name !== 'task');
     $('quest-card').classList.toggle('hidden', name !== 'quests');
     $('windows').classList.toggle('hidden', name !== 'windows');
+    $('recap').classList.toggle('hidden', name !== 'recap');
   }
 
   function renderQuests() {
@@ -367,6 +370,7 @@
     changedSinceLook = false;
     drift = { since: null, lastAskAt: null };
     speech = { lastSpokeAt: null, dismissed: 0 };
+    if (!repick) { state.session = { ...state.session, driftsAsked: 0, backOnTrack: 0, stuckUsed: 0 }; save(); }
     showPanelPart('quests');
     setExpanded(false);
     updateBar();
@@ -426,7 +430,7 @@
     windowLost = !s.windowAlive || !s.windowVisible;
     away = !!s.locked || s.idleSec >= AWAY_SEC;
     if (s.changed) { lastChangeAt = s.ts; changedSinceLook = true; }
-    if (!windowLost && !away && s.onWork && !allDone()) {
+    if (!windowLost && !away && (s.onWork || L.allowMatches(state.session.allow, s.fgProcess)) && !allDone()) {
       const i = curIdx();
       state.activeMs = state.activeMs || {};
       state.activeMs[i] = activeMs(i) + dt;
@@ -568,6 +572,7 @@
     }
     const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto, sup, starter: state.starter, activeMs: activeMs(i) }, v);
     sup = r.sup;
+    if (r.card && r.card.kind === 'step') { state.session.stuckUsed++; save(); }
     if (r.card && auto && !L.allowSpeak(speech, Date.now(), speechCapMs)) applyPet();
     else if (r.card) showStepOrConfirm(r.card, auto);
     else applyPet();
@@ -662,6 +667,25 @@
     }
   }
 
+  // End-of-session summary in the panel (planned vs done, minutes on quest, drifts caught, back on track, stuck steps) + one praise line.
+  function showRecap() {
+    const r = L.recap({ quests: state.quests, activeMs: state.activeMs, session: state.session });
+    $('recap-praise').textContent = r.praise;
+    $('recap-list').innerHTML = '';
+    r.doneTitles.forEach((t) => { const li = document.createElement('li'); li.textContent = t; $('recap-list').appendChild(li); });
+    $('rs-done').textContent = `${r.done} of ${r.planned}`;
+    $('rs-min').textContent = `${r.minutes} min`;
+    $('rs-drifts').textContent = String(r.drifts);
+    $('rs-back').textContent = String(r.backOnTrack);
+    $('rs-stuck').textContent = String(r.stuck);
+    showPanelPart('recap');
+    setExpanded(true);
+    say(r.praise);
+  }
+  $('end-btn').addEventListener('click', () => { hideCard(); stopSession(); showRecap(); });
+  $('recap-close').addEventListener('click', () => { if (state) openQuests(); else showPanelPart('task'); });
+  $('recap-new').addEventListener('click', () => $('new-task').click());
+
   function finishIfAllDone() {
     if (!allDone()) return false;
     hideCard();
@@ -669,7 +693,7 @@
     celebrating = true;
     applyPet();
     setTimeout(() => { celebrating = false; applyPet(); }, L.dur(2400));
-    say('All quests done! Nice work.');
+    showRecap();
     return true;
   }
 

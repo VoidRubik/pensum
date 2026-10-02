@@ -113,7 +113,7 @@ test('migrate: v1 state gets minutes, starter, session defaults; existing fields
   assert.equal(m.quests[0].minutes, 5);
   assert.ok(m.quests[1].minutes >= 10);
   assert.ok(m.starter.length > 0);
-  assert.deepEqual(Object.keys(m.session).sort(), ['allow', 'backOnTrack', 'driftsAsked']);
+  assert.deepEqual(Object.keys(m.session).sort(), ['allow', 'backOnTrack', 'driftsAsked', 'stuckUsed']);
   assert.deepEqual(L.migrate(m), m, 'idempotent');
 });
 test('migrate: invalid state -> null', () => {
@@ -444,4 +444,41 @@ test('nextQuestIdx: next open quest after this one, wrapping; -1 when no other i
 });
 test('migrate: timeboxFired defaults to {}', () => {
   assert.deepEqual(L.migrate({ text: 'a', quests: [{ title: 'A' }] }).timeboxFired, {});
+});
+
+// --- step 10: recap ---
+const rq = (title, done) => ({ title, finish: 'f', minutes: 10, done });
+const sess = (o = {}) => ({ allow: [], driftsAsked: 0, backOnTrack: 0, stuckUsed: 0, ...o });
+test('recap: planned vs done, minutes on quest, counters, and a specific praise line', () => {
+  const r = L.recap({
+    quests: [rq('Outline the essay', true), rq('Write the intro', true), rq('Write causes', true), rq('Write effects', false), rq('Conclude', false)],
+    activeMs: { 0: 10 * MINUTE, 1: 20 * MINUTE, 2: 12 * MINUTE + 29000, 3: 0 },
+    session: sess({ driftsAsked: 2, backOnTrack: 2, stuckUsed: 3 }),
+  });
+  assert.equal(r.planned, 5);
+  assert.equal(r.done, 3);
+  assert.equal(r.minutes, 42);
+  assert.equal(r.drifts, 2);
+  assert.equal(r.backOnTrack, 2);
+  assert.equal(r.stuck, 3);
+  assert.equal(r.praise, '3 of 5 done: write the intro and write causes.');
+  assert.deepEqual(r.doneTitles, ['Outline the essay', 'Write the intro', 'Write causes']);
+});
+test('recap: praise for 1 done, none done, all done', () => {
+  const one = L.recap({ quests: [rq('Outline the essay', true), rq('B', false)], activeMs: {}, session: sess() });
+  assert.equal(one.praise, '1 of 2 done: outline the essay.');
+  const none = L.recap({ quests: [rq('A', false), rq('B', false)], activeMs: {}, session: sess() });
+  assert.equal(none.praise, 'You made a plan and showed up. That counts.');
+  const all = L.recap({ quests: [rq('A one', true), rq('B two', true)], activeMs: {}, session: sess() });
+  assert.equal(all.praise, 'All 2 done: a one and b two. Nice.');
+});
+test('recap: long titles are cut, missing counters/activeMs are zero, never throws', () => {
+  const r = L.recap({ quests: [rq('X'.repeat(100), true)], activeMs: undefined, session: undefined });
+  assert.ok(r.praise.length < 90, r.praise);
+  assert.equal(r.minutes, 0);
+  assert.equal(r.drifts, 0);
+  assert.equal(r.stuck, 0);
+});
+test('migrate: session also carries stuckUsed', () => {
+  assert.deepEqual(Object.keys(L.migrate({ text: 'a', quests: [{ title: 'A' }] }).session).sort(), ['allow', 'backOnTrack', 'driftsAsked', 'stuckUsed']);
 });

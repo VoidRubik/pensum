@@ -258,3 +258,9 @@ main[data-pet-state="asleep"] .pet { animation: ql-sleep 6s ease-in-out infinite
 @media (prefers-reduced-motion: reduce) {
   .pet { animation: none !important; transition: opacity 0.2s ease; }
 }
+
+.ql-recap__praise { font-weight: 600; margin: 0 0 8px; }
+.ql-recap__list { margin: 0 0 10px; padding-left: 18px; color: var(--ql-muted); font-size: 0.85rem; }
+.ql-recap__stats { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0 0 12px; font-size: 0.85rem; }
+.ql-recap__stats dt { color: var(--ql-muted); }
+.ql-recap__stats dd { margin: 0; font-weight: 600; text-align: right; }

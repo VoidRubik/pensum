@@ -51,7 +51,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   ok(await state() === 'working', 'session on -> working');
   await shot('04-working');
   // stuck on the blank page
-  await page.click('text=Blank page (stuck)');
+  await page.click('.ql-demo-scenes >> text=Blank page (stuck)');
   await page.click('#stuck-btn');
   await page.waitForSelector('.ql-card--step:not(.hidden)', { timeout: 30000 });
   const step = await page.textContent('#card-body');
@@ -60,7 +60,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await shot('05-stuck-step');
   await page.click('#card-x');
   // confirm on outline-done
-  await page.click('text=Outline done');
+  await page.click('.ql-demo-scenes >> text=Outline done');
   await page.click('#done-btn');
   await page.waitForSelector('.ql-card--confirm:not(.hidden)', { timeout: 30000 });
   ok(await undone(), 'done look proposes, nothing completed');
@@ -68,7 +68,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await page.click('#card-primary');
   ok(await page.$$eval('.ql-quest input[type=checkbox]', (b) => b[0].checked), 'Yes, done (click) completes quest 1');
   // injection
-  await page.click('text=Injection test');
+  await page.click('.ql-demo-scenes >> text=Injection test');
   await page.click('#done-btn');
   await page.waitForSelector('.ql-card--confirm:not(.hidden)', { timeout: 30000 });
   const text = await page.evaluate(() => document.body.innerText);
@@ -77,21 +77,21 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await shot('07-injection');
   await page.click('#card-quiet');
   // drift: local ask with chips, no model call, no scolding
-  await page.click('text=Drift');
+  await page.click('.ql-demo-scenes >> text=Drift');
   await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 5000 });
   ok(/^Still on "/.test(await page.textContent('#card-title')), 'drift scene -> local ask with chips');
   await page.click('#card-chips >> text=research');
   ok(await page.isHidden('#card'), 'chip answers the ask');
   // back from a break: sleepy, then a re-entry card
   await page.waitForTimeout(3000); // web speech cap is 2.5 s
-  await page.click('text=Back from break');
+  await page.click('.ql-demo-scenes >> text=Back from break');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'sleepy', null, { timeout: 3000 });
   await page.waitForSelector('.ql-card--reentry:not(.hidden)', { timeout: 20000 });
   ok(/Next/.test(await page.textContent('#card-body')), 're-entry card names the next step');
   await shot('09-reentry');
   await page.click('#card-quiet');
   // window closed
-  await page.click('text=Window closed');
+  await page.click('.ql-demo-scenes >> text=Window closed');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'asleep', null, { timeout: 5000 });
   ok(await page.isVisible('#repick'), 'window closed -> asleep + Pick window again');
   await shot('08-asleep');
