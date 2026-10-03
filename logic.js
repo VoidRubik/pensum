@@ -1,5 +1,5 @@
 // Pure functions, zero deps, node --test-able. Progress, quest + look validation,
-// guards, proposal rules, nudges, usage, frame diff (see brainstorms/brief-20260927-183530-questling.md).
+// guards, proposal rules, nudges, usage, frame diff.
 
 const STARTER_DEFAULT = 'Open the doc and type one ugly sentence.';
 

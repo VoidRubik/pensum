@@ -6,8 +6,8 @@ plans your goal into small quests, and looks only at **the one window you pick**
 A web demo (Vercel) runs the same renderer on staged samples.
 
 **Grade: Partial.** v4 (2026-10-01) is built and tested on staged windows and samples with mock and real
-Gemini. Never done: the author using it on real work, the live Vercel deployment, the real-window-close
-path end to end, the Win10 capture border check. UI v2 (2026-10-02: Claude Design App UI v2 in both themes, two
+Gemini. Never done: the author using it on real work, the live Vercel deployment, the Win10 capture
+border check. (A real Notepad window closing is proven end to end by `scripts/e2e-realclose.js`.) UI v2 (2026-10-02: Claude Design App UI v2 in both themes, two
 pets Tuck/Kip) is built and verified in the real Electron window on this PC only; first-open frame hitches and
 real-hardware smoothness are in the Not done list. Every decision and caveat: `DECISIONS.md`.
 
@@ -36,7 +36,7 @@ real-hardware smoothness are in the Not done list. Every decision and caveat: `D
 ```
 npm install
 npm start          # the overlay; tray icon has Show/hide, Pause, Quit
-npm test           # node --test, 159 unit tests, zero deps
+npm test           # node --test, 162 unit tests, no runtime deps
 node web/build.js && node scripts/dev-server.js   # the web demo locally on :4173
 ```
 
@@ -58,16 +58,16 @@ Test/ops env: `QUESTLING_TEST=1` (fake window, scripted signals only, no tracker
   every await so a pause mid-look sends nothing).
 - **app.js (renderer) owns every decision:** quest state, the epoch, drift/stuck/idle/timebox/re-entry,
   the speech budget, which card shows. Rules are pure functions in `logic.js`.
-- **preload.js** is the whole renderer surface (12 functions). **ai.js + gemini.js:** raw REST, JSON schema,
+- **preload.js** is the whole renderer surface (17 functions). **ai.js + gemini.js:** raw REST, JSON schema,
   one LOOK schema for all vision calls, injection-aware system prompt, `safeText` (links, domains,
   contact details), `toneOk`, output caps.
 - **Web:** `web/shim.js` implements the same `window.questling` surface on a fake desktop with a scene bar;
   `api/model.js` (Vercel function) reads a whitelisted sample server-side (never an upload), rate-limited
   per IP and globally, 6 s, no retries; any failure → recorded real answers (`demo/recorded.json`, tagged).
   `web/build.js` copies only the renderer into `public/`.
-- **Design hand-off:** `DESIGN_PROMPT.md` is the contract for the Claude Design assets (pet.css, ui.css, the icon
-  sprite); `test/design-prompt.test.js` fails if it drifts from the code. `scripts/build-pet.js` generates both pets
-  (Tuck inline, Kip in a template) and pet.css. `design/PLAN-ui-v2.md` + `design/BASELINE.md` = the UI v2 plan and numbers.
+- **Design hand-off:** The design brief (kept private) is the contract for the Claude Design assets (pet.css, ui.css, the icon
+  sprite); `test/design-prompt.test.js` fails if it drifts from the code (it skips when the brief is absent, e.g. on a clone). `scripts/build-pet.js` generates both pets
+  (Tuck inline, Kip in a template) and pet.css. `design/BASELINE.md` = the UI v2 before/after numbers (the plan is kept private).
 
 ## Privacy — honest version
 
@@ -106,7 +106,7 @@ Numbers and before/after: `design/BASELINE.md`.
 - **Fixes:** B1 timeouts are not retried, B2 a 13 s client backstop on looks, B3 Word probe 3 s, B4 stale away-time after pause,
   B5 dismissal budget lasts the session, B6 tone filter on confirm evidence, B7 switching quest closes the old card, B8 New task
   while the picker answers, B9 a failed ledger write keeps the paid answer, B10 real window close (`scripts/e2e-realclose.js`).
-- Unit 159/159 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 12, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
+- Unit 162/162 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 12, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
   asleep in 657 ms), step2 19, step5 24, step6 10, step8 17, step10 17, ui-v2 56, web 20 (local, key blanked).
 
 ## Not done
@@ -115,7 +115,7 @@ Numbers and before/after: `design/BASELINE.md`.
   screen appears there are 1-2 long frames (~50-110 ms, caused by the box-shadows; later opens are smooth). Footer switch
   Shadows: Flat did NOT reliably remove them (3 runs of 4 first opens: Flat 0 / 4 / 7 frames over 20 ms, Soft 9 / 10 / 9; one clean
   run was luck), so the long first frame is probably the window resize, not only the shadows. Not fixed.
-- UI v2 deferred/dropped: see `design/BASELINE.md` (no DesignSync re-diff of the Motion file, exit animations, friendly deadline text).
+- UI v2 deferred/dropped: see `design/BASELINE.md` (no re-diff of the pet states against the original motion file, exit animations, friendly deadline text).
 - Real use on a real task; the daily-cap behaviour at 300 calls.
 - The public push, Vercel import and `check-live.js` / `e2e-web.js` against the live URL (blocked on the
   owner's OK and a billing-off key).
@@ -124,5 +124,4 @@ Numbers and before/after: `design/BASELINE.md`.
   drag across two monitors with different DPI, Ctrl+wheel, tray "Reset position", releasing the mouse off the pet mid-drag.
 - Remaining deferred minors are listed in `DECISIONS.md` (the seven from the 1 Oct review, minus the ones fixed on 2 Oct).
 
-Brief: `brainstorms/brief-20260927-183530-questling.md` (revision 2026-09-30, helper pivot).
-Brain node: `brain/situational/memory/aipet.md`.
+Design brief and submission notes are kept private.

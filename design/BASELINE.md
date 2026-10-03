@@ -1,6 +1,6 @@
 # Baseline — UI v2 (measured 2026-10-02, this machine, Windows 10)
 
-How: `node scripts/baseline.js <label> [--shots]` (needs `NODE_PATH` to a playwright-core). Real Electron window launched
+How: `node scripts/baseline.js <label> [--shots]` (needs `playwright-core`, a devDependency: `npm install`). Real Electron window launched
 by Playwright `_electron`, mock mode (no key, no model call). rAF numbers are deltas **inside that window**, not a
 compositor/GPU capture and not another machine: label every one of them "this PC, Electron window".
 Raw: `evidence/ui-v2/baseline-before.json`, `baseline-after.json`. "Before" screenshots: `evidence/ui-v2/before-*.png`.
@@ -35,7 +35,7 @@ openPanel 1 · makeQuests 2 · windows 2 · startSession 1 · drift 2 · questDo
 Screens missing from "before" because the old UI has no such screen: 02 Making quests (no busy state), and 07/08 are a
 bubble + the old recap panel.
 
-## After (same script, same PC, 2026-10-02, )
+## After (same script, same PC, 2026-10-02, `node scripts/baseline.js after --shots`)
 
 | Metric (Electron window, this PC) | Before | After |
 |---|---|---|
@@ -49,20 +49,20 @@ Regression, stated plainly: the first time a panel screen appears there are long
 Re-opening the panel is smooth (6 opens: 42 frames at 16.7 ms, 0 over 20 ms). Cause, measured by switching CSS off on the
 live window: removing every box-shadow inside the panel removes the hitch completely (6 of 6 runs); removing any one shadow
 type, shrinking the blurs, or pre-drawing every shadow type once at startup did not. Not fixed. The old UI had none, so on
-the author's real screen this needs a look; if it feels laggy the lever is a flatter shadow set () in
+the author's real screen this needs a look; if it feels laggy the lever is a flatter shadow set (`main[data-shadows="flat"]`, the footer switch Shadows: Flat) in
 ui.css. Headless/other-GPU numbers may differ.
 
 Not measured: the transparent-window compositor on the author's own display, a real Gemini round trip, power use.
 
 ## Deliberately dropped or changed from the design, and why
 
-- , ,  as designed animate box-shadow / background-position (repaint every frame). Replaced: flare = opacity on a pseudo-element (3 pulses), flow = a transform-only highlight on the current segment, glow on done fills is static.
+- `q-barAura`, `q-flow`, `q-glowPulse` as designed animate box-shadow / background-position (repaint every frame). Replaced: flare = opacity on a pseudo-element (3 pulses), flow = a transform-only highlight on the current segment, glow on done fills is static.
 - Primary-button glow ring is static (design pulses it).
-- Outer shadow  is clipped by the window edge; a tight one () fits the 16 px window padding.
+- Outer shadow `0 0 24px 10px` (the design's `q-barAura` end frame) is clipped by the window edge; a tight one (`0 0 10px 2px`) fits the 16 px window padding.
 - Review rows: only the current row is raised, others sunken (design raises all four; shadow budget).
 - Deadline shows the editable datetime field, not the design's friendly "Today, 6:22 pm" text.
 - Drift card keeps the allow-list chips and free text (the design drops them; they are the feature). Primary/quiet roles swapped to the design's emphasis (Back on track = primary).
 - Panel/card exit is instant (no 120 ms exit animation): display:none cannot animate, and delaying it breaks the click-through/resize logic and the e2e.
 - Plan section 7.7 per-pet class prefixes: not needed. One generator run emits both pets, so the deduplicated animation classes are shared and cannot collide.
-- Re-diff of the pet states against the DesignSync Motion file: not done, no DesignSync tool in this session. The state list was checked against PET_STATES and the v2 design's pet slots instead.
+- Re-diff of the pet states against the original Claude Design motion file: not done, the file was not available in this session. The state list was checked against PET_STATES and the v2 design's pet slots instead.
 - Per-quest completion no longer celebrates (it hops); only all-done celebrates.
