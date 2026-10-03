@@ -128,19 +128,36 @@
       <p id="privacy-note" class="ql-note hidden">Questling only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.</p>
     </div>
     <p id="mock-note" class="ql-note hidden">Mock mode, no AI key configured.</p>
-    <div class="ql-footer">
-      <span class="ql-meta">Pet</span>
-      <div id="pet-switch" class="ql-switch" role="radiogroup" aria-label="Pet">
-        <button class="ql-switch__opt" role="radio" aria-checked="true" data-pet="tuck">Tuck</button>
-        <button class="ql-switch__opt" role="radio" aria-checked="false" data-pet="kip">Kip</button>
+    <div id="prefs">
+      <div class="ql-footer">
+        <span class="ql-meta">Pet</span>
+        <div id="pet-switch" class="ql-switch" role="radiogroup" aria-label="Pet">
+          <button class="ql-switch__opt" role="radio" aria-checked="true" data-pet="tuck">Tuck</button>
+          <button class="ql-switch__opt" role="radio" aria-checked="false" data-pet="kip">Kip</button>
+        </div>
       </div>
-    </div>
-    <div id="size-row" class="ql-footer">
-      <span class="ql-meta">Size</span>
-      <div id="size-switch" class="ql-switch" role="radiogroup" aria-label="Size">
-        <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="S">S</button>
-        <button class="ql-switch__opt" role="radio" aria-checked="true" data-size="M">M</button>
-        <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="L">L</button>
+      <div id="size-row" class="ql-footer">
+        <span class="ql-meta">Size</span>
+        <div id="size-switch" class="ql-switch" role="radiogroup" aria-label="Size">
+          <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="S">S</button>
+          <button class="ql-switch__opt" role="radio" aria-checked="true" data-size="M">M</button>
+          <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="L">L</button>
+        </div>
+      </div>
+      <div id="theme-row" class="ql-footer">
+        <span class="ql-meta">Theme</span>
+        <div id="theme-switch" class="ql-switch" role="radiogroup" aria-label="Theme">
+          <button class="ql-switch__opt" role="radio" aria-checked="true" data-theme="system">Auto</button>
+          <button class="ql-switch__opt" role="radio" aria-checked="false" data-theme="light">Light</button>
+          <button class="ql-switch__opt" role="radio" aria-checked="false" data-theme="dark">Dark</button>
+        </div>
+      </div>
+      <div class="ql-footer">
+        <span class="ql-meta">Shadows</span>
+        <div id="shadows-switch" class="ql-switch" role="radiogroup" aria-label="Shadows">
+          <button class="ql-switch__opt" role="radio" aria-checked="true" data-shadows="soft">Soft</button>
+          <button class="ql-switch__opt" role="radio" aria-checked="false" data-shadows="flat">Flat</button>
+        </div>
       </div>
     </div>
   </section>

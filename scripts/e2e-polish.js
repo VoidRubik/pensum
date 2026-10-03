@@ -43,6 +43,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const fits = await page.evaluate(() => { const r = document.getElementById('panel').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1; });
   ok(fits, 'L: panel fits inside the window (no clipping)');
 
+  // --- theme Auto/Light/Dark follows nativeTheme; shadows Soft/Flat is renderer-only ---
+  const dark = () => page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  await page.click('#theme-switch [data-theme=dark]'); await settle();
+  ok(await dark() === true, 'theme Dark -> prefers-color-scheme: dark');
+  await page.click('#theme-switch [data-theme=light]'); await settle();
+  ok(await dark() === false, 'theme Light -> prefers-color-scheme: light');
+  ok(await page.getAttribute('#theme-switch [data-theme=light]', 'aria-checked') === 'true', 'theme switch shows the choice');
+  const shadow = () => page.evaluate(() => getComputedStyle(document.getElementById('panel')).boxShadow);
+  ok(await shadow() !== 'none', 'shadows Soft (default): the panel has a shadow');
+  await page.click('#shadows-switch [data-shadows=flat]');
+  ok(await shadow() === 'none', 'shadows Flat -> panel box-shadow none');
+  ok(await page.evaluate(() => localStorage.getItem('ql.shadows')) === 'flat', 'Flat is remembered (localStorage ql.shadows)');
+  await page.click('#shadows-switch [data-shadows=soft]');
+  ok(await shadow() !== 'none', 'back to Soft');
+  const prefsFit = await page.evaluate(() => { const p = document.getElementById('panel').getBoundingClientRect(); return [...document.querySelectorAll('#prefs .ql-switch')].every((s) => { const r = s.getBoundingClientRect(); return r.right <= p.right && r.left >= p.left; }); });
+  ok(prefsFit, 'footer grid: every switch stays inside the panel');
+  await page.click('#size-switch [data-size=M]'); await settle();
+
   // --- dock top: panel opens downward, pet not clipped ---
   await app.evaluate(() => global.__qlAnchor({ cx: 960, y: 12, dock: 'top' }));
   await settle();

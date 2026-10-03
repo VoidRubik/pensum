@@ -31,3 +31,8 @@ main.ql {
 /* Docked at the top of the screen: stack upside down so the bar stays at the window edge and the rest grows downward.
    The extra top padding is the pet headroom that the bottom dock gets from the bar's own bottom position (art overflows ~25 px, power-up ~18 more). */
 .ql[data-dock="top"] { flex-direction: column-reverse; padding-top: calc(var(--ql-pad) + 30px); }
+
+/* Panel footer: Pet / Size / Theme / Shadows as a 2x2 grid (label above its switch; options shrink to fit 372 px). */
+#prefs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+#prefs .ql-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
+#prefs .ql-switch__opt { min-width: 48px; padding: 0 8px; }

@@ -98,9 +98,23 @@
   // Size S/M/L lives in main (native zoom + window bounds); the switch only reflects it. Electron only.
   function showPrefs(p) {
     document.querySelectorAll('#size-switch [data-size]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.size === p.size)));
+    document.querySelectorAll('#theme-switch [data-theme]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.theme === p.theme)));
   }
   document.querySelectorAll('#size-switch [data-size]').forEach((b) => b.addEventListener('click', () => api.setPref({ size: b.dataset.size })));
+  document.querySelectorAll('#theme-switch [data-theme]').forEach((b) => b.addEventListener('click', () => api.setPref({ theme: b.dataset.theme })));
   api.onPrefs(showPrefs);
+
+  // Shadows Soft/Flat: renderer-only, remembered like the pet. Flat is the escape hatch for slow GPUs (ui.css main[data-shadows]).
+  const SHADOWS_KEY = 'ql.shadows';
+  function setShadows(v) {
+    if (v === 'flat') main.dataset.shadows = 'flat'; else delete main.dataset.shadows;
+    document.querySelectorAll('#shadows-switch [data-shadows]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.shadows === (v === 'flat' ? 'flat' : 'soft'))));
+  }
+  document.querySelectorAll('#shadows-switch [data-shadows]').forEach((b) => b.addEventListener('click', () => {
+    setShadows(b.dataset.shadows);
+    try { localStorage.setItem(SHADOWS_KEY, b.dataset.shadows); } catch {}
+  }));
+  try { setShadows(localStorage.getItem(SHADOWS_KEY)); } catch {}
 
   // Idle never loops identically: a random variant every 7-16 s at a slightly different speed (only while idle).
   function scheduleIdle() {
@@ -959,6 +973,7 @@
     if (web) winMax = window.innerHeight - 24;
     else applyGeom({ dock, maxH });
     $('size-row').classList.toggle('hidden', !!web);
+    $('theme-row').classList.toggle('hidden', !!web);
     if (!web) showPrefs({ size, theme });
     requestAnimationFrame(fit);
     L.setTimeScale(timeScale);

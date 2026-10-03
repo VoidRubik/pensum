@@ -306,7 +306,16 @@ function setSize(size) {
   win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
 }
 ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, ...geom(), size: settings.size, theme: settings.theme }));
-ipcMain.on('set-pref', (_e, p) => { if (p && typeof p.size === 'string') setSize(p.size); });
+ipcMain.on('set-pref', (_e, p) => {
+  if (!p) return;
+  if (typeof p.size === 'string') setSize(p.size);
+  if (['system', 'light', 'dark'].includes(p.theme) && p.theme !== settings.theme) {
+    settings.theme = p.theme;
+    nativeTheme.themeSource = p.theme; // ui.css follows prefers-color-scheme, which follows this
+    saveSettings();
+    win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
+  }
+});
 
 // Test hooks: force an anchor / read the window bounds (Playwright cannot move the OS cursor).
 if (TEST) {
@@ -320,6 +329,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     ledger.init(app.getPath('userData'));
     loadSettings();
+    nativeTheme.themeSource = settings.theme; // before the window loads: no flash of the wrong theme
     const replace = () => place();
     for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(ev, replace);
     powerMonitor.on('lock-screen', () => { dragEnd(); locked = true; emit(); });

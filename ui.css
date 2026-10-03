@@ -72,6 +72,8 @@ html, body {
   font-family: var(--ql-font);
   -webkit-font-smoothing: antialiased;
 }
+/* Shadows: Flat (Settings) drops every neumorphic shadow token: the first panel open measured 1-2 long frames with them. */
+main[data-shadows="flat"] { --ql-lift: none; --ql-raised: none; --ql-sunken: none; --ql-sunken-sm: none; --ql-glow: none; --ql-primary: none; }
 button, input { font: inherit; color: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--ql-accent-text); outline-offset: 2px; }
