@@ -72,6 +72,29 @@
     if (hopping) main.dataset.idle = 'c';
   }
 
+  // Two pets, one on screen: the active <svg class="pet"> lives in the slot, the other in <template id="pet-<name>"> (not rendered,
+  // not styled). Switching swaps them; the choice is remembered in localStorage['ql.pet'].
+  const PET_KEY = 'ql.pet';
+  function setPet(name) {
+    const slot = document.querySelector('.ql-pet-slot');
+    const cur = slot.querySelector('svg.pet');
+    const tpl = $('pet-' + name);
+    if (cur.dataset.pet !== name && tpl) {
+      const next = tpl.content.firstElementChild;
+      const park = document.createElement('template');
+      park.id = 'pet-' + cur.dataset.pet;
+      tpl.replaceWith(park);
+      park.content.appendChild(cur);
+      slot.prepend(next);
+    }
+    document.querySelectorAll('#pet-switch [data-pet]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.pet === name)));
+  }
+  document.querySelectorAll('#pet-switch [data-pet]').forEach((b) => b.addEventListener('click', () => {
+    setPet(b.dataset.pet);
+    try { localStorage.setItem(PET_KEY, b.dataset.pet); } catch {}
+  }));
+  try { const saved = localStorage.getItem(PET_KEY); if (saved === 'tuck' || saved === 'kip') setPet(saved); } catch {}
+
   // Idle never loops identically: a random variant every 7-16 s at a slightly different speed (only while idle).
   function scheduleIdle() {
     setTimeout(() => {

@@ -70,7 +70,7 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
   ok(seen.every((s) => STATES.includes(s)), 'no state outside the contract names');
 
   // CSS follows the attributes: exactly one pet state group shows, and it carries a motion rule
-  const anim = await page.evaluate(() => {
+  const probeAll = () => page.evaluate(() => {
     const m = document.querySelector('main'); const pet = document.querySelector('.pet'); const out = {};
     const probe = () => {
       const shown = [...pet.querySelectorAll('.ps')].filter((g) => getComputedStyle(g).display !== 'none');
@@ -83,8 +83,20 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
     for (const v of ['a', 'b', 'c', 'd']) { m.dataset.idle = v; out['idle-' + v] = probe(); }
     return out;
   });
+  const anim = await probeAll();
   ok(Object.values(anim).every((n) => /^ps ps-\w+\|.+/.test(n)), 'every state/variant shows one group with a motion rule: ' + JSON.stringify(anim).slice(0, 160));
   ok(new Set(['idle-a', 'idle-b', 'idle-c', 'idle-d'].map((k) => anim[k])).size === 4, 'the four idle variants are four different motions');
+  // the second pet: switch in the panel footer, same checks, and the choice survives a reload
+  if (!(await page.isVisible('#pet-switch'))) await page.click('#toggle');
+  await page.click('#pet-switch [data-pet=kip]');
+  ok((await page.$$('.pet')).length === 1 && await page.getAttribute('.pet', 'data-pet') === 'kip', 'switch -> exactly one pet in the slot, and it is Kip');
+  const kip = await probeAll();
+  ok(Object.values(kip).every((n) => /^ps ps-w+|.+/.test(n)), 'Kip: every state/variant shows one group with a motion rule');
+  ok(new Set(['idle-a', 'idle-b', 'idle-c', 'idle-d'].map((k) => kip[k])).size === 4, 'Kip: the four idle variants are four different motions');
+  ok(JSON.stringify(kip) !== JSON.stringify(anim), 'Kip moves differently from Tuck');
+  ok(await page.evaluate(() => localStorage.getItem('ql.pet')) === 'kip', 'choice saved in localStorage[ql.pet]');
+  await page.reload(); await page.waitForSelector('#bar');
+  ok(await page.getAttribute('.pet', 'data-pet') === 'kip', 'after a reload Kip is still the pet');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const reduced = await page.evaluate(() => [...document.querySelectorAll('.pet [class]')].filter((n) => getComputedStyle(n).animationName !== 'none').length);
   ok(reduced === 0, 'prefers-reduced-motion: animations off (static pose)');

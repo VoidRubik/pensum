@@ -114,3 +114,21 @@ test('windowLabel: "title - App" splits into app + title; no separator = the tit
   assert.deepEqual(L.windowLabel(''), { app: 'window', title: '' });
   assert.deepEqual(L.windowLabel(undefined), { app: 'window', title: '' });
 });
+
+// --- both pets ship the same state groups ---
+test('each pet (inline Tuck, <template> Kip) has exactly the PET_STATES groups, and pet.css shows each', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'pet.css'), 'utf8');
+  const block = /<!--pet:start-->([\s\S]*?)<!--pet:end-->/.exec(html);
+  assert.ok(block, 'index.html has the <!--pet:start-->/<!--pet:end--> markers');
+  const svgs = [...block[1].matchAll(/<svg class="pet" data-pet="(\w+)"[\s\S]*?<\/svg>/g)];
+  assert.deepEqual(svgs.map((m) => m[1]).sort(), ['kip', 'tuck']);
+  const want = [...L.IDLE_VARIANTS.map((v) => 'idle_' + v), ...L.PET_STATES.filter((s) => s !== 'idle')].sort();
+  for (const m of svgs) {
+    const got = [...m[0].matchAll(/class="ps ps-(\w+)"/g)].map((x) => x[1]).sort();
+    assert.deepEqual(got, want, m[1]);
+  }
+  for (const g of want) assert.ok(css.includes('.ps-' + g), 'pet.css shows .ps-' + g);
+  assert.match(block[1], /<template id="pet-kip">/, 'the inactive pet sits in a template (not rendered, not styled)');
+});

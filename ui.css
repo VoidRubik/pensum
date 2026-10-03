@@ -379,6 +379,13 @@ input:focus-visible { outline-offset: 0; }
 .ql-recap__stats dd { order: -1; margin: 0; color: var(--ql-ink); font-weight: 600; }
 .ql-recap__stats dt { color: var(--ql-muted); text-transform: lowercase; }
 
+/* panel footer: which pet */
+.ql-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ql-switch { display: flex; gap: 4px; padding: 3px; border-radius: var(--ql-radius-pill); box-shadow: var(--ql-sunken-sm); }
+.ql-switch__opt { min-width: 56px; min-height: 28px; padding: 0 12px; border: 0; border-radius: var(--ql-radius-pill); background: transparent; color: var(--ql-muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: transform 120ms var(--ease-out); }
+.ql-switch__opt:active { transform: scale(0.97); }
+.ql-switch__opt[aria-checked="true"] { background: var(--ql-surface); color: var(--ql-ink); box-shadow: var(--ql-raised); }
+
 @media (prefers-reduced-motion: reduce) {
   .ql-seg__glint { animation: none; }
   .ql-bar.is-complete::after { animation: none; opacity: 0.5; }
