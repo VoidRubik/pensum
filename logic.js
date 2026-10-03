@@ -85,7 +85,7 @@ function applyLook({ quests, idx, purpose, auto, sup, starter, activeMs }, look)
   const out = { quests, sup, card: null };
   if (purpose === 'done') {
     out.card = g
-      ? { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: g.evidence }
+      ? { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: toneOk(g.evidence) ? g.evidence : '' }
       : { kind: 'confirm', idx, title: 'Looks done?', body: "I can't tell from here — mark it done?", evidence: '' };
   } else if (purpose === 'stuck') {
     const step = g && g.nextStep && toneOk(g.nextStep) ? g.nextStep : `Tiny step: write one rough sentence for '${title}'.`;
@@ -99,7 +99,7 @@ function applyLook({ quests, idx, purpose, auto, sup, starter, activeMs }, look)
     if (g.questDone) {
       const p = proposeStep(sup, { idx, questDone: true, auto });
       out.sup = p.state;
-      if (p.propose) out.card = { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: g.evidence };
+      if (p.propose) out.card = { kind: 'confirm', idx, title: 'Looks done?', body: title, evidence: toneOk(g.evidence) ? g.evidence : '' };
     } else if (!g.onTask) {
       // Drift lines are never model text: only the model's judgment (onTask=false, confident) is used.
       out.card = { kind: 'ask', idx, title: `Still on "${title}"?`, body: '', evidence: '', drift: true };

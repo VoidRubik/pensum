@@ -10,7 +10,8 @@ function append(entry) {
   for (const v of Object.values(entry)) {
     if (typeof v === 'string' && v.length > 500) throw new Error('ledger: string too long (image data?)');
   }
-  if (file) fs.appendFileSync(file, JSON.stringify({ ts: Date.now(), ...entry }) + '\n');
+  // A failed write must not discard an answer that was already paid for: only the image-data guard above throws.
+  if (file) try { fs.appendFileSync(file,JSON.stringify({ ts: Date.now(), ...entry }) + '\n'); } catch {}
 }
 
 function read() {

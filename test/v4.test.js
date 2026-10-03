@@ -151,6 +151,13 @@ test('applyLook done: always a confirm card; evidence from the model when confid
   assert.equal(r.card.idx, 0);
   assert.equal(r.card.evidence, 'Intro has 4 sentences');
 });
+test('applyLook: a confirm card never shows evidence that fails the tone filter (done click and background check)', () => {
+  const bad = look({ questDone: true, confidence: 0.9, evidence: 'You should have finished this' });
+  assert.equal(L.applyLook({ ...ctx(), purpose: 'done' }, bad).card.evidence, '');
+  const r = L.applyLook({ ...ctx(), purpose: 'check', auto: true }, bad);
+  assert.equal(r.card.kind, 'confirm');
+  assert.equal(r.card.evidence, '');
+});
 test('applyLook done: below the gate or null look -> local template, still a confirm card', () => {
   for (const v of [look({ confidence: 0.3, questDone: true }), null]) {
     const r = L.applyLook({ ...ctx(), purpose: 'done' }, v);

@@ -90,3 +90,16 @@ test('petStep: offWork -> curious, below windowLost / away / break / cards / cel
   assert.equal(L.petStep({ ...base, offWork: true, celebrating: true }), 'celebrate');
   assert.equal(L.petStep({ ...base, offWork: false }), 'working');
 });
+
+// --- B9: a failed ledger write must not throw (it would discard an answer that was already paid for) ---
+test('ledger.append: a write failure is swallowed, the image-data guard still throws', () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ledger-'));
+  process.env.QUESTLING_LEDGER_PATH = dir; // a directory: appendFileSync -> EISDIR
+  delete require.cache[require.resolve('../ledger.js')];
+  const ledger = require('../ledger.js');
+  assert.doesNotThrow(() => ledger.append({ kind: 'look', model: 'm' }));
+  assert.throws(() => ledger.append({ blob: 'x'.repeat(501) }), /too long/);
+  delete process.env.QUESTLING_LEDGER_PATH;
+  delete require.cache[require.resolve('../ledger.js')];
+});
