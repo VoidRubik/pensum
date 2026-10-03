@@ -2,7 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme, session } = require('electron');
 
-try { process.loadEnvFile(path.join(__dirname, '.env')); } catch {}
+// Key sources, first one wins (an already-set variable is never overridden): the real environment, the repo .env (dev),
+// then <userData>/.env (%APPDATA%/questling/.env: where a packaged build reads a user's own key; never bundled).
+for (const dir of [__dirname, app.getPath('userData')]) { try { process.loadEnvFile(path.join(dir, '.env')); } catch {} }
 const ai = require('./ai.js');
 const ledger = require('./ledger.js');
 const focus = require('./focus.js');

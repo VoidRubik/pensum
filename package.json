@@ -4,16 +4,55 @@
   "description": "A tiny always-on-top companion that helps you start, get unstuck and come back. It plans your goal into quests and looks only at the one window you pick.",
   "author": "Bruno",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/VoidRubik/questling.git" },
-  "engines": { "node": ">=22.12" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VoidRubik/questling.git"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "electron-builder --win portable"
   },
   "devDependencies": {
     "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "playwright-core": "^1.63.0"
+  },
+  "build": {
+    "appId": "app.questling",
+    "productName": "Questling",
+    "files": [
+      "main.js",
+      "preload.js",
+      "ai.js",
+      "gemini.js",
+      "ledger.js",
+      "logic.js",
+      "focus.js",
+      "artifact.js",
+      "capture.js",
+      "look-flow.js",
+      "index.html",
+      "app.js",
+      "style.css",
+      "ui.css",
+      "pet.css",
+      "web/shim.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "build/icon.png"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false
+    }
   }
 }
