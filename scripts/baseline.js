@@ -74,7 +74,7 @@ async function startup(test) {
   await reach.ask(r); await reach.review(r);
   let t = Date.now(); await r.page.click('#start-btn'); await r.page.waitForSelector('.ql-window', { timeout: 120000 });
   const listMs = Date.now() - t;
-  t = Date.now(); await r.page.click('.ql-window'); await r.page.waitForSelector('#stuck-btn:not(.hidden)', { timeout: 120000 });
+  t = Date.now(); await r.page.click('.ql-window'); await r.page.click('#windows-start'); await r.page.waitForSelector('#stuck-btn:not(.hidden)', { timeout: 120000 });
   res.realPicker = { listWindowsMs: listMs, pickToSessionOnMs: Date.now() - t };
   await r.close();
   fs.writeFileSync(path.join(out, `baseline-${label}.json`), JSON.stringify(res, null, 2));

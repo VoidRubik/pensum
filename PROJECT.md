@@ -7,8 +7,9 @@ A web demo (Vercel) runs the same renderer on staged samples.
 
 **Grade: Partial.** v4 (2026-10-01) is built and tested on staged windows and samples with mock and real
 Gemini. Never done: the author using it on real work, the live Vercel deployment, the real-window-close
-path end to end, the final art (the pet is a placeholder blob until the Claude Design files land), the
-Win10 capture border check. Every decision and caveat: `DECISIONS.md`.
+path end to end, the Win10 capture border check. UI v2 (2026-10-02: Claude Design App UI v2 in both themes, two
+pets Tuck/Kip) is built and verified in the real Electron window on this PC only; first-open frame hitches and
+real-hardware smoothness are in the Not done list. Every decision and caveat: `DECISIONS.md`.
 
 ## What it does
 
@@ -35,7 +36,7 @@ Win10 capture border check. Every decision and caveat: `DECISIONS.md`.
 ```
 npm install
 npm start          # the overlay; tray icon has Show/hide, Pause, Quit
-npm test           # node --test, 127 unit tests, zero deps
+npm test           # node --test, 141 unit tests, zero deps
 node web/build.js && node scripts/dev-server.js   # the web demo locally on :4173
 ```
 
@@ -64,8 +65,9 @@ Test/ops env: `QUESTLING_TEST=1` (fake window, scripted signals only, no tracker
   `api/model.js` (Vercel function) reads a whitelisted sample server-side (never an upload), rate-limited
   per IP and globally, 6 s, no retries; any failure → recorded real answers (`demo/recorded.json`, tagged).
   `web/build.js` copies only the renderer into `public/`.
-- **Design hand-off:** `DESIGN_PROMPT.md` is the contract for the Claude Design assets (pet.svg, pet.css,
-  ui.css, icons.svg); `test/design-prompt.test.js` fails if it drifts from the code.
+- **Design hand-off:** `DESIGN_PROMPT.md` is the contract for the Claude Design assets (pet.css, ui.css, the icon
+  sprite); `test/design-prompt.test.js` fails if it drifts from the code. `scripts/build-pet.js` generates both pets
+  (Tuck inline, Kip in a template) and pet.css. `design/PLAN-ui-v2.md` + `design/BASELINE.md` = the UI v2 plan and numbers.
 
 ## Privacy — honest version
 
@@ -83,8 +85,19 @@ all permissions denied) · `check-live.js` against the local server 27 · real G
 4/5 name something on screen (latency tails to 16 s), injection sample 6/6 not obeyed (n=6, one sample,
 not a security result). A fresh hostile review found 0 Critical / 7 Important; all 7 fixed test-first.
 
+## UI v2 (2026-10-02)
+
+Unit 141/141 · e2e step2 19, step3 10 (+1 expected fail: its "real model" assertion, run with the key blanked), step5 24,
+step6 10, step7 13, step8 17, step9 16, step10 17, step11 11, review 6, **ui-v2 56** (8 screens x light/dark x Tuck/Kip, 32
+screenshots in `evidence/ui-v2/`) · web e2e 20 (mock) · `scripts/contrast.js` both themes PASS. Root cause of the
+"takes a minute": the PowerShell tracker spawn blocked the main thread ~9 s at session start (fixed, 368 ms now).
+Numbers and before/after: `design/BASELINE.md`.
+
 ## Not done
 
+- UI v2 on real hardware: all frame numbers are rAF deltas in this PC's Electron window, not the author's screen. First time a panel
+  screen appears there are 1-2 long frames (~50-110 ms, caused by the box-shadows; later opens are smooth).
+- UI v2 deferred/dropped: see `design/BASELINE.md` (no DesignSync re-diff of the Motion file, exit animations, friendly deadline text).
 - Real use on a real task; the daily-cap behaviour at 300 calls.
 - The public push, Vercel import and `check-live.js` / `e2e-web.js` against the live URL (blocked on the
   owner's OK and a billing-off key).
