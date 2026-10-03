@@ -36,7 +36,7 @@ real-hardware smoothness are in the Not done list. Every decision and caveat: `D
 ```
 npm install
 npm start          # the overlay; tray icon has Show/hide, Pause, Quit
-npm test           # node --test, 162 unit tests, no runtime deps
+npm test           # node --test, 167 unit tests, no runtime deps
 node web/build.js && node scripts/dev-server.js   # the web demo locally on :4173
 ```
 
@@ -99,6 +99,7 @@ Numbers and before/after: `design/BASELINE.md`.
   dock (cursor above the work-area midpoint = top: the panel opens downward; else bottom: upward). Saved in `settings.json` in
   the Electron userData folder; a saved position on a monitor that is gone falls back to bottom-centre at the next start (while running, the window is clamped to the nearest display). Tray menu: Reset position.
 - **Size S / M / L** (0.85 / 1 / 1.3, native page zoom, the window scales with it) in the panel footer, or Ctrl+wheel over the bar.
+- **Tray "Hide from screen recordings"** (default on = content protection; off to record a demo). **Hardening (ship-prep):** explicit sandbox / context isolation, navigation, new-window and permission denial, main reads only files picked in the link dialog (`settings.linked`), PowerShell children get no API keys (`L.childEnv`), Vercel security headers.
 - **Theme Auto / Light / Dark** (`nativeTheme`, applied before the window loads) and **Shadows Soft / Flat** (renderer-only).
 - **Power-up on every confirmed quest** (pet + a bar aura, 3.6 s); a second quest inside that restarts it; the quest-done card opens
   after lift-off. All quests done = the same power-up + the existing flare + the recap.
@@ -106,8 +107,8 @@ Numbers and before/after: `design/BASELINE.md`.
 - **Fixes:** B1 timeouts are not retried, B2 a 13 s client backstop on looks, B3 Word probe 3 s, B4 stale away-time after pause,
   B5 dismissal budget lasts the session, B6 tone filter on confirm evidence, B7 switching quest closes the old card, B8 New task
   while the picker answers, B9 a failed ledger write keeps the paid answer, B10 real window close (`scripts/e2e-realclose.js`).
-- Unit 162/162 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 12, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
-  asleep in 657 ms), step2 19, step5 24, step6 10, step8 17, step10 17, ui-v2 56, web 20 (local, key blanked).
+- Unit 167/167 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 12, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
+  asleep in 657 ms), step2 19, step5 24, step6 10, step8 17, step10 17, ui-v2 56, security 16, web 20 (local, key blanked).
 
 ## Not done
 
@@ -119,7 +120,7 @@ Numbers and before/after: `design/BASELINE.md`.
 - Real use on a real task; the daily-cap behaviour at 300 calls.
 - The public push, Vercel import and `check-live.js` / `e2e-web.js` against the live URL (blocked on the
   owner's OK and a billing-off key).
-- Packaging to `.exe`; autostart; Phase R research results.
+- A signed installer and autostart. A portable `.exe` is built locally with `npm run dist` (launch-proofed in mock mode over CDP; not uploaded anywhere).
 - Polish night (2 Oct): drag/dock/size/theme/shadows/power-up/glance verified by scripted e2e and unit tests only. By hand still:
   drag across two monitors with different DPI, Ctrl+wheel, tray "Reset position", releasing the mouse off the pet mid-drag.
 - Remaining deferred minors are listed in `DECISIONS.md` (the seven from the 1 Oct review, minus the ones fixed on 2 Oct).

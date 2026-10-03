@@ -63,7 +63,7 @@ test('dev-server resolvePublic: stays inside public/, null on traversal, sibling
   assert.equal(resolvePublic(root, '/a%20b.js'), path.join(pub, 'a b.js'));
   assert.equal(resolvePublic(root, '/../package.json'), null);
   assert.equal(resolvePublic(root, '/%2e%2e/package.json'), null);
-  assert.equal(resolvePublic(root, '/..%5cpackage.json'), null);
+  if (process.platform === 'win32') assert.equal(resolvePublic(root, '/..%5cpackage.json'), null, 'backslash traversal (a plain filename character elsewhere)');
   assert.equal(resolvePublic(root, '/../public-secret/x'), null, 'a sibling that merely shares the prefix');
   assert.equal(resolvePublic(root, '/%E0%A4%A'), null, 'malformed percent-escape does not throw');
   assert.equal(resolvePublic(root, '/a%00b'), null);
