@@ -11,7 +11,9 @@
   --ql-line: #cdc8d8;
   --ql-accent: #5fae92;
   --ql-accent-ink: #163a2d;
-  --ql-accent-text: #2a6b52;          /* aqua as TEXT on the surface (the fill colour is too light for 4.5:1) */
+  --ql-accent-text: #2a6b52;          /* aqua as TEXT on the surface (the button colour is too light for 4.5:1) */
+  --ql-fill: #38806a;                 /* aqua as a GRAPHIC (rings, progress, badges): 3:1 against the surface; the button keeps --ql-accent */
+  --ql-on-fill: #ffffff;
   --ql-attention: #8d74c9;
   --ql-success: #5fae92;
   --ql-pet-1: #b6e6d8;
@@ -23,7 +25,7 @@
   --ql-sunken: inset 3px 3px 7px var(--ql-lo), inset -3px -3px 7px var(--ql-hi);
   --ql-sunken-sm: inset 1.5px 1.5px 3px var(--ql-lo), inset -1.5px -1.5px 3px var(--ql-hi);
   --ql-primary: -3px -3px 7px rgba(255, 255, 255, 0.8), 3px 3px 8px rgba(70, 130, 105, 0.4);
-  --ql-glow: 0 0 8px rgba(95, 174, 146, 0.55);
+  --ql-glow: 0 0 8px rgba(56, 128, 106, 0.45);
   --ql-flare: rgba(95, 174, 146, 0.7);
   --ql-radius-pill: 999px;
   --ql-radius-card: 16px;
@@ -50,6 +52,8 @@
     --ql-accent: #6fe0cf;
     --ql-accent-ink: #0c2a26;
     --ql-accent-text: #6fe0cf;
+    --ql-fill: #6fe0cf;
+    --ql-on-fill: #0c2a26;
     --ql-attention: #b6a3e8;
     --ql-success: #6fe0cf;
     --ql-pet-1: #b6e6d8;
@@ -71,6 +75,7 @@ html, body {
 button, input { font: inherit; color: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--ql-accent-text); outline-offset: 2px; }
+input:focus-visible { outline-offset: 0; }
 .ql-mono { font-family: var(--ql-mono); font-variant-numeric: tabular-nums; }
 
 /* --- motion: one enter for every surface that appears (opacity + a small rise INSIDE the already-sized window) --- */
@@ -110,9 +115,9 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .ql-progress { display: flex; gap: 4px; }
 .ql-seg { position: relative; flex: 1; height: 6px; border-radius: var(--ql-radius-pill); background: var(--ql-surface-2); box-shadow: var(--ql-sunken-sm); overflow: hidden; }
-.ql-seg.is-plan, .ql-seg.is-done { background: var(--ql-accent); box-shadow: var(--ql-glow); }
+.ql-seg.is-plan, .ql-seg.is-done { background: var(--ql-fill); box-shadow: var(--ql-glow); }
 /* Current segment: a fill clipped to --fill and one soft highlight sliding through it (transform only; only this 6 px element is involved). */
-.ql-seg__fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--fill, 0) * 100%); overflow: hidden; background: var(--ql-accent); box-shadow: var(--ql-glow); border-radius: inherit; }
+.ql-seg__fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--fill, 0) * 100%); overflow: hidden; background: var(--ql-fill); box-shadow: var(--ql-glow); border-radius: inherit; }
 .ql-seg__glint { position: absolute; inset: 0 auto 0 0; width: 60%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); animation: q-flow 2.4s linear infinite; }
 @keyframes q-flow { from { transform: translateX(-100%); } to { transform: translateX(170%); } }
 /* All quests done: one soft flare around the pill, opacity only, 3 pulses then gone. */
@@ -127,13 +132,13 @@ button { -webkit-tap-highlight-color: transparent; }
   animation: q-flare 1.4s ease-out 3;
 }
 @keyframes q-flare { 0% { opacity: 1; } 100% { opacity: 0; } }
-.ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-accent); box-shadow: var(--ql-glow); flex: none; }
+.ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-fill); box-shadow: var(--ql-glow); flex: none; }
 .ql-disc {
   width: 22px;
   height: 22px;
   flex: none;
   border-radius: 50%;
-  background: conic-gradient(var(--ql-accent) calc(var(--left, 1) * 360deg), var(--ql-surface-2) 0);
+  background: conic-gradient(var(--ql-fill) calc(var(--left, 1) * 360deg), var(--ql-surface-2) 0);
   -webkit-mask: radial-gradient(circle, transparent 6px, #000 7px);
   mask: radial-gradient(circle, transparent 6px, #000 7px);
   transition: opacity 0.4s ease;
@@ -191,7 +196,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .ql-row { display: flex; align-items: center; gap: 10px; }
 .ql-row .ql-btn--primary { flex: 1; }
 .ql-repick { flex: none; padding: 0 14px; height: 34px; font-size: 13px; }
-.ql-link-btn { padding: 4px 0; border: 0; background: none; color: var(--ql-muted); font-size: 13px; font-weight: 500; cursor: pointer; }
+.ql-link-btn { flex: none; white-space: nowrap; padding: 4px 0; border: 0; background: none; color: var(--ql-muted); font-size: 13px; font-weight: 500; cursor: pointer; }
 .ql-link-btn:hover { color: var(--ql-ink); }
 
 /* --- fields --- */
@@ -209,6 +214,7 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .ql-input::placeholder { color: var(--ql-muted); opacity: 1; }
 .ql-note { margin: 0; font-size: 12px; color: var(--ql-muted); line-height: 1.45; }
+.ql-note:empty { display: none; }
 .ql-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ql-accent-text); }
 
 /* --- bubble and card (the things that appear above the bar) --- */
@@ -264,12 +270,103 @@ button { -webkit-tap-highlight-color: transparent; }
 
 /* Countdown: a raised ring whose fill follows --left (1 -> 0), a sunken face with the m:ss label. */
 .ql-countdown { display: flex; align-items: center; gap: 16px; }
-.ql-countdown__ring { position: relative; width: 56px; height: 56px; flex: none; border-radius: 50%; box-shadow: var(--ql-raised); background: conic-gradient(var(--ql-accent) calc(var(--left, 1) * 360deg), var(--ql-surface-2) 0); }
+.ql-countdown__ring { position: relative; width: 56px; height: 56px; flex: none; border-radius: 50%; box-shadow: var(--ql-raised); background: conic-gradient(var(--ql-fill) calc(var(--left, 1) * 360deg), var(--ql-surface-2) 0); }
 .ql-countdown__face { position: absolute; inset: 5px; display: grid; place-items: center; border-radius: 50%; background: var(--ql-surface); box-shadow: var(--ql-sunken); font-size: 13px; font-weight: 600; font-family: var(--ql-mono); font-variant-numeric: tabular-nums; }
+
+/* --- the panel (screens 01-04: ask, making quests, review, pick a window) --- */
+.ql-panel {
+  flex: none;
+  max-height: var(--panel-max, none);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 22px;
+  border-radius: var(--ql-radius-sheet);
+  user-select: text;
+  animation: ql-in 180ms var(--ease-out);
+}
+.ql-stack { display: flex; flex-direction: column; gap: 18px; animation: ql-in 180ms var(--ease-out); }
+.ql-stack:not(.is-busy) .ql-busy-only { display: none; }
+.ql-stack.is-busy .ql-idle-only { display: none; }
+.ql-panel > * + * { margin-top: 18px; }
+.ql-title { margin: 0; font-size: 19px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; text-wrap: pretty; overflow-wrap: anywhere; }
+#quest-task { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ql-sub { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ql-muted); text-wrap: pretty; }
+.ql-meta { font-size: 12px; color: var(--ql-muted); }
+.ql-row--between { justify-content: space-between; }
+.ql-row--between .ql-btn--primary { flex: none; }
+.ql-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ql-head__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+/* 02: skeleton rows hold the same room as real quest rows, so nothing shifts when they arrive */
+.ql-skel { display: flex; flex-direction: column; gap: 10px; }
+.ql-skel__row { min-height: 58px; display: flex; flex-direction: column; justify-content: center; gap: 7px; padding: 10px 14px; border-radius: var(--ql-radius-card); box-shadow: var(--ql-sunken-sm); animation: ql-pulse 1.4s ease-in-out infinite; }
+.ql-skel__row span { display: block; height: 9px; border-radius: 6px; background: var(--ql-surface-2); }
+.ql-skel__row span + span { height: 7px; opacity: 0.7; }
+.ql-skel__row:nth-child(1) span { width: 78%; } .ql-skel__row:nth-child(1) span + span { width: 54%; }
+.ql-skel__row:nth-child(2) span { width: 64%; } .ql-skel__row:nth-child(2) span + span { width: 40%; }
+.ql-skel__row:nth-child(3) span { width: 72%; } .ql-skel__row:nth-child(3) span + span { width: 48%; }
+.ql-skel__row:nth-child(4) span { width: 58%; } .ql-skel__row:nth-child(4) span + span { width: 34%; }
+.ql-skel__row:nth-child(2) { animation-delay: 0.12s; } .ql-skel__row:nth-child(3) { animation-delay: 0.24s; } .ql-skel__row:nth-child(4) { animation-delay: 0.36s; }
+@keyframes ql-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* 03: deadline + fit meter, then the quests */
+.ql-plan { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: var(--ql-radius-card); box-shadow: var(--ql-sunken); }
+.ql-plan__row, .ql-fit__nums { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ql-plan__due { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; }
+.ql-plan__input { min-width: 0; padding: 0; border: 0; background: transparent; color: var(--ql-ink); font-size: 13px; }
+.ql-plan__input::-webkit-calendar-picker-indicator { display: none; }
+.ql-plan__due .ql-ic { cursor: pointer; }
+.ql-fit { height: 6px; border-radius: var(--ql-radius-pill); background: var(--ql-surface-2); box-shadow: var(--ql-sunken-sm); overflow: hidden; }
+.ql-fit__fill { display: block; height: 100%; width: calc(var(--fit, 0) * 100%); border-radius: var(--ql-radius-pill); background: var(--ql-fill); box-shadow: var(--ql-glow); }
+.ql-fit.is-short .ql-fit__fill { background: var(--ql-attention); box-shadow: none; }
+.ql-fit__nums b { color: var(--ql-ink); font-weight: 600; }
+
+.ql-quests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ql-quest { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border-radius: var(--ql-radius-card); background: var(--ql-surface); box-shadow: var(--ql-sunken-sm); cursor: pointer; }
+.ql-quest.is-current { box-shadow: var(--ql-raised); }
+.ql-quests.is-in .ql-quest { animation: ql-in 180ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.ql-num { position: relative; width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; box-shadow: var(--ql-sunken-sm); font-family: var(--ql-mono); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ql-muted); }
+.ql-num input { position: absolute; inset: -6px; margin: 0; opacity: 0; cursor: pointer; }
+.ql-num:has(input:focus-visible) { outline: 2px solid var(--ql-accent-text); outline-offset: 2px; }
+.ql-num__ok { display: none; width: 12px; height: 12px; stroke-width: 2.4; }
+.ql-quest.is-current .ql-num { color: var(--ql-accent-text); }
+.ql-quest.is-done .ql-num { background: var(--ql-fill); color: var(--ql-on-fill); box-shadow: var(--ql-glow); }
+.ql-quest.is-done .ql-num__n { display: none; }
+.ql-quest.is-done .ql-num__ok { display: block; }
+.ql-quest__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ql-quest__title { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font-size: 14px; font-weight: 600; }
+.ql-quest__finish { font-size: 12px; line-height: 1.4; color: var(--ql-muted); }
+.ql-quest.is-done .ql-quest__title { text-decoration: line-through; color: var(--ql-muted); }
+.ql-pill { flex: none; padding: 4px 10px; border-radius: var(--ql-radius-pill); box-shadow: var(--ql-sunken-sm); font-family: var(--ql-mono); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ql-muted); }
+.ql-add { align-self: flex-start; min-height: 36px; padding: 0 12px; border: 0; background: none; color: var(--ql-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.ql-add:hover { color: var(--ql-ink); }
+
+/* 04: window cards */
+.ql-windows { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ql-window { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 8px; border: 0; border-radius: var(--ql-radius-card); background: var(--ql-surface); color: var(--ql-ink); box-shadow: var(--ql-raised); text-align: left; cursor: pointer; transition: transform 120ms var(--ease-out); }
+.ql-window:active { transform: scale(0.97); }
+.ql-window.is-selected { box-shadow: var(--ql-sunken-sm); outline: 1px solid var(--ql-accent-text); }
+.ql-window__thumb { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; background: var(--ql-surface-2); }
+.ql-window__text { display: flex; flex-direction: column; padding: 0 4px 2px; min-width: 0; }
+.ql-window__app { font-size: 13px; font-weight: 600; }
+.ql-window__sub { font-size: 12px; color: var(--ql-muted); }
+.ql-window__app, .ql-window__sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ql-window__check { position: absolute; top: 14px; right: 14px; width: 22px; height: 22px; display: none; place-items: center; border-radius: 50%; background: var(--ql-fill); color: var(--ql-on-fill); box-shadow: var(--ql-glow); }
+.ql-window.is-selected .ql-window__check { display: grid; }
+.ql-window__check .ql-ic { width: 12px; height: 12px; stroke-width: 2.4; }
+.ql-windows > p { grid-column: 1 / -1; }
+
+/* the honest privacy line: short by default, the full text one tap away */
+.ql-privacy { display: flex; flex-direction: column; gap: 8px; }
+.ql-privacy__line { display: flex; align-items: flex-start; gap: 8px; }
+.ql-privacy__line .ql-ic { margin-top: 1px; color: var(--ql-muted); }
+.ql-note .ql-link-btn { display: inline; padding: 0; font-size: 12px; color: var(--ql-accent-text); text-decoration: underline; }
 
 @media (prefers-reduced-motion: reduce) {
   .ql-seg__glint { animation: none; }
   .ql-bar.is-complete::after { animation: none; opacity: 0.5; }
-  .ql-bubble, .ql-card, .ql-panel, .ql-panel > * { animation-name: ql-fade; }
+  .ql-bubble, .ql-card, .ql-panel, .ql-stack, .ql-quests.is-in .ql-quest { animation-name: ql-fade; }
+  .ql-skel__row { animation: none; }
 }
 @keyframes ql-fade { from { opacity: 0; } to { opacity: 1; } }

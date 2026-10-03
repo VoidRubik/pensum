@@ -17,7 +17,7 @@ async function launch(extra) {
   await page.waitForSelector('.ql-quest');
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
   if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   return { app, page };

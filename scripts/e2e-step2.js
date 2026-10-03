@@ -23,7 +23,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok((await page.$$('.ql-seg')).length === 4, 'progress: plan segment + 3 quests');
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
   if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   ok(await page.getAttribute('main', 'data-pet-state') === 'working', 'session on -> pet working');
@@ -55,7 +55,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(await page.isVisible('#repick'), 'Pick window again visible');
   await page.click('#repick');
   ok(await page.isVisible('.ql-window'), 'repick opens the picker');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'working');
   ok(true, 're-pick -> working again');
   // paused done-check still gives a template confirm card

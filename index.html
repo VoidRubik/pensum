@@ -25,27 +25,47 @@
 <main class="ql" data-pet-state="idle" data-idle="a">
 
   <section id="panel" class="ql-panel solid hidden">
-    <div id="task-card">
-      <div class="ql-chat">
-        <p class="ql-chat__pet">What do you want to finish today?</p>
-        <input id="task-text" class="ql-input" type="text" placeholder="e.g. my water cycle essay, due at 6pm">
+    <div id="task-card" class="ql-stack">
+      <span class="ql-tag ql-busy-only">Making quests</span>
+      <h3 id="task-title" class="ql-title">What do you want to finish today?</h3>
+      <input id="task-text" class="ql-input ql-idle-only" type="text" placeholder="e.g. my water cycle essay, due at 6pm" aria-label="What do you want to finish today?">
+      <div class="ql-skel ql-busy-only" aria-hidden="true">
+        <div class="ql-skel__row"><span></span><span></span></div>
+        <div class="ql-skel__row"><span></span><span></span></div>
+        <div class="ql-skel__row"><span></span><span></span></div>
+        <div class="ql-skel__row"><span></span><span></span></div>
       </div>
-      <div class="ql-row"><button id="make-quests" class="ql-btn ql-btn--primary">Make quests</button></div>
+      <div class="ql-row ql-row--between ql-idle-only">
+        <button id="make-quests" class="ql-btn ql-btn--primary">Make quests</button>
+        <span id="usage-line" class="ql-meta ql-mono"></span>
+      </div>
+      <p class="ql-sub ql-busy-only">Splitting it into steps you can finish in one sitting…</p>
     </div>
 
-    <div id="quest-card" class="hidden">
-      <label class="ql-label" for="deadline">Deadline</label>
-      <input id="deadline" class="ql-input" type="datetime-local">
+    <div id="quest-card" class="ql-stack hidden">
+      <div class="ql-head">
+        <div class="ql-head__text">
+          <span id="quest-count" class="ql-tag"></span>
+          <h3 id="quest-task" class="ql-title"></h3>
+        </div>
+        <button id="new-task" class="ql-link-btn">New task</button>
+      </div>
+      <div class="ql-plan">
+        <div class="ql-plan__row">
+          <label class="ql-plan__due"><svg class="ql-ic" aria-hidden="true"><use href="#i-cal"/></svg><input id="deadline" class="ql-plan__input ql-mono" type="datetime-local" aria-label="Deadline"></label>
+          <span id="time-left" class="ql-mono ql-meta"></span>
+        </div>
+        <div class="ql-fit"><span id="fit-fill" class="ql-fit__fill"></span></div>
+        <div class="ql-fit__nums ql-mono ql-meta"><span><b id="fit-work"></b> work</span><span id="fit-spare"></span></div>
+      </div>
       <ul id="quest-list" class="ql-quests"></ul>
+      <button id="add-quest" class="ql-add">+ Add a quest</button>
       <div id="start-row" class="ql-row">
         <button id="start-btn" class="ql-btn ql-btn--primary">Start session</button>
         <button id="end-btn" class="ql-btn ql-btn--primary hidden">End session</button>
-        <button id="new-task" class="ql-btn ql-btn--quiet">New task</button>
+        <button id="link-btn" class="ql-btn ql-btn--quiet"><svg class="ql-ic" aria-hidden="true"><use href="#i-doc"/></svg>Link doc</button>
       </div>
-      <div class="ql-link">
-        <button id="link-btn" class="ql-btn ql-btn--quiet">Link my doc</button>
-        <span id="link-name" class="ql-note"></span>
-      </div>
+      <p id="link-name" class="ql-note"></p>
     </div>
 
     <div id="recap" class="ql-recap hidden">
@@ -64,15 +84,26 @@
       </div>
     </div>
 
-    <div id="windows" class="ql-windows hidden">
-      <p class="ql-label">Which window are we working in?</p>
-      <div id="window-grid"></div>
-      <button id="windows-cancel" class="ql-btn ql-btn--quiet">Back</button>
+    <div id="windows" class="ql-stack hidden">
+      <div class="ql-head__text">
+        <h3 class="ql-title">Which window are we working in?</h3>
+        <p class="ql-sub">Questling will only look at this one.</p>
+      </div>
+      <div id="window-grid" class="ql-windows"></div>
+      <div class="ql-row">
+        <button id="windows-start" class="ql-btn ql-btn--primary hidden"></button>
+        <button id="windows-cancel" class="ql-btn ql-btn--quiet">Back</button>
+      </div>
     </div>
 
-    <p id="usage-line" class="ql-note"></p>
+    <div id="privacy" class="ql-privacy">
+      <div class="ql-privacy__line">
+        <svg class="ql-ic" aria-hidden="true"><use href="#i-lock"/></svg>
+        <p class="ql-note"><span id="privacy-line">Only the window you pick, only during a session. Never saved.</span> <button id="privacy-toggle" class="ql-link-btn" aria-expanded="false" aria-controls="privacy-note">Details</button></p>
+      </div>
+      <p id="privacy-note" class="ql-note hidden">Questling only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.</p>
+    </div>
     <p id="mock-note" class="ql-note hidden">Mock mode, no AI key configured.</p>
-    <p id="privacy-note" class="ql-note">Questling only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.</p>
   </section>
 
   <div id="card" class="ql-card ql-card--ask solid hidden">

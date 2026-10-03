@@ -63,4 +63,3 @@ html.web main.ql {
 }
 /* things that need the real desktop */
 html.web #link-btn, html.web #link-name, html.web #usage-line { display: none; }
-html.web .ql-link { display: none; }

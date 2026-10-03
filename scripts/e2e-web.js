@@ -43,7 +43,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
   await shot('03-picker');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
   await page.waitForSelector('.ql-card--starter:not(.hidden)');
   ok((await page.textContent('#card-body')).length > 5, 'starter card greets the session start');
@@ -96,7 +96,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   ok(await page.isVisible('#repick'), 'window closed -> asleep + Pick window again');
   await shot('08-asleep');
   await page.click('#repick');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'working');
   ok(true, 're-pick -> working');
   // end of the session: recap

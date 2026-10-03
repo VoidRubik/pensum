@@ -72,7 +72,10 @@ async function real(kind, args) {
 }
 
 async function quests({ text, now, tzOffset }) {
-  if (isMock()) return { deadline_iso: defaultDeadline(now), ...questFallback(), mock: true };
+  if (isMock()) {
+    if (process.env.QUESTLING_MOCK_QUESTS_MS) await new Promise((r) => setTimeout(r, Number(process.env.QUESTLING_MOCK_QUESTS_MS))); // test hook: making quests takes time (screen 02)
+    return { deadline_iso: defaultDeadline(now), ...questFallback(), mock: true };
+  }
   const req = (model) => ({
     model,
     systemInstruction: PERSONA,

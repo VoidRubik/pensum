@@ -20,7 +20,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.waitForSelector('.ql-quest');
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
   if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   let t = Date.now();
@@ -69,7 +69,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const p2 = await app2.firstWindow();
   await p2.waitForSelector('#bar');
   await p2.click('#toggle'); await p2.fill('#task-text', 'my water cycle essay'); await p2.click('#make-quests'); await p2.waitForSelector('.ql-quest');
-  await p2.click('#start-btn'); await p2.waitForSelector('.ql-window'); await p2.click('.ql-window'); await p2.waitForSelector('#stuck-btn:not(.hidden)');
+  await p2.click('#start-btn'); await p2.waitForSelector('.ql-window'); await p2.click('.ql-window'); await p2.click('#windows-start'); await p2.waitForSelector('#stuck-btn:not(.hidden)');
   if (await p2.isVisible('.ql-card--starter')) await p2.click('#card-quiet');
   let t2 = Date.now();
   const send2 = (o) => { t2 += 20000; return app2.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('signal', s),

@@ -42,14 +42,14 @@ const reach = {
     await h.page.waitForSelector('#task-card.is-busy');
   },
   async review(h) {
-    if (!(await h.page.isVisible('.ql-quest'))) {
+    if (!(await h.page.isVisible('.ql-quest')) && !(await h.page.$('#task-card.is-busy'))) {
       await h.page.fill('#task-text', 'Phylogenetic tree mind map for bio, due 6:22 pm');
       await h.page.click('#make-quests');
     }
     await h.page.waitForSelector('.ql-quest');
   },
   async windows(h) { await h.page.click('#start-btn'); await h.page.waitForSelector('.ql-window'); },
-  async starter(h) { await h.page.click('.ql-window'); await h.page.waitForSelector('.ql-card--starter:not(.hidden)'); },
+  async starter(h) { await h.page.click('.ql-window'); await h.page.click('#windows-start'); await h.page.waitForSelector('.ql-card--starter:not(.hidden)'); },
   async drift(h) {
     if (await h.page.isVisible('.ql-card--starter')) await h.page.click('#card-quiet');
     for (let i = 0; i < 25 && !(await h.page.isVisible('#card:not(.hidden) #card-chips:not(.hidden)')); i++) { await h.send({ onWork: false, fgProcess: 'chrome' }); await sleep(150); }

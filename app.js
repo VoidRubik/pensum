@@ -9,6 +9,7 @@
   const STORAGE_KEY = 'questling-state-v1';
   const BUBBLE_MS = 6000;
   const HELLO = "tell me what you're working on";
+  const ASK = 'What do you want to finish today?';
   const AWAY_SEC = 300; // idle this long or locked = away: no looks, pet sleeps
   const STUCK_QUIET_MS = 240000; // no visible change this long -> offer a tiny step (never calls the model by itself)
   const OFFER_GAP_MS = 900000; // at most one offer per 15 min
@@ -31,6 +32,7 @@
   let quietLook = false; // an unsolicited look must not flash the 'thinking' pose
   let card = null; // { kind, idx, onPrimary, onQuiet }
   let celebrating = false;
+  let busy = false; // the quests are being made (screen 02)
   let lastSig = 0;
   let lastChangeAt = 0;
   let lastOfferAt = 0;
@@ -64,7 +66,7 @@
   function applyPet() {
     main.dataset.petState = L.petStep({
       celebrating, looking, quietLook, cardKind: card ? card.kind : null,
-      sessionOn, hasTask: !!state, breakMode, windowLost, away,
+      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy,
     });
   }
 
@@ -131,7 +133,7 @@
 
   // --- bar ---
   function updateBar() {
-    $('quest-line').textContent = !state ? HELLO : allDone() ? 'all quests done!' : state.quests[curIdx()].title;
+    $('quest-line').textContent = busy ? 'Making quests…' : !state ? HELLO : allDone() ? 'all quests done!' : state.quests[curIdx()].title;
     $('done-btn').classList.toggle('hidden', !state || allDone());
     $('start-btn').classList.toggle('hidden', sessionOn);
     $('end-btn').classList.toggle('hidden', !sessionOn);
@@ -221,7 +223,7 @@
 
   async function refreshUsage() {
     const u = await api.usage();
-    $('usage-line').textContent = `today: ${u.calls} calls · ${(u.tokens / 1000).toFixed(1)}k tokens · cap ${u.cap}`;
+    $('usage-line').textContent = `${u.calls} / ${u.cap} looks today`;
   }
 
   // --- panel: onboarding, quests, window picker ---
@@ -230,26 +232,54 @@
     $('quest-card').classList.toggle('hidden', name !== 'quests');
     $('windows').classList.toggle('hidden', name !== 'windows');
     $('recap').classList.toggle('hidden', name !== 'recap');
+    $('privacy').classList.toggle('hidden', name !== 'task' && name !== 'windows'); // the capture notice sits where capture is introduced
   }
+
+  // Review screen: deadline + fit meter, from the pure L.fitSummary. Recomputed on every render and on deadline edits.
+  function updateFit() {
+    const fromInput = new Date($('deadline').value).getTime();
+    const f = L.fitSummary(state.quests, Number.isFinite(fromInput) ? fromInput : Date.parse(state.deadline_iso), Date.now());
+    $('time-left').textContent = f.leftMin == null ? '' : f.leftMin === 0 ? 'past due' : `${L.fmtMin(f.leftMin)} left`;
+    $('fit-work').textContent = L.fmtMin(f.workMin);
+    $('fit-spare').textContent = f.spareMin == null ? '' : f.short ? `short by ${L.fmtMin(-f.spareMin)}` : `${L.fmtMin(f.spareMin)} spare`;
+    const bar = $('fit-fill').parentElement;
+    bar.style.setProperty('--fit', String(f.ratio));
+    bar.classList.toggle('is-short', f.short);
+  }
+  $('deadline').addEventListener('input', () => state && updateFit());
+  $('deadline').closest('label').querySelector('.ql-ic').addEventListener('click', () => $('deadline').showPicker?.());
 
   function renderQuests() {
     const list = $('quest-list');
     list.innerHTML = '';
+    $('quest-count').textContent = `${state.quests.length} ${state.quests.length === 1 ? 'quest' : 'quests'}`;
+    $('quest-task').textContent = state.text;
     const cur = allDone() ? -1 : curIdx();
     state.quests.forEach((q, i) => {
       const li = document.createElement('li');
       li.className = 'ql-quest' + (q.done ? ' is-done' : '') + (i === cur ? ' is-current' : '');
+      li.style.setProperty('--i', String(i));
+      // the number circle IS the checkbox (a real input, so it stays keyboard/AT reachable)
+      const num = document.createElement('label');
+      num.className = 'ql-num';
+      num.addEventListener('click', (e) => e.stopPropagation());
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = !!q.done;
-      box.addEventListener('click', (e) => e.stopPropagation());
+      box.setAttribute('aria-label', `Done: ${q.title}`);
       box.addEventListener('change', () => toggleQuest(i, box.checked));
+      const n = document.createElement('span');
+      n.className = 'ql-num__n';
+      n.textContent = String(i + 1);
+      num.append(box, n);
+      num.insertAdjacentHTML('beforeend', '<svg class="ql-ic ql-num__ok" aria-hidden="true"><use href="#i-check"/></svg>');
       const wrap = document.createElement('div');
       wrap.className = 'ql-quest__text';
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'ql-quest__title';
       input.value = q.title;
+      input.setAttribute('aria-label', `Quest ${i + 1} title`);
       input.addEventListener('change', () => { state.quests[i].title = input.value; save(); updateBar(); });
       const finish = document.createElement('small');
       finish.className = 'ql-quest__finish';
@@ -257,14 +287,24 @@
       wrap.append(input, finish);
       const pill = document.createElement('span');
       pill.className = 'ql-pill';
-      pill.textContent = `${q.minutes} min`;
-      li.append(box, wrap, pill);
+      pill.textContent = `${q.minutes}m`;
+      li.append(num, wrap, pill);
       li.addEventListener('click', () => setCurrent(i));
       list.appendChild(li);
     });
+    updateFit();
     renderProgress();
     updateBar();
   }
+
+  $('add-quest').addEventListener('click', () => {
+    state.quests.push({ title: 'New quest', finish: '', minutes: 15, done: false });
+    save();
+    renderQuests();
+    const last = [...$('quest-list').querySelectorAll('.ql-quest__title')].pop();
+    last.focus();
+    last.select();
+  });
 
   function setCurrent(i) {
     if (!state || state.quests[i].done || (!allDone() && curIdx() === i)) return;
@@ -290,6 +330,9 @@
     // datetime-local wants local time without zone.
     $('deadline').value = isNaN(d) ? '' : new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     $('link-name').textContent = state.linked ? state.linked.name : '';
+    const list = $('quest-list');
+    list.classList.add('is-in'); // rows rise in once, 40 ms apart
+    setTimeout(() => list.classList.remove('is-in'), 700);
     renderQuests();
     showPanelPart('quests');
   }
@@ -303,7 +346,10 @@
     const text = $('task-text').value.trim();
     if (!text) return;
     $('make-quests').disabled = true;
-    say('thinking up quests...');
+    busy = true;
+    $('task-title').textContent = text;
+    $('task-card').classList.add('is-busy');
+    updateBar();
     try {
       const data = await api.makeQuests({ text, now: new Date().toISOString(), tzOffset: new Date().getTimezoneOffset() });
       if (!data.quests) { say(data.pet_line || "couldn't make quests, try again"); return; }
@@ -312,12 +358,16 @@
       hideCard();
       save();
       openQuests();
-      say(data.fallback ? "couldn't reach my brain, here are starter quests" : `${state.quests.length} quests ready — tweak them, then start.`);
+      if (data.fallback) say("couldn't reach my brain, here are starter quests"); // the review screen says the rest
       refreshUsage();
     } catch {
       say("couldn't make quests, try again");
     } finally {
+      busy = false;
+      $('task-card').classList.remove('is-busy');
+      $('task-title').textContent = ASK;
       $('make-quests').disabled = false;
+      updateBar();
     }
   });
 
@@ -337,28 +387,49 @@
   });
 
   // --- window picker: frames only ever come from the window picked here ---
+  let picked = null;
   async function openPicker() {
     setExpanded(true);
     showPanelPart('windows');
+    picked = null;
+    $('windows-start').classList.add('hidden');
     const grid = $('window-grid');
-    grid.textContent = 'looking for windows...';
+    const note = (t) => { const p = document.createElement('p'); p.className = 'ql-sub'; p.textContent = t; grid.replaceChildren(p); };
+    note('looking for windows...');
     let wins = [];
     try { wins = await api.listWindows(); } catch {}
-    grid.innerHTML = '';
-    if (!wins.length) grid.textContent = 'No windows found. Open the document you want to work in, then go back and try again.';
+    if (!wins.length) { note('No windows found. Open the document you want to work in, then go back and try again.'); return; }
+    grid.replaceChildren();
     wins.forEach((w) => {
+      const lab = L.windowLabel(w.title);
       const b = document.createElement('button');
       b.className = 'ql-window';
+      b.setAttribute('aria-pressed', 'false');
       const img = document.createElement('img');
+      img.className = 'ql-window__thumb';
       img.alt = '';
       img.src = w.thumb;
-      const t = document.createElement('span');
-      t.textContent = w.title;
-      b.append(img, t);
-      b.addEventListener('click', () => startWith(w));
+      const text = document.createElement('span');
+      text.className = 'ql-window__text';
+      const app = document.createElement('span');
+      app.className = 'ql-window__app';
+      app.textContent = lab.app;
+      const sub = document.createElement('span');
+      sub.className = 'ql-window__sub';
+      sub.textContent = lab.title;
+      text.append(app, sub);
+      b.append(img, text);
+      b.insertAdjacentHTML('beforeend', '<span class="ql-window__check"><svg class="ql-ic" aria-hidden="true"><use href="#i-check"/></svg></span>');
+      b.addEventListener('click', () => {
+        picked = w;
+        grid.querySelectorAll('.ql-window').forEach((x) => { x.classList.toggle('is-selected', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+        $('windows-start').textContent = `Start in ${lab.app.slice(0, 24)}`;
+        $('windows-start').classList.remove('hidden');
+      });
       grid.appendChild(b);
     });
   }
+  $('windows-start').addEventListener('click', () => picked && startWith(picked));
   $('windows-cancel').addEventListener('click', () => (state ? openQuests() : showPanelPart('task')));
   $('repick').addEventListener('click', openPicker);
 
@@ -439,6 +510,12 @@
     state.linked = { path: r.path, name: r.name };
     save();
     $('link-name').textContent = r.readable ? `${r.name} (${r.words} words) — save to update` : `${r.name} — couldn't read it`;
+  });
+
+  $('privacy-toggle').addEventListener('click', () => {
+    const open = $('privacy-note').classList.toggle('hidden') === false;
+    $('privacy-toggle').setAttribute('aria-expanded', String(open));
+    $('privacy-toggle').textContent = open ? 'Hide' : 'Details';
   });
 
   // --- the signal stream: raw facts from main; every decision is made here ---

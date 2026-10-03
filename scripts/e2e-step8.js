@@ -41,7 +41,7 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
   await page.waitForSelector('.ql-quest');
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('#stuck-btn:not(.hidden)');            // working, curious (starter card)
   await page.click('#card-quiet');
   await page.click('#stuck-btn');                                    // thinking -> helper

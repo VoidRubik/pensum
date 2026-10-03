@@ -22,7 +22,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   const linesBefore = fs.existsSync(ledger) ? fs.readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length : 0;
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('.ql-card--starter:not(.hidden)', { timeout: 4000 });
   ok(await page.textContent('#card-title') === 'Tiny start', 'session start -> starter card');
   const starter = await page.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')).starter);

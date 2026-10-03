@@ -189,10 +189,11 @@ const PET_STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebra
 const IDLE_VARIANTS = ['a', 'b', 'c', 'd'];
 
 /** Which of the 8 pet states to show. One base state plus transient overrides; priority top to bottom. */
-function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away }) {
+function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away, busy, hopping }) {
   if (celebrating) return 'celebrate';
-  if (looking && !quietLook) return 'thinking';
+  if ((looking && !quietLook) || busy) return 'thinking'; // busy = the quests are being made
   if (cardKind) return cardKind === 'step' ? 'helper' : 'curious';
+  if (hopping) return 'idle'; // a quest was just confirmed: the app forces idle variant c (the hop) for ~1.2 s
   if (!sessionOn) return hasTask ? 'sleepy' : 'idle';
   if (windowLost) return 'asleep';
   if (breakMode || away) return 'sleepy';
@@ -228,9 +229,41 @@ function nextQuestIdx(done, idx) {
   return -1;
 }
 
+/** Human minutes: 54m, 1h 16m, 2h. */
+const fmtMin = (m) => {
+  const n = Math.max(0, Math.round(m));
+  const h = Math.floor(n / 60);
+  return h ? (n % 60 ? `${h}h ${n % 60}m` : `${h}h`) : `${n}m`;
+};
+/** Active time on a quest, for the quest-done card: <1m, 6m, 1h 5m. */
+const fmtActive = (ms) => (ms > 0 && ms < 60000 ? '<1m' : fmtMin(ms / 60000));
+
+/** Review-screen fit meter: open work vs the time left to the deadline. spare < 0 = short. ratio (0..1) fills the bar. */
+function fitSummary(quests, deadlineMs, nowMs) {
+  const workMin = quests.filter((q) => !q.done).reduce((a, q) => a + (Number(q.minutes) || 0), 0);
+  if (!Number.isFinite(deadlineMs) || !Number.isFinite(nowMs)) return { workMin, leftMin: null, spareMin: null, short: false, ratio: 0 };
+  const leftMin = Math.max(0, Math.floor((deadlineMs - nowMs) / 60000)); // floor: never promise time that is not there
+  const spareMin = leftMin - workMin;
+  return { workMin, leftMin, spareMin, short: spareMin < 0, ratio: workMin <= 0 ? 0 : leftMin <= 0 ? 1 : Math.min(1, workMin / leftMin) };
+}
+
+/** Per-quest counters {drifts, back, stuck}, attributed to the quest being worked on when the event happens. */
+const ZERO_STATS = { drifts: 0, back: 0, stuck: 0 };
+const statsFor = (qs, idx) => ({ ...ZERO_STATS, ...((qs && qs[idx]) || {}) });
+const bumpStat = (qs, idx, key) => ({ ...qs, [idx]: { ...statsFor(qs, idx), [key]: statsFor(qs, idx)[key] + 1 } });
+const sumStat = (qs, key) => Object.keys(qs).reduce((a, i) => a + statsFor(qs, i)[key], 0);
+
+/** Picker card text from a window title: "Clade map - Figma" -> app Figma, title Clade map. The app is the last " - " part. */
+function windowLabel(raw) {
+  const t = String(raw || '').trim();
+  const i = Math.max(t.lastIndexOf(' - '), t.lastIndexOf(' – '), t.lastIndexOf(' — '));
+  if (i > 0 && t.slice(i + 3).trim()) return { app: t.slice(i + 3).trim(), title: t.slice(0, i).trim() };
+  return { app: t || 'window', title: '' };
+}
+
 const lcFirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 /** End-of-session summary from persisted state. Pure; missing parts count as zero. */
-function recap({ quests, activeMs, session }) {
+function recap({ quests, activeMs, session, questStats }) {
   const planned = quests.length;
   const doneTitles = quests.filter((q) => q.done).map((q) => q.title);
   const done = doneTitles.length;
@@ -244,9 +277,10 @@ function recap({ quests, activeMs, session }) {
   return {
     planned, done, doneTitles, praise,
     minutes: Math.round(total / 60000),
-    drifts: ss.driftsAsked || 0,
-    backOnTrack: ss.backOnTrack || 0,
-    stuck: ss.stuckUsed || 0,
+    // per-quest counters when the caller has them (they equal the session totals by construction), else the session totals
+    drifts: questStats ? sumStat(questStats, 'drifts') : ss.driftsAsked || 0,
+    backOnTrack: questStats ? sumStat(questStats, 'back') : ss.backOnTrack || 0,
+    stuck: questStats ? sumStat(questStats, 'stuck') : ss.stuckUsed || 0,
   };
 }
 
@@ -256,7 +290,7 @@ function migrate(s) {
   if (s.quests.some((q) => !q || !isStr(q.title))) return null;
   const quests = s.quests.map((q, i) => ({ ...q, finish: isStr(q.finish) ? q.finish : '', minutes: Number.isFinite(q.minutes) ? q.minutes : i === 0 ? 5 : 15 }));
   const session = { allow: [], driftsAsked: 0, backOnTrack: 0, stuckUsed: 0, ...(s.session || {}) };
-  return { ...s, quests, starter: isStr(s.starter) && s.starter ? s.starter : STARTER_DEFAULT, session, timeboxFired: s.timeboxFired || {} };
+  return { ...s, quests, starter: isStr(s.starter) && s.starter ? s.starter : STARTER_DEFAULT, session, timeboxFired: s.timeboxFired || {}, questStats: s.questStats && typeof s.questStats === 'object' && !Array.isArray(s.questStats) ? s.questStats : {} };
 }
 
 /** Verdict carries the {idx, epoch} it was judged for; drop it if the renderer moved on. */
@@ -391,7 +425,7 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

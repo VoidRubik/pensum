@@ -24,7 +24,7 @@ const PRIVACY = "Questling only looks at the window you pick, only during a sess
   await page.waitForSelector('.ql-quest');
   await page.click('#start-btn');
   await page.waitForSelector('.ql-window');
-  await page.click('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('#stuck-btn:not(.hidden)');
   if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
   ok(await page.isVisible('#company'), 'watching dot visible during a session');
