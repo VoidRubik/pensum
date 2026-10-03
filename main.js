@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme, session } = require('electron');
+const { app, net, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme, session } = require('electron');
 
 // One-time move from the old app name: copy settings + a user's own key; never overwrite.
 // Only for the real profile: e2e runs pass --user-data-dir (a temp dir) and must never inherit the old settings.
@@ -17,6 +17,7 @@ if (path.dirname(app.getPath('userData')) === app.getPath('appData') && /^pensum
 // then <userData>/.env (%APPDATA%/pensum/.env: where a packaged build reads a user's own key; never bundled).
 for (const dir of [__dirname, app.getPath('userData')]) { try { process.loadEnvFile(path.join(dir, '.env')); } catch {} }
 const ai = require('./ai.js');
+const remote = require('./remote.js');
 const ledger = require('./ledger.js');
 const focus = require('./focus.js');
 const artifact = require('./artifact.js');
@@ -171,6 +172,8 @@ function trayIcon() {
   return nativeImage.createFromBitmap(buf, { width: s, height: s });
 }
 
+function resetPosition() { settings.anchor = null; saveSettings(); place(); }
+
 function createTray() {
   tray = new Tray(trayIcon());
   tray.setToolTip('Pensum');
@@ -178,20 +181,28 @@ function createTray() {
     { label: 'Show / hide', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
     { label: 'Pause', click: () => { stopSession(); win.webContents.send('paused'); } },
     { label: 'Hide from screen recordings', type: 'checkbox', checked: settings.capture === 'hidden', click: (item) => setCapture(item.checked) },
-    { label: 'Reset position', click: () => { settings.anchor = null; saveSettings(); place(); } },
+    { label: 'Reset position', click: resetPosition },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
 }
 
 // --- model gateway: every model call passes gateCall() first ---
+// aiMode: 'mock' (no network), 'own-key' (ai.js direct, the user's key), 'live' (the Pensum proxy; the key never leaves Vercel).
+const API_BASE = () => process.env.PENSUM_API || require('./package.json').pensum.apiBase;
+const aiMode = () => remote.aiMode(process.env, { test: TEST });
+// 1280 px wide max, JPEG q70, before any upload.
+const shrink = (b64) => { const img = nativeImage.createFromBuffer(Buffer.from(b64, 'base64')); const { width } = img.getSize(); return (width > 1280 ? img.resize({ width: 1280, quality: 'good' }) : img).toJPEG(70).toString('base64'); };
+const rdeps = () => ({ base: API_BASE(), fetch: net.fetch.bind(net), ai, resize: shrink }); // net.fetch honours the Windows system proxy
+const doQuests = (req) => (aiMode() === 'live' ? remote.quests(req, rdeps()) : ai.quests(req));
+const doLook = (a) => (aiMode() === 'live' ? remote.look(a, rdeps()) : ai.look(a));
 const DAILY_CAP = () => Number(process.env.PENSUM_DAILY_CALLS) || 300; // all model kinds
 const PER_MIN = () => Number(process.env.PENSUM_PER_MIN) || 8;
 let stamps = [];
 let cappedDay = null; // local day key when Google said per-day quota is gone
 // Real calls only: mock mode costs nothing. Returns an error reply, or null to proceed.
 function gateCall() {
-  if (ai.isMock()) return null;
+  if (aiMode() === 'mock') return null;
   if (cappedDay === L.dayKey(Date.now()) || ledger.today().calls >= DAILY_CAP()) {
     return { error: true, limited: true, capped: true, pet_line: 'out of looks for today' };
   }
@@ -297,11 +308,25 @@ ipcMain.on('stop-session', () => stopSession());
 // Test hook: what main is holding (no content), to prove pause/stop clears it.
 if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls, lastGetText, linked: settings.linked, capture: settings.capture, protect: lastProtect });
 
+// Own Gemini key (optional): saved to <userData>/.env, never echoed back to the renderer.
+const KEY_RE = /^[A-Za-z0-9_-]{20,80}$/;
+const userEnv = () => path.join(app.getPath('userData'), '.env');
+ipcMain.handle('set-key', (_e, k) => {
+  if (typeof k !== 'string' || !KEY_RE.test(k.trim())) return { ok: false };
+  fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  fs.writeFileSync(userEnv(), `GEMINI_API_KEY=${k.trim()}
+`);
+  process.env.GEMINI_API_KEY = k.trim();
+  return { ok: true, aiMode: aiMode() };
+});
+ipcMain.handle('clear-key', () => { try { fs.rmSync(userEnv()); } catch {} delete process.env.GEMINI_API_KEY; return { ok: true, aiMode: aiMode() }; });
+ipcMain.on('reset-position', resetPosition);
+
 // Test hook: push a scripted signal through the same emitter the sampler uses.
 if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
 
 // --- model IPC ---
-ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests({ ...req, text: String(req?.text || '').slice(0, 300) }));
+ipcMain.handle('quests', (_e, req) => gateCall() || doQuests({ ...req, text: String(req?.text || '').slice(0, 300) }));
 
 // One vision call about the chosen window. The renderer decides when; main never calls the model on its own.
 let lookCalls = 0; // test counter only
@@ -321,7 +346,7 @@ ipcMain.handle('look', async (_e, req) => {
     setFrame: (f) => { lastFrame = { at: Date.now(), jpegBase64: f.jpegBase64 }; },
     onGone: () => { winState = { ...winState, visible: false }; emit(); },
     getText: (a) => { if (TEST) lastGetText = a; return artifact.getText(a); },
-    aiLook: (a) => ai.look(a),
+    aiLook: doLook,
     redactTitle: (p, t) => L.redactTitle(p, t),
   });
   if (v.error && v.status === 429 && v.perDay) cappedDay = L.dayKey(Date.now());
@@ -353,7 +378,7 @@ function setSize(size) {
   place();
   win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
 }
-ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.PENSUM_TIME_SCALE) || 1, lookTimeoutMs: TEST ? Number(process.env.PENSUM_LOOK_TIMEOUT_MS) || undefined : undefined, ...geom(), size: settings.size, theme: settings.theme }));
+ipcMain.handle('info', () => ({ mock: aiMode() === 'mock', aiMode: aiMode(), hasKey: !!process.env.GEMINI_API_KEY, test: TEST, timeScale: Number(process.env.PENSUM_TIME_SCALE) || 1, lookTimeoutMs: TEST ? Number(process.env.PENSUM_LOOK_TIMEOUT_MS) || undefined : undefined, ...geom(), size: settings.size, theme: settings.theme }));
 ipcMain.on('set-pref', (_e, p) => {
   if (!p) return;
   if (typeof p.size === 'string') setSize(p.size);

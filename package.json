@@ -25,11 +25,15 @@
     "electron-builder": "^26.15.3",
     "playwright-core": "^1.63.0"
   },
+  "pensum": {
+    "apiBase": "https://PENSUM-DOMAIN-TBD.vercel.app"
+  },
   "build": {
     "appId": "app.pensum",
     "productName": "Pensum",
     "files": [
       "main.js",
+      "remote.js",
       "preload.js",
       "ai.js",
       "gemini.js",

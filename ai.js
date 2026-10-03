@@ -149,7 +149,7 @@ async function look({ purpose, jpegBase64, quest, ctx = {}, memory = true }) {
   if (!text) return { error: true, status: 0 };
   if (isMock()) {
     if (process.env.PENSUM_MOCK_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.PENSUM_MOCK_DELAY_MS))); // test hook: a look takes time
-    return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.PENSUM_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.PENSUM_MOCK_CHECK_OFF ? { onTask: false } : {}) };
+    return { ...MOCK_LOOKS[purpose], mock: true, ...(purpose === 'check' && process.env.PENSUM_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.PENSUM_MOCK_CHECK_OFF ? { onTask: false } : {}) };
   }
   const model = LOOK_MODEL();
   const myGen = gen;
