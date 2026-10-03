@@ -8,6 +8,10 @@
 
   const root = document.documentElement;
   root.classList.add('web');
+  const banner = document.createElement('div');
+  banner.className = 'ql-demo-banner';
+  banner.innerHTML = 'Simulated desktop for judges on Mac/Linux. The real app is the Windows .exe → <a href="https://github.com/VoidRubik/pensum/releases/latest" target="_blank" rel="noopener">download</a>';
+  document.body.prepend(banner);
   const css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = 'web/web.css';
