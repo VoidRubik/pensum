@@ -1,0 +1,227 @@
+{
+  "label": "before",
+  "when": "2026-10-03T00:15:57.587Z",
+  "note": "Electron window, mock mode, this machine; rAF deltas, not compositor capture",
+  "startupTest": {
+    "runs": [
+      {
+        "toNavStart": 186,
+        "dcl": 171,
+        "load": 177,
+        "fcp": null,
+        "toLoadEnd": 363,
+        "readyMs": 722
+      },
+      {
+        "toNavStart": 195,
+        "dcl": 320,
+        "load": 321,
+        "fcp": null,
+        "toLoadEnd": 516,
+        "readyMs": 680
+      },
+      {
+        "toNavStart": 227,
+        "dcl": 368,
+        "load": 368,
+        "fcp": null,
+        "toLoadEnd": 595,
+        "readyMs": 684
+      },
+      {
+        "toNavStart": 186,
+        "dcl": 259,
+        "load": 260,
+        "fcp": null,
+        "toLoadEnd": 446,
+        "readyMs": 570
+      },
+      {
+        "toNavStart": 180,
+        "dcl": 316,
+        "load": 316,
+        "fcp": null,
+        "toLoadEnd": 496,
+        "readyMs": 682
+      }
+    ],
+    "medianToLoadEnd": 496,
+    "medianReadyMs": 682,
+    "medianFcp": 0
+  },
+  "startupReal": {
+    "runs": [
+      {
+        "toNavStart": 180,
+        "dcl": 274,
+        "load": 275,
+        "fcp": null,
+        "toLoadEnd": 454,
+        "readyMs": 541
+      },
+      {
+        "toNavStart": 179,
+        "dcl": 298,
+        "load": 300,
+        "fcp": null,
+        "toLoadEnd": 478,
+        "readyMs": 553
+      },
+      {
+        "toNavStart": 176,
+        "dcl": 197,
+        "load": 206,
+        "fcp": null,
+        "toLoadEnd": 381,
+        "readyMs": 558
+      },
+      {
+        "toNavStart": 190,
+        "dcl": 259,
+        "load": 260,
+        "fcp": null,
+        "toLoadEnd": 449,
+        "readyMs": 573
+      },
+      {
+        "toNavStart": 199,
+        "dcl": 307,
+        "load": 308,
+        "fcp": null,
+        "toLoadEnd": 507,
+        "readyMs": 557
+      }
+    ],
+    "medianToLoadEnd": 454,
+    "medianReadyMs": 557,
+    "medianFcp": 0
+  },
+  "requireMs": {
+    "logic": 1.8,
+    "ledger": 1,
+    "focus": 1,
+    "artifact": 0.7,
+    "capture": 27.8,
+    "look-flow": 0.9,
+    "ai": 1.9
+  },
+  "petFrames": {
+    "idle": {
+      "frames": 42,
+      "mean": 18.9,
+      "p95": 18.2,
+      "max": 53.4,
+      "over20ms": 2
+    },
+    "working": {
+      "frames": 85,
+      "mean": 17.6,
+      "p95": 18.2,
+      "max": 18.3,
+      "over20ms": 0
+    },
+    "curious": {
+      "frames": 85,
+      "mean": 17.7,
+      "p95": 18.2,
+      "max": 18.3,
+      "over20ms": 0
+    },
+    "thinking": {
+      "frames": 85,
+      "mean": 17.6,
+      "p95": 18.1,
+      "max": 18.2,
+      "over20ms": 0
+    },
+    "helper": {
+      "frames": 85,
+      "mean": 17.6,
+      "p95": 18.2,
+      "max": 18.4,
+      "over20ms": 0
+    },
+    "celebrate": {
+      "frames": 85,
+      "mean": 17.7,
+      "p95": 18.2,
+      "max": 18.3,
+      "over20ms": 0
+    },
+    "sleepy": {
+      "frames": 85,
+      "mean": 17.7,
+      "p95": 18.3,
+      "max": 18.3,
+      "over20ms": 0
+    },
+    "asleep": {
+      "frames": 85,
+      "mean": 17.7,
+      "p95": 18.2,
+      "max": 18.3,
+      "over20ms": 0
+    }
+  },
+  "transitionFrames": {
+    "openPanel": {
+      "frames": 51,
+      "mean": 17.6,
+      "p95": 18.1,
+      "max": 18.2,
+      "over20ms": 0
+    },
+    "makeQuests": {
+      "frames": 51,
+      "mean": 17.7,
+      "p95": 18.2,
+      "max": 18.2,
+      "over20ms": 0
+    },
+    "windows": {
+      "frames": 51,
+      "mean": 17.6,
+      "p95": 18.1,
+      "max": 18.1,
+      "over20ms": 0
+    },
+    "startSession": {
+      "frames": 51,
+      "mean": 17.7,
+      "p95": 18.2,
+      "max": 18.3,
+      "over20ms": 0
+    },
+    "drift": {
+      "frames": 52,
+      "mean": 17.6,
+      "p95": 18.2,
+      "max": 18.2,
+      "over20ms": 0
+    },
+    "questDone": {
+      "frames": 51,
+      "mean": 17.6,
+      "p95": 18.1,
+      "max": 18.2,
+      "over20ms": 0
+    },
+    "allDone": {
+      "frames": 51,
+      "mean": 17.9,
+      "p95": 18.1,
+      "max": 18.2,
+      "over20ms": 0
+    }
+  },
+  "setSizeCalls": {
+    "openPanel": 1,
+    "makeQuests": 2,
+    "windows": 2,
+    "startSession": 1,
+    "drift": 2,
+    "questDone": 4,
+    "allDone": 4
+  },
+  "consoleErrors": []
+}
