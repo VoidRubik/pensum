@@ -6,6 +6,7 @@
 <title>Questling</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="ui.css">
 <link rel="stylesheet" href="pet.css">
 </head>
 <body>
@@ -63,12 +64,17 @@
   </section>
 
   <div id="card" class="ql-card ql-card--ask solid hidden">
-    <p id="card-title" class="ql-card__title"></p>
-    <p id="card-body" class="ql-card__body"></p>
-    <small id="card-evidence" class="ql-card__evidence"></small>
+    <span id="card-tag" class="ql-tag hidden"></span>
+    <div class="ql-card__main">
+      <div id="card-count" class="ql-countdown hidden"><div class="ql-countdown__ring"><div class="ql-countdown__face"><span id="card-count-text"></span></div></div></div>
+      <div class="ql-card__text">
+        <p id="card-title" class="ql-card__title"></p>
+        <p id="card-body" class="ql-card__body"></p>
+        <small id="card-evidence" class="ql-card__evidence"></small>
+      </div>
+    </div>
     <div id="card-chips" class="ql-chips hidden"></div>
     <input id="card-input" class="ql-input hidden" type="text" placeholder="something else..." maxlength="60">
-    <div id="card-count" class="ql-countdown hidden"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ql-countdown__track" cx="18" cy="18" r="16"/><circle class="ql-countdown__arc" cx="18" cy="18" r="16"/></svg><span id="card-count-text"></span></div>
     <div class="ql-card__actions">
       <button id="card-primary" class="ql-btn ql-btn--primary"></button>
       <button id="card-quiet" class="ql-btn ql-btn--quiet"></button>

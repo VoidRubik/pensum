@@ -1,0 +1,275 @@
+/* ui.css — the look. Tokens + surfaces from Claude Design "Questling App UI v2": 2a soft light, 2b dark.
+   prefers-color-scheme picks (no settings UI). Code-owned rules (.hidden, .solid, window layout) stay in style.css.
+   Motion budget (design/PLAN-ui-v2.md §3): only transform/opacity animate; neumorphic shadows are static; the window
+   edge is 16 px (--ql-pad), so every outer shadow fits inside it. */
+:root {
+  color-scheme: light;
+  --ql-surface: #e8e5ee;
+  --ql-surface-2: #d9d5e1;            /* sunken fills, tracks */
+  --ql-ink: #2f2b3a;
+  --ql-muted: #625c72;
+  --ql-line: #cdc8d8;
+  --ql-accent: #5fae92;
+  --ql-accent-ink: #163a2d;
+  --ql-accent-text: #2a6b52;          /* aqua as TEXT on the surface (the fill colour is too light for 4.5:1) */
+  --ql-attention: #8d74c9;
+  --ql-success: #5fae92;
+  --ql-pet-1: #b6e6d8;
+  --ql-pet-2: #d9cdf0;
+  --ql-hi: rgba(255, 255, 255, 0.9);
+  --ql-lo: rgba(150, 142, 168, 0.45);
+  --ql-lift: 0 4px 12px rgba(80, 72, 100, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --ql-raised: -3px -3px 7px var(--ql-hi), 3px 3px 7px var(--ql-lo);
+  --ql-sunken: inset 3px 3px 7px var(--ql-lo), inset -3px -3px 7px var(--ql-hi);
+  --ql-sunken-sm: inset 1.5px 1.5px 3px var(--ql-lo), inset -1.5px -1.5px 3px var(--ql-hi);
+  --ql-primary: -3px -3px 7px rgba(255, 255, 255, 0.8), 3px 3px 8px rgba(70, 130, 105, 0.4);
+  --ql-glow: 0 0 8px rgba(95, 174, 146, 0.55);
+  --ql-flare: rgba(95, 174, 146, 0.7);
+  --ql-radius-pill: 999px;
+  --ql-radius-card: 16px;
+  --ql-radius-sheet: 26px;
+  --ql-space-1: 4px;
+  --ql-space-2: 8px;
+  --ql-space-3: 12px;
+  --ql-space-4: 16px;
+  --ql-space-5: 22px;
+  --ql-pad: 16px;
+  --ql-gap: 14px;
+  --ql-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --ql-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ql-surface: #1c1c24;
+    --ql-surface-2: #15151b;
+    --ql-ink: #e9e6f2;
+    --ql-muted: #9894a8;
+    --ql-line: #2e2d37;
+    --ql-accent: #6fe0cf;
+    --ql-accent-ink: #0c2a26;
+    --ql-accent-text: #6fe0cf;
+    --ql-attention: #b6a3e8;
+    --ql-success: #6fe0cf;
+    --ql-pet-1: #b6e6d8;
+    --ql-pet-2: #d9cdf0;
+    --ql-hi: rgba(255, 255, 255, 0.035);
+    --ql-lo: rgba(0, 0, 0, 0.6);
+    --ql-lift: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --ql-primary: 0 0 0 1px rgba(111, 224, 207, 0.5), 0 0 16px rgba(111, 224, 207, 0.35);
+    --ql-glow: 0 0 8px rgba(111, 224, 207, 0.7);
+    --ql-flare: rgba(111, 214, 190, 0.7);
+  }
+}
+
+html, body {
+  color: var(--ql-ink);
+  font-family: var(--ql-font);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--ql-accent-text); outline-offset: 2px; }
+.ql-mono { font-family: var(--ql-mono); font-variant-numeric: tabular-nums; }
+
+/* --- motion: one enter for every surface that appears (opacity + a small rise INSIDE the already-sized window) --- */
+@keyframes ql-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* --- icons (inline sprite in index.html; fill/stroke come from here, never from the SVG) --- */
+.ql-ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ql-ic--solid { fill: currentColor; stroke: none; }
+.ql-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* --- surfaces --- */
+.ql-bar, .ql-panel, .ql-card, .ql-bubble { background: var(--ql-surface); color: var(--ql-ink); box-shadow: var(--ql-lift); }
+
+/* --- the bar --- */
+.ql-bar {
+  position: relative;
+  flex: none;
+  height: 66px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: var(--ql-radius-pill);
+}
+.ql-pet-slot { position: relative; width: 52px; height: 52px; flex: none; }
+/* Pet art is 88 px in a 52 px slot: it overflows up/left of the pill. The window keeps headroom for it (main.js BAR_H). */
+.pet { position: absolute; left: -18px; bottom: -4px; width: 88px; height: 88px; overflow: visible; }
+
+.ql-bar__mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.ql-quest-line {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ql-progress { display: flex; gap: 4px; }
+.ql-seg { position: relative; flex: 1; height: 6px; border-radius: var(--ql-radius-pill); background: var(--ql-surface-2); box-shadow: var(--ql-sunken-sm); overflow: hidden; }
+.ql-seg.is-plan, .ql-seg.is-done { background: var(--ql-accent); box-shadow: var(--ql-glow); }
+/* Current segment: a fill clipped to --fill and one soft highlight sliding through it (transform only; only this 6 px element is involved). */
+.ql-seg__fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--fill, 0) * 100%); overflow: hidden; background: var(--ql-accent); box-shadow: var(--ql-glow); border-radius: inherit; }
+.ql-seg__glint { position: absolute; inset: 0 auto 0 0; width: 60%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); animation: q-flow 2.4s linear infinite; }
+@keyframes q-flow { from { transform: translateX(-100%); } to { transform: translateX(170%); } }
+/* All quests done: one soft flare around the pill, opacity only, 3 pulses then gone. */
+.ql-bar.is-complete::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--ql-radius-pill);
+  box-shadow: 0 0 14px 4px var(--ql-flare);
+  pointer-events: none;
+  opacity: 0;
+  animation: q-flare 1.4s ease-out 3;
+}
+@keyframes q-flare { 0% { opacity: 1; } 100% { opacity: 0; } }
+.ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-accent); box-shadow: var(--ql-glow); flex: none; }
+.ql-disc {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: conic-gradient(var(--ql-accent) calc(var(--left, 1) * 360deg), var(--ql-surface-2) 0);
+  -webkit-mask: radial-gradient(circle, transparent 6px, #000 7px);
+  mask: radial-gradient(circle, transparent 6px, #000 7px);
+  transition: opacity 0.4s ease;
+}
+.ql-disc.is-paused { opacity: 0.45; }
+
+/* Round icon buttons: 34 px raised, 44 px hit area (transparent ::after). */
+.ql-icon {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ql-surface);
+  color: var(--ql-ink);
+  box-shadow: var(--ql-raised);
+  cursor: pointer;
+  transition: transform 120ms var(--ease-out);
+}
+.ql-icon::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
+.ql-icon:active { transform: scale(0.97); }
+.ql-icon--stuck { color: var(--ql-accent-text); }
+.ql-icon:disabled { opacity: 0.5; cursor: default; }
+.ql-icon[data-state="on"] .ql-ic--when-off, .ql-icon[data-state="off"] .ql-ic--when-on { display: none; }
+
+/* --- buttons --- */
+.ql-btn {
+  height: 42px;
+  padding: 0 20px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--ql-radius-pill);
+  background: var(--ql-surface);
+  color: var(--ql-ink);
+  box-shadow: var(--ql-raised);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 120ms var(--ease-out);
+}
+.ql-btn:active { transform: scale(0.97); }
+.ql-btn--primary { background: var(--ql-accent); color: var(--ql-accent-ink); box-shadow: var(--ql-primary); font-weight: 600; }
+.ql-btn--quiet { padding: 0 18px; }
+.ql-btn:disabled { opacity: 0.5; cursor: default; }
+.ql-btn:disabled:active { transform: none; }
+.ql-row { display: flex; align-items: center; gap: 10px; }
+.ql-row .ql-btn--primary { flex: 1; }
+.ql-repick { flex: none; padding: 0 14px; height: 34px; font-size: 13px; }
+.ql-link-btn { padding: 4px 0; border: 0; background: none; color: var(--ql-muted); font-size: 13px; font-weight: 500; cursor: pointer; }
+.ql-link-btn:hover { color: var(--ql-ink); }
+
+/* --- fields --- */
+.ql-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--ql-radius-card);
+  background: var(--ql-surface);
+  box-shadow: var(--ql-sunken);
+  color: var(--ql-ink);
+  font-size: 15px;
+  line-height: 1.4;
+  caret-color: var(--ql-accent-text);
+}
+.ql-input::placeholder { color: var(--ql-muted); opacity: 1; }
+.ql-note { margin: 0; font-size: 12px; color: var(--ql-muted); line-height: 1.45; }
+.ql-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ql-accent-text); }
+
+/* --- bubble and card (the things that appear above the bar) --- */
+.ql-bubble, .ql-card { flex: none; position: relative; animation: ql-in 180ms var(--ease-out); }
+.ql-bubble { max-height: 96px; overflow: hidden; padding: 10px 44px 10px 16px; border-radius: 18px; font-size: 13px; line-height: 1.4; }
+.ql-bubble p { margin: 0; overflow-wrap: anywhere; }
+.ql-card { display: flex; flex-direction: column; gap: 14px; max-height: 300px; overflow-y: auto; padding: 18px; border-radius: 22px; }
+.ql-card > .ql-tag { display: flex; align-items: center; min-height: 28px; margin: -4px 0 -6px; }
+.ql-card p { margin: 0; overflow-wrap: anywhere; }
+.ql-card__main { display: flex; align-items: center; gap: 16px; }
+.ql-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ql-card__title { padding-right: 36px; font-size: 15px; line-height: 1.4; font-weight: 500; text-wrap: pretty; }
+.ql-card > .ql-tag ~ .ql-card__title { padding-right: 0; }
+.ql-card__body { font-size: 14px; line-height: 1.45; color: var(--ql-ink); }
+.ql-card__evidence { display: block; font-size: 12px; color: var(--ql-muted); }
+.ql-card__actions { display: flex; gap: 10px; }
+.ql-card__actions .ql-btn--primary { flex: 1; }
+.ql-x {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ql-surface);
+  color: var(--ql-muted);
+  box-shadow: var(--ql-raised);
+  cursor: pointer;
+  transition: transform 120ms var(--ease-out);
+}
+.ql-x::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
+.ql-x:active { transform: scale(0.97); }
+.ql-bubble .ql-x { top: 50%; right: 10px; margin-top: -14px; }
+.ql-card .ql-input { padding: 10px 14px; font-size: 14px; }
+
+.ql-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ql-chip {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--ql-radius-pill);
+  background: var(--ql-surface);
+  color: var(--ql-ink);
+  box-shadow: var(--ql-raised);
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 120ms var(--ease-out);
+}
+.ql-chip:active { transform: scale(0.97); }
+
+/* Countdown: a raised ring whose fill follows --left (1 -> 0), a sunken face with the m:ss label. */
+.ql-countdown { display: flex; align-items: center; gap: 16px; }
+.ql-countdown__ring { position: relative; width: 56px; height: 56px; flex: none; border-radius: 50%; box-shadow: var(--ql-raised); background: conic-gradient(var(--ql-accent) calc(var(--left, 1) * 360deg), var(--ql-surface-2) 0); }
+.ql-countdown__face { position: absolute; inset: 5px; display: grid; place-items: center; border-radius: 50%; background: var(--ql-surface); box-shadow: var(--ql-sunken); font-size: 13px; font-weight: 600; font-family: var(--ql-mono); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ql-seg__glint { animation: none; }
+  .ql-bar.is-complete::after { animation: none; opacity: 0.5; }
+  .ql-bubble, .ql-card, .ql-panel, .ql-panel > * { animation-name: ql-fade; }
+}
+@keyframes ql-fade { from { opacity: 0; } to { opacity: 1; } }

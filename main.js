@@ -13,8 +13,8 @@ const L = require('./logic.js');
 L.setTimeScale(Number(process.env.QUESTLING_TIME_SCALE) || 1);
 const TEST = !!process.env.QUESTLING_TEST;
 
-const WIDTH = 400;
-const BAR_H = 112; // bar 64 + pet headroom (the pet art overflows the pill; celebrate jumps ~15px)
+const WIDTH = 404; // v2 artboard: 16 px window padding + 372 px of content
+const BAR_H = 128; // bar 66 + 2x16 padding + pet headroom (the art overflows the pill by ~25 px; celebrate jumps ~18 more)
 const MAX_H = 780; // bar + panel + bubble + card; also clamped to the work area
 const SAMPLE_MS = 15000; // change-detection sampler (spike 0a: capture 100-430 ms)
 const CHANGED_T = 0.004; // fraction of pixels moved > 24/255; one typed line measured 5-6 %, idle noise 0 %
@@ -230,7 +230,7 @@ ipcMain.handle('link-work', async () => {
 ipcMain.handle('usage', () => ({ ...ledger.today(), cap: DAILY_CAP() }));
 ipcMain.on('set-size', (_e, h) => { if (Number.isFinite(h)) placeBottomCenter(h); });
 ipcMain.on('set-click-through', (_e, through) => win.setIgnoreMouseEvents(!!through, { forward: true }));
-ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1 }));
+ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, maxH: MAX_H }));
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

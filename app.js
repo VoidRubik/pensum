@@ -92,7 +92,10 @@
     clearInterval(stepTimer);
     card = spec;
     $('card').className = `ql-card ql-card--${spec.kind} solid`;
+    $('card-tag').textContent = spec.tag || '';
+    $('card-tag').classList.toggle('hidden', !spec.tag);
     $('card-title').textContent = spec.title;
+    $('card-title').classList.toggle('hidden', !!spec.tag && spec.tag === spec.title); // the tag already says it (textContent stays for tests)
     $('card-body').textContent = spec.body || '';
     $('card-evidence').textContent = spec.evidence || '';
     $('card-evidence').classList.toggle('hidden', !spec.evidence);
@@ -162,7 +165,10 @@
     state.quests.forEach((q, i) => {
       const seg = document.createElement('span');
       seg.className = 'ql-seg' + (q.done ? ' is-done' : i === cur ? ' is-current' : '');
-      if (i === cur) seg.style.setProperty('--fill', String(Math.min(1, activeMs(i) / (q.minutes * 60000))));
+      if (i === cur) {
+        seg.style.setProperty('--fill', String(Math.min(1, activeMs(i) / (q.minutes * 60000))));
+        seg.innerHTML = '<i class="ql-seg__fill"><i class="ql-seg__glint"></i></i>';
+      }
       bar.appendChild(seg);
     });
     const c = Math.max(0, cur);
@@ -178,10 +184,19 @@
 
   // --- window size follows content; click-through everywhere except solid elements ---
   const solids = () => [...main.children].filter((el) => !el.classList.contains('hidden'));
+  let winMax = 780; // main.js MAX_H, work-area clamped; info() refines it
+  let lastH = 0;
+  // One setBounds per real size change (each is a resize of a transparent topmost window). Padding and gaps come from
+  // the computed style, not constants; the panel scrolls (--panel-max) instead of pushing the bar off the window.
   function fit() {
     const els = solids();
-    const h = els.reduce((sum, el) => sum + el.offsetHeight, 0) + Math.max(0, els.length - 1) * 8 + 12;
-    api.setSize(h);
+    const cs = getComputedStyle(main);
+    const chrome = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + Math.max(0, els.length - 1) * (parseFloat(cs.rowGap) || 0);
+    const panel = $('panel');
+    const others = els.filter((el) => el !== panel).reduce((sum, el) => sum + el.offsetHeight, 0);
+    main.style.setProperty('--panel-max', Math.max(160, winMax - chrome - others) + 'px');
+    const h = els.reduce((sum, el) => sum + el.offsetHeight, 0) + chrome;
+    if (h !== lastH) { lastH = h; api.setSize(h); }
   }
   const ro = new ResizeObserver(() => requestAnimationFrame(fit));
   ['panel', 'card', 'bubble', 'bar'].forEach((id) => ro.observe($(id)));
@@ -731,7 +746,9 @@
     if (r.speak) say(NUDGE_LINES[r.speak]);
   }
 
-  api.info().then(({ mock, timeScale, speechCapMs: cap }) => {
+  api.info().then(({ mock, timeScale, speechCapMs: cap, maxH, web }) => {
+    winMax = web ? window.innerHeight - 24 : Math.min(maxH || 780, screen.availHeight - 24);
+    requestAnimationFrame(fit);
     L.setTimeScale(timeScale);
     if (cap) speechCapMs = cap;
     $('mock-note').classList.toggle('hidden', !mock);

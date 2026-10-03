@@ -8,11 +8,10 @@ html.web main.ql {
   position: fixed;
   left: 50%;
   bottom: 12px;
-  width: 400px;
+  width: 404px;
   height: auto;
   max-height: calc(100% - 24px);
-  margin-left: -200px;
-  padding: 0;
+  margin-left: -202px;
 }
 .ql-demo-scenes {
   position: fixed;
@@ -26,10 +25,11 @@ html.web main.ql {
   z-index: 10;
 }
 .ql-demo-scenes button {
-  border: 1px solid var(--ql-line);
+  border: 0;
   border-radius: 999px;
   padding: 4px 10px;
   background: var(--ql-surface);
+  box-shadow: var(--ql-lift);
   color: var(--ql-ink);
   font: inherit;
   font-size: 0.72rem;
