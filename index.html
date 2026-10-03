@@ -20,11 +20,67 @@
   <symbol id="i-cal" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></symbol>
   <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 2.5h5l3 3v8H4z"/><path d="M9 2.5v3h3"/></symbol>
   <symbol id="i-footsteps" viewBox="0 0 16 16"><path d="M5 2c1.2 0 2 1.3 2 3 0 1.3-.6 2.2-1.6 2.2S3 6.3 3 5c0-1.7.8-3 2-3z"/><path d="M4.1 9.4h2.1v.9a1.05 1.05 0 0 1-2.1 0z"/><path d="M11 6.6c1.2 0 2 1.3 2 3 0 1.3-.6 2.2-1.6 2.2S9 10.9 9 9.6c0-1.7.8-3 2-3z"/><path d="M10.1 14h2.1v.4a1.05 1.05 0 0 1-2.1 0z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.6-3.7"/><polyline points="12.8 2.2 12.8 5 10 5"/></symbol>
   <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
 </svg>
 <main class="ql" data-pet-state="idle" data-idle="a">
 
   <section id="panel" class="ql-panel solid hidden">
+    <div class="ql-panelbar">
+      <span class="ql-wordmark">Pensum</span>
+      <span id="mock-badge" class="ql-badge hidden" role="status" title="No live AI right now: answers are canned">MOCK MODE</span>
+      <button id="reset-btn" class="ql-icon" aria-label="Reset" title="Clear quests and session"><svg class="ql-ic" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+      <button id="gear-btn" class="ql-icon" aria-label="Settings" aria-expanded="false" aria-controls="settings" title="Settings"><svg class="ql-ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
+    </div>
+    <div id="reset-confirm" class="ql-confirm hidden" role="alertdialog" aria-label="Confirm reset">
+      <span>Clear quests and session? This cannot be undone.</span>
+      <button id="reset-yes" class="ql-btn ql-btn--primary">Clear</button>
+      <button id="reset-no" class="ql-btn ql-btn--quiet">Cancel</button>
+    </div>
+    <section id="settings" class="ql-settings hidden" aria-label="Settings">
+      <div id="prefs">
+        <div class="ql-footer">
+          <span class="ql-meta">Pet</span>
+          <div id="pet-switch" class="ql-switch" role="radiogroup" aria-label="Pet">
+            <button class="ql-switch__opt" role="radio" aria-checked="true" data-pet="tuck">Tuck</button>
+            <button class="ql-switch__opt" role="radio" aria-checked="false" data-pet="kip">Kip</button>
+          </div>
+        </div>
+        <div id="size-row" class="ql-footer">
+          <span class="ql-meta">Size</span>
+          <div id="size-switch" class="ql-switch" role="radiogroup" aria-label="Size">
+            <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="S">S</button>
+            <button class="ql-switch__opt" role="radio" aria-checked="true" data-size="M">M</button>
+            <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="L">L</button>
+          </div>
+        </div>
+        <div id="theme-row" class="ql-footer">
+          <span class="ql-meta">Theme</span>
+          <div id="theme-switch" class="ql-switch" role="radiogroup" aria-label="Theme">
+            <button class="ql-switch__opt" role="radio" aria-checked="true" data-theme="system">Auto</button>
+            <button class="ql-switch__opt" role="radio" aria-checked="false" data-theme="light">Light</button>
+            <button class="ql-switch__opt" role="radio" aria-checked="false" data-theme="dark">Dark</button>
+          </div>
+        </div>
+        <div class="ql-footer">
+          <span class="ql-meta">Shadows</span>
+          <div id="shadows-switch" class="ql-switch" role="radiogroup" aria-label="Shadows">
+            <button class="ql-switch__opt" role="radio" aria-checked="true" data-shadows="soft">Soft</button>
+            <button class="ql-switch__opt" role="radio" aria-checked="false" data-shadows="flat">Flat</button>
+          </div>
+        </div>
+      </div>
+      <form id="key-form" class="ql-keyform" autocomplete="off">
+        <label class="ql-meta" for="key-input">Use my own Gemini key (optional)</label>
+        <div class="ql-row">
+          <input id="key-input" class="ql-input" type="password" maxlength="80" spellcheck="false">
+          <button type="submit" class="ql-link-btn">Save</button>
+          <button type="button" id="key-clear" class="ql-link-btn hidden">Clear</button>
+        </div>
+        <span id="key-state" class="ql-meta"></span>
+      </form>
+    </section>
     <div id="task-card" class="ql-stack">
       <span class="ql-tag ql-busy-only">Making quests</span>
       <h3 id="task-title" class="ql-title">What do you want to finish today?</h3>
@@ -126,39 +182,6 @@
         <p class="ql-note"><span id="privacy-line">Only the window you pick, only during a session. Never saved.</span> <button id="privacy-toggle" class="ql-link-btn" aria-expanded="false" aria-controls="privacy-note">Details</button></p>
       </div>
       <p id="privacy-note" class="ql-note hidden">Pensum only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.</p>
-    </div>
-    <p id="mock-note" class="ql-note hidden">Mock mode, no AI key configured.</p>
-    <div id="prefs">
-      <div class="ql-footer">
-        <span class="ql-meta">Pet</span>
-        <div id="pet-switch" class="ql-switch" role="radiogroup" aria-label="Pet">
-          <button class="ql-switch__opt" role="radio" aria-checked="true" data-pet="tuck">Tuck</button>
-          <button class="ql-switch__opt" role="radio" aria-checked="false" data-pet="kip">Kip</button>
-        </div>
-      </div>
-      <div id="size-row" class="ql-footer">
-        <span class="ql-meta">Size</span>
-        <div id="size-switch" class="ql-switch" role="radiogroup" aria-label="Size">
-          <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="S">S</button>
-          <button class="ql-switch__opt" role="radio" aria-checked="true" data-size="M">M</button>
-          <button class="ql-switch__opt" role="radio" aria-checked="false" data-size="L">L</button>
-        </div>
-      </div>
-      <div id="theme-row" class="ql-footer">
-        <span class="ql-meta">Theme</span>
-        <div id="theme-switch" class="ql-switch" role="radiogroup" aria-label="Theme">
-          <button class="ql-switch__opt" role="radio" aria-checked="true" data-theme="system">Auto</button>
-          <button class="ql-switch__opt" role="radio" aria-checked="false" data-theme="light">Light</button>
-          <button class="ql-switch__opt" role="radio" aria-checked="false" data-theme="dark">Dark</button>
-        </div>
-      </div>
-      <div class="ql-footer">
-        <span class="ql-meta">Shadows</span>
-        <div id="shadows-switch" class="ql-switch" role="radiogroup" aria-label="Shadows">
-          <button class="ql-switch__opt" role="radio" aria-checked="true" data-shadows="soft">Soft</button>
-          <button class="ql-switch__opt" role="radio" aria-checked="false" data-shadows="flat">Flat</button>
-        </div>
-      </div>
     </div>
   </section>
 

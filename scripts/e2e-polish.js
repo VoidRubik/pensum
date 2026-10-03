@@ -28,7 +28,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // --- size S / M / L ---
   const sizes = {};
   for (const s of ['S', 'M', 'L']) {
-    if (!(await page.isVisible('#size-switch'))) await page.click('#toggle');
+    if (!(await page.isVisible('#size-switch'))) { if (!(await page.isVisible('#panel'))) await page.click('#toggle'); if (!(await page.isVisible('#size-switch'))) await page.click('#gear-btn'); }
     await page.click(`#size-switch [data-size=${s}]`);
     await settle();
     const bb = await bounds();

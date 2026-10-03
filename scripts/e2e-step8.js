@@ -85,7 +85,7 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
   ok(Object.values(anim).every((n) => /^ps ps-\w+\|.+/.test(n)), 'every state/variant shows one group with a motion rule: ' + JSON.stringify(anim).slice(0, 160));
   ok(new Set(['idle-a', 'idle-b', 'idle-c', 'idle-d'].map((k) => anim[k])).size === 4, 'the four idle variants are four different motions');
   // the second pet: switch in the panel footer, same checks, and the choice survives a reload
-  if (!(await page.isVisible('#pet-switch'))) await page.click('#toggle');
+  if (!(await page.isVisible('#pet-switch'))) { if (!(await page.isVisible('#panel'))) await page.click('#toggle'); if (!(await page.isVisible('#pet-switch'))) await page.click('#gear-btn'); }
   await page.click('#pet-switch [data-pet=kip]');
   ok((await page.$$('.pet')).length === 1 && await page.getAttribute('.pet', 'data-pet') === 'kip', 'switch -> exactly one pet in the slot, and it is Kip');
   const kip = await probeAll();

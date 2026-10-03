@@ -47,6 +47,8 @@
   let breakMode = false;
   let lastFgProcess = null;
   let speechCapMs = 300000; // web demo shortens it (info().speechCapMs)
+  let aiMode = 'mock'; // from info(): 'mock' | 'own-key' | 'live'
+  const setMock = (on) => $('mock-badge').classList.toggle('hidden', !on);
   let lookTimeoutMs = 13000; // raw ms (not L.dur: e2e runs at time scale 600); main's own call gives up at 8 s, this is the backstop
   let offSince = null; // first signal of the current stretch away from the work window
   let bubbleTimer = null;
@@ -455,6 +457,7 @@
     updateBar();
     try {
       const data = await api.makeQuests({ text, now: new Date().toISOString(), tzOffset: new Date().getTimezoneOffset() });
+      setMock(data.mock === true);
       if (!data.quests) { say(data.pet_line || "couldn't make quests, try again"); return; }
       state = L.migrate({ text, quests: data.quests.map((q) => ({ ...q, done: false })), current: null, deadline_iso: data.deadline_iso, starter: data.starter, progress: 0, activeMs: {}, startedAt: null, fired: [], linked: null });
       resetRules();
@@ -474,7 +477,7 @@
     }
   });
 
-  $('new-task').addEventListener('click', () => {
+  function resetAll() {
     stopSession();
     queuedLook = null;
     resetRules();
@@ -487,7 +490,33 @@
     showPanelPart('task');
     updateBar();
     say("hi! tell me what you're working on");
+  }
+  $('new-task').addEventListener('click', resetAll);
+
+  // Settings sheet, reset (inline confirm: a native dialog can land behind this always-on-top window) and own-key form.
+  $('reset-btn').addEventListener('click', () => { $('reset-confirm').classList.remove('hidden'); fit(); });
+  $('reset-no').addEventListener('click', () => { $('reset-confirm').classList.add('hidden'); fit(); });
+  $('reset-yes').addEventListener('click', () => { $('reset-confirm').classList.add('hidden'); resetAll(); api.resetPosition?.(); });
+  $('gear-btn').addEventListener('click', () => {
+    const open = $('settings').classList.toggle('hidden') === false;
+    $('gear-btn').setAttribute('aria-expanded', String(open));
+    fit();
   });
+  async function refreshKey() {
+    const i = await api.info();
+    aiMode = i.aiMode || aiMode;
+    $('key-clear').classList.toggle('hidden', !i.hasKey);
+    $('key-state').textContent = i.hasKey ? 'Using your key' : 'Using Pensum server';
+    if (i.aiMode === 'mock') setMock(true);
+  }
+  $('key-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const r = await api.setKey($('key-input').value);
+    $('key-input').value = '';
+    await refreshKey();
+    $('key-state').textContent = r.ok ? 'Saved' : 'That does not look like a key';
+  });
+  $('key-clear').addEventListener('click', async () => { await api.clearKey(); refreshKey(); });
 
   // --- window picker: frames only ever come from the window picked here ---
   let picked = null;
@@ -801,10 +830,11 @@
         // A slow answer must not freeze the buttons: past the backstop it counts as no answer (the local fallbacks run); a late reply is ignored.
         const r = await Promise.race([
           api.look({ purpose, quest: state.quests[i], idx: i, epoch, ctx: ctxFor(extra), allow: state.session.allow, linkedPath: state.linked?.path || null }),
-          new Promise((res) => { timer = setTimeout(() => res({ error: true }), lookTimeoutMs); }),
+          new Promise((res) => { timer = setTimeout(() => res({ error: true, backstop: true }), lookTimeoutMs); }),
         ]);
         if (r.capped) { if (!auto) say(r.pet_line); }
-        else if (!r.error) v = r;
+        else if (!r.error) { v = r; setMock(r.mock === true); }
+        else if (r.backstop && aiMode === 'live') setMock(true); // a slow proxy never shows an unlabeled template answer
       } catch {}
       clearTimeout(timer);
       looking = false;
@@ -992,7 +1022,8 @@
   }
   api.onGeom(applyGeom);
 
-  api.info().then(({ mock, timeScale, speechCapMs: cap, lookTimeoutMs: lt, maxH, dock, size, theme, web }) => {
+  api.info().then(({ mock, timeScale, speechCapMs: cap, lookTimeoutMs: lt, maxH, dock, size, theme, web, aiMode: am }) => {
+    if (am) aiMode = am;
     if (web) winMax = window.innerHeight - 24;
     else applyGeom({ dock, maxH });
     $('size-row').classList.toggle('hidden', !!web);
@@ -1002,7 +1033,9 @@
     L.setTimeScale(timeScale);
     if (cap) speechCapMs = cap;
     if (lt) lookTimeoutMs = lt;
-    $('mock-note').classList.toggle('hidden', !mock);
+    setMock(mock);
+    $('key-form').classList.toggle('hidden', !!web);
+    if (!web) refreshKey();
     setInterval(tick, L.dur(30000));
     scheduleIdle();
   });

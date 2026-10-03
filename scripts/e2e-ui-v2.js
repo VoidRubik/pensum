@@ -22,6 +22,7 @@ async function run(theme, pet) {
   const state = () => page.getAttribute('main', 'data-pet-state');
 
   await reach.ask(h);
+  if (!(await page.isVisible('#pet-switch'))) { if (!(await page.isVisible('#panel'))) await page.click('#toggle'); if (!(await page.isVisible('#pet-switch'))) await page.click('#gear-btn'); }
   await page.click(`#pet-switch [data-pet=${pet}]`);
   ok(await page.getAttribute('.pet', 'data-pet') === pet, `${tag}: pet is ${pet}`);
   ok(await page.evaluate((d) => matchMedia('(prefers-color-scheme: dark)').matches === d, theme === 'dark'), `${tag}: the real window reports ${theme}`);

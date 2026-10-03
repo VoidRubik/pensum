@@ -407,3 +407,14 @@ input:focus-visible { outline-offset: 0; }
   .ql-skel__row { animation: none; }
 }
 @keyframes ql-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* panel header (Pensum, gear, reset), MOCK MODE badge, settings sheet */
+.ql-panelbar { display: flex; align-items: center; gap: 10px; }
+.ql-wordmark { margin-right: auto; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+.ql-badge { padding: 3px 8px; border-radius: var(--ql-radius-pill); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; background: var(--ql-surface-2); color: var(--ql-ink); border: 1.5px solid var(--ql-attention); }
+.ql-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 10px 12px; border-radius: var(--ql-radius-card); box-shadow: var(--ql-sunken-sm); font-size: 13px; }
+.ql-confirm span { flex: 1 1 100%; }
+.ql-settings { display: flex; flex-direction: column; gap: var(--ql-space-3); }
+.ql-keyform { display: flex; flex-direction: column; gap: 6px; }
+.ql-keyform .ql-row { display: flex; align-items: center; gap: 10px; }
+.ql-keyform .ql-input { flex: 1; min-width: 0; }
