@@ -14,7 +14,7 @@ const { lookFlow } = require('./look-flow.js');
 const L = require('./logic.js');
 
 L.setTimeScale(Number(process.env.QUESTLING_TIME_SCALE) || 1);
-const TEST = !!process.env.QUESTLING_TEST;
+const TEST = !!process.env.QUESTLING_TEST && !app.isPackaged; // test hooks never run in the packaged exe
 
 const WIDTH = 404; // v2 artboard: 16 px window padding + 372 px of content
 const BAR_H = 128; // bar 66 + 2x16 padding + pet headroom (the art overflows the pill by ~25 px; celebrate jumps ~18 more)
@@ -290,7 +290,7 @@ if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sa
 if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
 
 // --- model IPC ---
-ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests(req));
+ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests({ ...req, text: String(req?.text || '').slice(0, 300) }));
 
 // One vision call about the chosen window. The renderer decides when; main never calls the model on its own.
 let lookCalls = 0; // test counter only

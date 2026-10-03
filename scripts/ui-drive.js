@@ -1,6 +1,6 @@
 // Shared driver for the UI v2 scripts (baseline.js, e2e-ui-v2.js): launches the real Electron overlay in
 // mock + test mode (no model call, no key) and walks it to each of the 8 design screens by clicking the
-// real controls. Needs playwright-core (not a project dependency): set NODE_PATH to a folder that has it.
+// real controls. Needs playwright-core (a devDependency: npm install).
 // VS Code shells set ELECTRON_RUN_AS_NODE=1; it is removed here.
 const { _electron } = require('playwright-core');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');

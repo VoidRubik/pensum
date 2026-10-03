@@ -43,5 +43,5 @@ http.createServer((req, res) => {
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.statusCode = 404; return res.end('not found'); }
   res.setHeader('content-type', TYPES[path.extname(file)] || 'application/octet-stream');
   fs.createReadStream(file).pipe(res);
-}).listen(PORT, () => console.log(`dev server http://127.0.0.1:${PORT}`));
+}).listen(PORT, '127.0.0.1', () => console.log(`dev server http://127.0.0.1:${PORT}`));
 }

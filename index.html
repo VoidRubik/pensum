@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; connect-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>Questling</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
@@ -28,7 +28,7 @@
     <div id="task-card" class="ql-stack">
       <span class="ql-tag ql-busy-only">Making quests</span>
       <h3 id="task-title" class="ql-title">What do you want to finish today?</h3>
-      <input id="task-text" class="ql-input ql-idle-only" type="text" placeholder="e.g. my water cycle essay, due at 6pm" aria-label="What do you want to finish today?">
+      <input id="task-text" class="ql-input ql-idle-only" type="text" maxlength="300" placeholder="e.g. my water cycle essay, due at 6pm" aria-label="What do you want to finish today?">
       <div class="ql-skel ql-busy-only" aria-hidden="true">
         <div class="ql-skel__row"><span></span><span></span></div>
         <div class="ql-skel__row"><span></span><span></span></div>
