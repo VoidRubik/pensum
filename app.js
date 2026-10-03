@@ -409,6 +409,7 @@
 
   function setCurrent(i) {
     if (!state || state.quests[i].done || (!allDone() && curIdx() === i)) return;
+    if (card && card.idx !== i) { hideCard(); driftPending = false; } // the old quest's card (and a pending "back on track") no longer apply
     state.current = i;
     epoch++;
     save();
@@ -546,7 +547,9 @@
   });
 
   async function startWith(w) {
+    const s = state;
     const r = await api.pickWindow(w.id);
+    if (state !== s) { api.stopSession(); return; } // New task while the picker answered: main just started a session for nothing
     if (!r.ok) { say("that window is gone — pick another"); openPicker(); return; }
     work = { id: w.id, title: r.title || w.title };
     const repick = sessionOn; // picking again after the window was lost is not a new session
@@ -562,7 +565,8 @@
     lastLookAt = Date.now();
     changedSinceLook = false;
     drift = { since: null, lastAskAt: null };
-    speech = { lastSpokeAt: null, dismissed: 0 };
+    offSince = null;
+    if (!repick) speech = { lastSpokeAt: null, dismissed: 0 }; // "two X silence the session": a re-pick is the same session
     if (!repick) { state.session = { ...state.session, driftsAsked: 0, backOnTrack: 0, stuckUsed: 0 }; state.questStats = {}; save(); }
     showPanelPart('quests');
     setExpanded(false);
@@ -577,7 +581,7 @@
     breakMode = false;
     drift = { since: null, lastAskAt: null };
     driftPending = false;
-    speech = { lastSpokeAt: null, dismissed: 0 };
+    offSince = null;
     windowLost = false;
     away = false;
     offWork = false;
@@ -594,7 +598,9 @@
   async function resume() {
     if (!state) return;
     if (!work) { openPicker(); return; }
+    const s = state;
     const r = await api.pickWindow(work.id);
+    if (state !== s) { api.stopSession(); return; }
     if (!r.ok) { openPicker(); return; }
     sessionOn = true;
     offWork = false;

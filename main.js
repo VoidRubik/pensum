@@ -242,7 +242,12 @@ ipcMain.handle('list-windows', () => capture.listWindows());
 
 ipcMain.handle('pick-window', async (_e, id) => {
   if (typeof id !== 'string') return { ok: false };
-  if (TEST) { startSession({ id, hwnd: capture.hwndOf(id), title: 'test window' }); return { ok: true, title: 'test window' }; }
+  if (TEST) {
+    const d = Number(process.env.QUESTLING_PICK_DELAY_MS); // test hook: a slow picker reply, to race New task / Pause against it
+    if (d) await new Promise((r) => setTimeout(r, d));
+    startSession({ id, hwnd: capture.hwndOf(id), title: 'test window' });
+    return { ok: true, title: 'test window' };
+  }
   const w = (await capture.listWindows()).find((x) => x.id === id);
   if (!w) return { ok: false };
   startSession({ id: w.id, hwnd: w.hwnd, title: w.title });
