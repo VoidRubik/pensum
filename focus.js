@@ -5,7 +5,8 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { focusSummary } = require('./logic.js');
+const L = require('./logic.js');
+const { focusSummary } = L;
 
 const PS = `
 [Console]::OutputEncoding=[Text.Encoding]::UTF8
@@ -63,7 +64,7 @@ function scriptFile() {
 
 function spawnChild() {
   const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptFile()],
-    { windowsHide: true, env: { ...process.env, QL_PARENT: String(process.pid), QL_WORK: String(workHwnd) } });
+    { windowsHide: true, env: { ...L.childEnv(process.env), QL_PARENT: String(process.pid), QL_WORK: String(workHwnd) } });
   child = c;
   let buf = '';
   c.stdout.setEncoding('utf8');

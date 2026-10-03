@@ -1,5 +1,11 @@
 {
   "name": "questling",
+  "version": "1.0.0",
+  "description": "A tiny always-on-top companion that helps you start, get unstuck and come back. It plans your goal into quests and looks only at the one window you pick.",
+  "author": "Bruno",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/VoidRubik/questling.git" },
+  "engines": { "node": ">=22.12" },
   "private": true,
   "main": "main.js",
   "scripts": {

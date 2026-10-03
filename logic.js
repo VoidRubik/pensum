@@ -452,6 +452,18 @@ function placeWindow({ anchor, w, h, wa }) {
   return { x, y, w: W, h: H };
 }
 /** settings.json -> safe values. workAreas = every display's work area; an anchor on none of them (unplugged monitor) is dropped. */
+// Files the user picked in the "link work" dialog: the only paths main will read for the model. Newest last.
+const MAX_LINKED = 20;
+function cleanLinked(a) {
+  return Array.isArray(a) ? [...new Set(a.filter((p) => typeof p === 'string' && p && p.length <= 1024))].slice(-MAX_LINKED) : [];
+}
+function addLinked(list, p) { return cleanLinked([...list.filter((x) => x !== p), p]); }
+
+// Environment for a PowerShell child: no API keys or Questling switches ride along.
+function childEnv(env) {
+  return Object.fromEntries(Object.entries(env || {}).filter(([k]) => !/^(GEMINI|QUESTLING)_/i.test(k) && !/KEY|TOKEN|SECRET|PASSWORD/i.test(k)));
+}
+
 function sanitizeSettings(raw, workAreas) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const a = r.anchor;
@@ -461,10 +473,11 @@ function sanitizeSettings(raw, workAreas) {
     anchor: on ? { cx: a.cx, y: a.y, dock: a.dock } : null,
     size: SIZE_ORDER.includes(r.size) ? r.size : 'M',
     theme: ['system', 'light', 'dark'].includes(r.theme) ? r.theme : 'system',
+    linked: cleanLinked(r.linked),
   };
 }
 
-const exported = { anchorProbe, dropAnchorY, SIZES, stepSize, defaultAnchor, dockFor, anchorFrom, placeWindow, sanitizeSettings, computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { addLinked, childEnv, anchorProbe, dropAnchorY, SIZES, stepSize, defaultAnchor, dockFor, anchorFrom, placeWindow, sanitizeSettings, computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme, session } = require('electron');
 
 try { process.loadEnvFile(path.join(__dirname, '.env')); } catch {}
 const ai = require('./ai.js');
@@ -26,7 +26,7 @@ let tray = null;
 
 // --- placement: anchor { cx, y, dock } + size -> bounds (pure rules in logic.js) ---
 // The transparent window is click-through except over the bar / bubble / panel (renderer toggles via set-click-through).
-let settings = { anchor: null, size: 'M', theme: 'system' }; // settings.json in userData; loaded once the app is ready
+let settings = { anchor: null, size: 'M', theme: 'system', linked: [] }; // settings.json in userData; loaded once the app is ready
 let lastCssH = BAR_H; // the renderer reports its content height in CSS px
 const zoom = () => L.SIZES[settings.size];
 const curAnchor = () => settings.anchor || L.defaultAnchor(screen.getPrimaryDisplay().workArea);
@@ -116,8 +116,11 @@ function createWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
+  // The window only ever shows index.html: no navigation away (a reload of the same URL is fine), no pop-ups.
+  win.webContents.on('will-navigate', (e, url) => { if (url !== win.webContents.getURL()) e.preventDefault(); });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.setAlwaysOnTop(true, 'screen-saver');
   // Keeps the pet out of any screenshot. (Playwright/CDP page.screenshot is unaffected.)
   win.setContentProtection(true);
@@ -266,7 +269,7 @@ ipcMain.handle('pick-window', async (_e, id) => {
 ipcMain.on('stop-session', () => stopSession());
 
 // Test hook: what main is holding (no content), to prove pause/stop clears it.
-if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls });
+if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls, lastGetText, linked: settings.linked });
 
 // Test hook: push a scripted signal through the same emitter the sampler uses.
 if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
@@ -276,19 +279,22 @@ ipcMain.handle('quests', (_e, req) => gateCall() || ai.quests(req));
 
 // One vision call about the chosen window. The renderer decides when; main never calls the model on its own.
 let lookCalls = 0; // test counter only
+let lastGetText = null; // test only: what the look pipeline asked artifact.getText to read
 ipcMain.handle('look', async (_e, req) => {
   const stamp = { idx: req.idx, epoch: req.epoch, purpose: req.purpose };
   const limited = gateCall();
   if (limited) return { ...limited, ...stamp };
   lookCalls++;
-  const v = await lookFlow(req, {
+  // Main reads only files the user picked in the link-work dialog, never a path the renderer merely names.
+  const linkedPath = settings.linked.includes(req.linkedPath) ? req.linkedPath : null;
+  const v = await lookFlow({ ...req, linkedPath }, {
     gen: () => sessionGen,
     work: () => work,
     grab: (id, side, q) => capture.grabWindow(id, side, q),
     heldFrame: () => L.freshFrame(lastFrame, Date.now()),
     setFrame: (f) => { lastFrame = { at: Date.now(), jpegBase64: f.jpegBase64 }; },
     onGone: () => { winState = { ...winState, visible: false }; emit(); },
-    getText: (a) => artifact.getText(a),
+    getText: (a) => { if (TEST) lastGetText = a; return artifact.getText(a); },
     aiLook: (a) => ai.look(a),
     redactTitle: (p, t) => L.redactTitle(p, t),
   });
@@ -303,6 +309,8 @@ ipcMain.handle('link-work', async () => {
   });
   if (r.canceled || !r.filePaths[0]) return null;
   const file = r.filePaths[0];
+  settings.linked = L.addLinked(settings.linked, file);
+  saveSettings();
   const text = await artifact.readFile(file);
   return { path: file, name: path.basename(file), readable: !!text, words: text ? L.artifactDigest(text).words : 0 };
 });
@@ -344,6 +352,9 @@ if (!app.requestSingleInstanceLock()) {
     ledger.init(app.getPath('userData'));
     loadSettings();
     nativeTheme.themeSource = settings.theme; // before the window loads: no flash of the wrong theme
+    // The renderer needs no camera, mic, screen-share, clipboard or notification permission (capture runs in main).
+    session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+    session.defaultSession.setPermissionCheckHandler(() => false);
     const replace = () => place();
     for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(ev, replace);
     powerMonitor.on('lock-screen', () => { dragEnd(); locked = true; emit(); });

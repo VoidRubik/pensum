@@ -3,6 +3,7 @@
 const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const L = require('./logic.js');
 
 const CAP = 400000; // hard safety cap only; the model-facing cap (capMiddle) is applied in main
 const PS_HEAD = "[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ErrorActionPreference='Stop';";
@@ -10,7 +11,7 @@ const PS_HEAD = "[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ErrorActionPre
 function ps(script, env = {}, timeoutMs = 8000) {
   return new Promise((resolve) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', PS_HEAD + script],
-      { env: { ...process.env, ...env }, timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
+      { env: { ...L.childEnv(process.env), ...env }, timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
       (err, stdout) => resolve(err ? null : stdout));
   });
 }
