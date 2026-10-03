@@ -46,6 +46,7 @@
   let breakMode = false;
   let lastFgProcess = null;
   let speechCapMs = 300000; // web demo shortens it (info().speechCapMs)
+  let lookTimeoutMs = 13000; // raw ms (not L.dur: e2e runs at time scale 600); main's own call gives up at 8 s, this is the backstop
   let offSince = null; // first signal of the current stretch away from the work window
   let bubbleTimer = null;
   let stepTimer = null;
@@ -787,11 +788,17 @@
       quietLook = auto;
       if (!auto) { $('stuck-btn').disabled = true; $('done-btn').disabled = true; }
       applyPet();
+      let timer;
       try {
-        const r = await api.look({ purpose, quest: state.quests[i], idx: i, epoch, ctx: ctxFor(extra), allow: state.session.allow, linkedPath: state.linked?.path || null });
+        // A slow answer must not freeze the buttons: past the backstop it counts as no answer (the local fallbacks run); a late reply is ignored.
+        const r = await Promise.race([
+          api.look({ purpose, quest: state.quests[i], idx: i, epoch, ctx: ctxFor(extra), allow: state.session.allow, linkedPath: state.linked?.path || null }),
+          new Promise((res) => { timer = setTimeout(() => res({ error: true }), lookTimeoutMs); }),
+        ]);
         if (r.capped) { if (!auto) say(r.pet_line); }
         else if (!r.error) v = r;
       } catch {}
+      clearTimeout(timer);
       looking = false;
       quietLook = false;
       $('stuck-btn').disabled = false;
@@ -977,7 +984,7 @@
   }
   api.onGeom(applyGeom);
 
-  api.info().then(({ mock, timeScale, speechCapMs: cap, maxH, dock, size, theme, web }) => {
+  api.info().then(({ mock, timeScale, speechCapMs: cap, lookTimeoutMs: lt, maxH, dock, size, theme, web }) => {
     if (web) winMax = window.innerHeight - 24;
     else applyGeom({ dock, maxH });
     $('size-row').classList.toggle('hidden', !!web);
@@ -986,6 +993,7 @@
     requestAnimationFrame(fit);
     L.setTimeScale(timeScale);
     if (cap) speechCapMs = cap;
+    if (lt) lookTimeoutMs = lt;
     $('mock-note').classList.toggle('hidden', !mock);
     setInterval(tick, L.dur(30000));
     scheduleIdle();

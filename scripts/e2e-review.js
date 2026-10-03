@@ -61,6 +61,16 @@ const undone = (page) => page.$$eval('.ql-quest input[type=checkbox]', (b) => b.
     ok((await calls()) === before, `quiet mode: 12 changed signals made no model call (${before} -> ${await calls()})`);
     await app.close();
   }
+  // B2: a look that outlives the client backstop falls back to the local template and re-enables the buttons
+  {
+    const { app, page } = await launch({ QUESTLING_MOCK_DELAY_MS: '6000', QUESTLING_LOOK_TIMEOUT_MS: '1500' });
+    await page.click('#stuck-btn');
+    ok(await page.isDisabled('#stuck-btn'), 'B2: the stuck button is disabled while the look is in flight');
+    await page.waitForSelector('.ql-card--step:not(.hidden)', { timeout: 4000 });
+    ok(true, 'B2: after the backstop (1.5 s, mock reply due at 6 s) the local stuck template card shows');
+    ok(!(await page.isDisabled('#stuck-btn')) && !(await page.isDisabled('#done-btn')), 'B2: stuck and done are enabled again');
+    await app.close();
+  }
   console.log(`\n${pass} pass, ${fail} fail`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

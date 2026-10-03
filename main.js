@@ -305,7 +305,7 @@ function setSize(size) {
   place();
   win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
 }
-ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, ...geom(), size: settings.size, theme: settings.theme }));
+ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, lookTimeoutMs: Number(process.env.QUESTLING_LOOK_TIMEOUT_MS) || undefined, ...geom(), size: settings.size, theme: settings.theme }));
 ipcMain.on('set-pref', (_e, p) => {
   if (!p) return;
   if (typeof p.size === 'string') setSize(p.size);
