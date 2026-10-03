@@ -1,6 +1,6 @@
 // Raw fetch to the Gemini REST API. No SDK. Models come from ai.js (env-overridable).
 // Errors carry status / retryDelayMs / perDay / usage; the message never includes the request body.
-// timeoutMs per attempt; retries only on a timeout/network failure or a 503 (never 400/429).
+// timeoutMs per attempt; retries only on a network failure or a 503 (never a timeout, 400 or 429).
 // Defaults 8 s + 1 retry; the Vercel function sets QUESTLING_TIMEOUT_MS=6000 / QUESTLING_RETRIES=0.
 const envNum = (k, d) => (process.env[k] !== undefined && process.env[k] !== '' && Number.isFinite(Number(process.env[k])) ? Number(process.env[k]) : d);
 async function callGemini({ model, contents, responseSchema, systemInstruction, generationConfig, timeoutMs = envNum('QUESTLING_TIMEOUT_MS', 8000), retries = envNum('QUESTLING_RETRIES', 1) }) {
@@ -24,7 +24,7 @@ async function callGemini({ model, contents, responseSchema, systemInstruction, 
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (e) {
-      if (attempt < retries) continue;
+      if (attempt < retries && e.name !== 'TimeoutError') continue; // a timeout already spent the whole budget: retrying doubles the wait
       throw Object.assign(new Error(`Gemini request failed: ${e.name}`), { code: 'NETWORK', ms: Date.now() - t0 });
     }
     json = await res.json().catch(() => null);

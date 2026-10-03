@@ -36,7 +36,7 @@ test('callGemini: never retries a 400 or a 429', async () => {
   }
 });
 
-test('callGemini: retries a timeout once, and timeoutMs reaches the abort signal', async () => {
+test('callGemini: a timeout is NOT retried (it would double the wait to ~16 s), and timeoutMs reaches the abort signal', async () => {
   let calls = 0;
   globalThis.fetch = async (_u, { signal }) => {
     calls++;
@@ -45,8 +45,16 @@ test('callGemini: retries a timeout once, and timeoutMs reaches the abort signal
   const t0 = Date.now();
   const keepAlive = setTimeout(() => {}, 5000); // AbortSignal.timeout timers are unref'd
   try { await assert.rejects(callGemini({ ...args, timeoutMs: 40, retries: 1 }), (e) => e.code === 'NETWORK'); } finally { clearTimeout(keepAlive); }
-  assert.equal(calls, 2);
+  assert.equal(calls, 1);
   assert.ok(Date.now() - t0 < 1000, 'default 8 s must not apply');
+});
+
+test('callGemini: a network error (not a timeout) is retried once', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; if (calls === 1) throw Object.assign(new TypeError('fetch failed'), { name: 'TypeError' }); return ok(); };
+  const r = await callGemini({ ...args, retries: 1 });
+  assert.equal(calls, 2);
+  assert.deepEqual(r.data, { a: 1 });
 });
 
 test('callGemini: default timeout is 8 s (not the old 20 s)', async () => {
