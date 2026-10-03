@@ -62,13 +62,14 @@ test('SIZES / stepSize: S < M < L, wheel steps clamp at the ends', () => {
 });
 
 test('sanitizeSettings: valid file passes through', () => {
-  const s = { anchor: { cx: 960, y: 1028, dock: 'bottom' }, size: 'L', theme: 'dark', linked: ['C:/docs/essay.docx'] };
+  const s = { anchor: { cx: 960, y: 1028, dock: 'bottom' }, size: 'L', theme: 'dark', linked: ['C:/docs/essay.docx'], capture: 'visible' };
   assert.deepEqual(L.sanitizeSettings(s, [wa]), s);
 });
 test('sanitizeSettings: junk falls back to defaults field by field', () => {
   const r = L.sanitizeSettings({ anchor: { cx: NaN, y: 5, dock: 'bottom' }, size: 'XL', theme: 'neon' }, [wa]);
-  assert.deepEqual(r, { anchor: null, size: 'M', theme: 'system', linked: [] });
-  assert.deepEqual(L.sanitizeSettings(null, [wa]), { anchor: null, size: 'M', theme: 'system', linked: [] });
+  assert.deepEqual(r, { anchor: null, size: 'M', theme: 'system', linked: [], capture: 'hidden' });
+  assert.deepEqual(L.sanitizeSettings(null, [wa]), { anchor: null, size: 'M', theme: 'system', linked: [], capture: 'hidden' });
+  assert.equal(L.sanitizeSettings({ capture: 'sure' }, [wa]).capture, 'hidden', 'unknown value fails closed: hidden from recordings');
   assert.equal(L.sanitizeSettings({ anchor: { cx: 1, y: 2, dock: 'sideways' } }, [wa]).anchor, null);
 });
 test('sanitizeSettings: an anchor on an unplugged monitor is dropped', () => {

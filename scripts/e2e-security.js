@@ -48,6 +48,16 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   const saved = JSON.parse(fs.readFileSync(path.join(ud, 'settings.json'), 'utf8'));
   ok(Array.isArray(saved.linked) && saved.linked.includes(picked) && !saved.linked.includes(other), 'settings.json persists the picked path only');
 
+  // --- recording toggle: default hidden; the tray handler flips it, applies it and persists it ---
+  const st0 = await app.evaluate(() => global.__qlState());
+  ok(st0.capture === 'hidden' && st0.protect === true, 'default: hidden from screen recordings, content protection on');
+  await app.evaluate(() => global.__qlSetCapture(false));
+  const st1 = await app.evaluate(() => global.__qlState());
+  ok(st1.capture === 'visible' && st1.protect === false, 'toggle off: visible, content protection off');
+  ok(JSON.parse(fs.readFileSync(path.join(ud, 'settings.json'), 'utf8')).capture === 'visible', 'settings.json persists capture: visible');
+  await app.evaluate(() => global.__qlSetCapture(true));
+  ok((await app.evaluate(() => global.__qlState())).protect === true, 'toggle on again: content protection back on');
+
   console.log(`\n${pass} pass, ${fail} fail`);
   await h.close();
   process.exit(fail ? 1 : 0);

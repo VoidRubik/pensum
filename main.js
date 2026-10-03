@@ -26,7 +26,7 @@ let tray = null;
 
 // --- placement: anchor { cx, y, dock } + size -> bounds (pure rules in logic.js) ---
 // The transparent window is click-through except over the bar / bubble / panel (renderer toggles via set-click-through).
-let settings = { anchor: null, size: 'M', theme: 'system', linked: [] }; // settings.json in userData; loaded once the app is ready
+let settings = { anchor: null, size: 'M', theme: 'system', linked: [], capture: 'hidden' }; // settings.json in userData; loaded once the app is ready
 let lastCssH = BAR_H; // the renderer reports its content height in CSS px
 const zoom = () => L.SIZES[settings.size];
 const curAnchor = () => settings.anchor || L.defaultAnchor(screen.getPrimaryDisplay().workArea);
@@ -106,6 +106,19 @@ ipcMain.on('drag-start', () => {
 });
 ipcMain.on('drag-end', (_e, cancel) => dragEnd(cancel));
 
+// Tray "Hide from screen recordings": on = setContentProtection(true), off = the overlay shows up in OBS / screenshots.
+// Gemini frames are unaffected either way: they come from the window the user picked (capture.grabWindow), never the overlay.
+let lastProtect = null; // test only
+function applyCapture() {
+  lastProtect = settings.capture === 'hidden';
+  if (win && !win.isDestroyed()) win.setContentProtection(lastProtect);
+}
+function setCapture(hidden) {
+  settings.capture = hidden ? 'hidden' : 'visible';
+  saveSettings();
+  applyCapture();
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: WIDTH,
@@ -122,8 +135,7 @@ function createWindow() {
   win.webContents.on('will-navigate', (e, url) => { if (url !== win.webContents.getURL()) e.preventDefault(); });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.setAlwaysOnTop(true, 'screen-saver');
-  // Keeps the pet out of any screenshot. (Playwright/CDP page.screenshot is unaffected.)
-  win.setContentProtection(true);
+  applyCapture(); // default: keeps the pet out of any screenshot / recording. (Playwright/CDP page.screenshot is unaffected.)
   Menu.setApplicationMenu(null); // no Ctrl+/- menu zoom: size is the S/M/L switch and Ctrl+wheel
   place(BAR_H);
   win.setIgnoreMouseEvents(true, { forward: true });
@@ -152,6 +164,7 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show / hide', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
     { label: 'Pause', click: () => { stopSession(); win.webContents.send('paused'); } },
+    { label: 'Hide from screen recordings', type: 'checkbox', checked: settings.capture === 'hidden', click: (item) => setCapture(item.checked) },
     { label: 'Reset position', click: () => { settings.anchor = null; saveSettings(); place(); } },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
@@ -269,7 +282,7 @@ ipcMain.handle('pick-window', async (_e, id) => {
 ipcMain.on('stop-session', () => stopSession());
 
 // Test hook: what main is holding (no content), to prove pause/stop clears it.
-if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls, lastGetText, linked: settings.linked });
+if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls, lastGetText, linked: settings.linked, capture: settings.capture, protect: lastProtect });
 
 // Test hook: push a scripted signal through the same emitter the sampler uses.
 if (TEST) ipcMain.handle('test-signal', (_e, sig) => { emit(sig); return true; });
@@ -343,6 +356,7 @@ ipcMain.on('set-pref', (_e, p) => {
 if (TEST) {
   global.__qlAnchor = (a) => { settings.anchor = a; saveSettings(); place(); };
   global.__qlBounds = () => win.getBounds();
+  global.__qlSetCapture = setCapture; // the tray checkbox's handler
 }
 
 if (!app.requestSingleInstanceLock()) {

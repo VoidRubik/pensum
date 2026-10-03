@@ -474,6 +474,7 @@ function sanitizeSettings(raw, workAreas) {
     size: SIZE_ORDER.includes(r.size) ? r.size : 'M',
     theme: ['system', 'light', 'dark'].includes(r.theme) ? r.theme : 'system',
     linked: cleanLinked(r.linked),
+    capture: r.capture === 'visible' ? 'visible' : 'hidden', // hidden = the pet stays out of screenshots and screen recordings
   };
 }
 
