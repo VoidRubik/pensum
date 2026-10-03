@@ -24,6 +24,7 @@
   let sessionOn = false;
   let work = null; // { id, title } the chosen window; kept across pause so resume needs no new pick
   let windowLost = false;
+  let offWork = false; // foreground is a known process that is neither the work window nor on the allow-list: the pet glances over
   let away = false;
   let epoch = 0; // bumped on pause/start/new task/quest change/checkbox; stale looks are dropped
   let sup = { suppress: {} }; // "not yet" suppression per quest
@@ -67,7 +68,7 @@
   function applyPet() {
     main.dataset.petState = L.petStep({
       celebrating, looking, quietLook, cardKind: card ? card.kind : null,
-      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy,
+      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy, offWork,
     });
     $('bar').classList.toggle('is-powered', celebrating); // the bar's own aura rides the same 3.6 s
   }
@@ -551,6 +552,7 @@
     sessionOn = true;
     windowLost = false;
     away = false;
+    offWork = false;
     epoch++;
     resetRules();
     lastSig = 0;
@@ -577,6 +579,7 @@
     speech = { lastSpokeAt: null, dismissed: 0 };
     windowLost = false;
     away = false;
+    offWork = false;
     epoch++;
     api.stopSession();
     updateBar();
@@ -593,6 +596,7 @@
     const r = await api.pickWindow(work.id);
     if (!r.ok) { openPicker(); return; }
     sessionOn = true;
+    offWork = false;
     epoch++;
     lastSig = 0;
     lastChangeAt = Date.now();
@@ -640,6 +644,10 @@
       updateBar();
     }
     if (s.fgProcess) lastFgProcess = s.fgProcess;
+    // !!fgProcess: right after Start the focus ring is empty (fgProcess null, onWork false) and the pet would glance at nothing.
+    const wasOff = offWork;
+    offWork = !s.onWork && !!s.fgProcess && !L.allowMatches(state.session.allow, s.fgProcess);
+    if (offWork !== wasOff) applyPet();
     if (driftPending && s.onWork) { driftPending = false; state.session.backOnTrack++; state.questStats = L.bumpStat(state.questStats, curIdx(), 'back'); save(); }
     if (breakMode && s.onWork && s.idleSec < 10 && !away && !windowLost) endBreak();
 

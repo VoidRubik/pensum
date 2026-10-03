@@ -116,6 +116,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const tick = () => page.evaluate(() => { [...document.querySelectorAll('.ql-quest input[type=checkbox]')].find((x) => !x.checked).click(); });
   const state = () => page.getAttribute('main', 'data-pet-state');
   const powered = () => page.evaluate(() => document.getElementById('bar').classList.contains('is-powered'));
+  // --- the glance: leaving the work window -> curious at once, silently; back -> working; no foreground process -> no glance ---
+  const sig = (o) => app.evaluate(({ BrowserWindow }, o) => BrowserWindow.getAllWindows()[0].webContents.send('signal', { ts: Date.now(), changed: false, fgHwnd: 0, fgProcess: null, onWork: false, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o }), o);
+  if (await page.isVisible('#bubble')) await page.click('#bubble-x'); // the session-start greeting is not what is under test
+  await sig({ fgProcess: null, onWork: false });
+  await sleep(250);
+  ok(await state() === 'working', 'glance: empty focus ring (fgProcess null) -> still working, nothing to look at');
+  await sig({ fgProcess: 'spotify.exe', onWork: false });
+  await sleep(250);
+  ok(await state() === 'curious', 'glance: another app in front -> curious right away');
+  ok(await page.isHidden('#bubble') && await page.isHidden('#card'), 'glance: no speech, no card');
+  await sig({ fgProcess: 'winword.exe', onWork: true });
+  await sleep(250);
+  ok(await state() === 'working', 'glance: back in the work window -> working');
   await tick();
   const t1 = Date.now();
   await sleep(300);

@@ -61,6 +61,7 @@ const reach = {
     await h.page.click('#done-btn');
     await h.page.waitForSelector('.ql-card--confirm:not(.hidden)');
     await h.page.click('#card-primary');
+    await h.page.waitForSelector('#quest-done:not(.hidden)'); // opens after the power-up lifts off
   },
   async allDone(h) {
     for (let i = 0; i < 6 && !(await h.page.isVisible('#recap:not(.hidden)')); i++) {

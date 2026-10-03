@@ -76,3 +76,17 @@ test('sanitizeSettings: an anchor on an unplugged monitor is dropped', () => {
   assert.equal(L.sanitizeSettings({ anchor: gone }, [wa]).anchor, null);
   assert.deepEqual(L.sanitizeSettings({ anchor: gone }, [wa, { x: -1920, y: 0, width: 1920, height: 1080 }]).anchor, gone);
 });
+
+// --- the glance: leaving the work window turns the pet curious at once (no text, no model) ---
+const base = { celebrating: false, looking: false, quietLook: false, cardKind: null, sessionOn: true, hasTask: true, breakMode: false, windowLost: false, away: false, busy: false, offWork: false };
+test('petStep: offWork -> curious, below windowLost / away / break / cards / celebrate, above working', () => {
+  assert.equal(L.petStep({ ...base, offWork: true }), 'curious');
+  assert.equal(L.petStep({ ...base, offWork: true, windowLost: true }), 'asleep');
+  assert.equal(L.petStep({ ...base, offWork: true, away: true }), 'sleepy');
+  assert.equal(L.petStep({ ...base, offWork: true, breakMode: true }), 'sleepy');
+  assert.equal(L.petStep({ ...base, offWork: true, sessionOn: false }), 'sleepy', 'paused: no glance');
+  assert.equal(L.petStep({ ...base, offWork: true, cardKind: 'step' }), 'helper');
+  assert.equal(L.petStep({ ...base, offWork: true, looking: true }), 'thinking');
+  assert.equal(L.petStep({ ...base, offWork: true, celebrating: true }), 'celebrate');
+  assert.equal(L.petStep({ ...base, offWork: false }), 'working');
+});

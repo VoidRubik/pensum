@@ -189,13 +189,14 @@ const PET_STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebra
 const IDLE_VARIANTS = ['a', 'b', 'c', 'd'];
 
 /** Which of the 8 pet states to show. One base state plus transient overrides; priority top to bottom. */
-function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away, busy }) {
+function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away, busy, offWork }) {
   if (celebrating) return 'celebrate';
   if ((looking && !quietLook) || busy) return 'thinking'; // busy = the quests are being made
   if (cardKind) return cardKind === 'step' ? 'helper' : 'curious';
   if (!sessionOn) return hasTask ? 'sleepy' : 'idle';
   if (windowLost) return 'asleep';
   if (breakMode || away) return 'sleepy';
+  if (offWork) return 'curious'; // the user left the work window: an instant, silent glance (no text, no model)
   return 'working';
 }
 
