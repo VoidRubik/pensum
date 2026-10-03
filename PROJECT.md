@@ -107,7 +107,7 @@ Numbers and before/after: `design/BASELINE.md`.
 - **Fixes:** B1 timeouts are not retried, B2 a 13 s client backstop on looks, B3 Word probe 3 s, B4 stale away-time after pause,
   B5 dismissal budget lasts the session, B6 tone filter on confirm evidence, B7 switching quest closes the old card, B8 New task
   while the picker answers, B9 a failed ledger write keeps the paid answer, B10 real window close (`scripts/e2e-realclose.js`).
-- Unit 167/167 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 12, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
+- Unit 167/167 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 14, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
   asleep in 657 ms), step2 19, step5 24, step6 10, step8 17, step10 17, ui-v2 56, security 16, web 20 (local, key blanked).
 
 ## Not done
