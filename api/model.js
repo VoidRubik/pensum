@@ -6,8 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // Vercel limits: 6 s per call, no retries; failures are fast non-200s and the shim swaps in recorded answers.
-process.env.QUESTLING_TIMEOUT_MS = '6000';
-process.env.QUESTLING_RETRIES = '0';
+process.env.PENSUM_TIMEOUT_MS = '6000';
+process.env.PENSUM_RETRIES = '0';
 // Flash answered quests in 8-16 s: past the 6 s budget, so the web route plans with lite unless GEMINI_MODEL says otherwise.
 process.env.GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 

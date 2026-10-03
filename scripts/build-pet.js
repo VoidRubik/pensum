@@ -1,4 +1,4 @@
-// Generates pet.svg + pet.css from the Claude Design "Questling Pet Motion" study (Tuck / Kip),
+// Generates pet.svg + pet.css from the Claude Design "Pensum Pet Motion" study (Tuck / Kip),
 // and splices BOTH pets into index.html between <!--pet:start--> and <!--pet:end-->: Tuck inline (the active pet), Kip in
 // <template id="pet-kip"> (not rendered, not styled; app.js swaps them). Usage: node scripts/build-pet.js
 // One run emits both, so the shared animation classes (a0..aN, deduplicated by their CSS) can never collide.

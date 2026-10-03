@@ -9,7 +9,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl'), QUESTLING_TIME_SCALE: '600' };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl'), PENSUM_TIME_SCALE: '600' };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
@@ -27,7 +27,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const send = (o) => { t += 20000; return app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('signal', s),
     { ts: t, changed: true, fgHwnd: 111, fgProcess: 'notepad', onWork: true, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o }); };
   const left = () => page.$eval('#disc', (e) => Number(e.style.getPropertyValue('--left')));
-  const minutes = () => page.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')).quests.map((q) => q.minutes));
+  const minutes = () => page.evaluate(() => JSON.parse(localStorage.getItem('pensum-state-v1')).quests.map((q) => q.minutes));
   const firstMin = (await minutes())[0];
   ok(firstMin <= 5, `quest 1 timebox is ${firstMin} min (<= 5)`);
   ok((await left()) === 1, 'disc starts full');
@@ -64,7 +64,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Part 2: +10 min extends and the card fires again at the new end; Next quest moves on.
   const ud2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env2 = { ...env, QUESTLING_LEDGER_PATH: path.join(ud2, 'u.jsonl') };
+  const env2 = { ...env, PENSUM_LEDGER_PATH: path.join(ud2, 'u.jsonl') };
   const app2 = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud2], env: env2 });
   const p2 = await app2.firstWindow();
   await p2.waitForSelector('#bar');
@@ -74,7 +74,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let t2 = Date.now();
   const send2 = (o) => { t2 += 20000; return app2.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('signal', s),
     { ts: t2, changed: true, fgHwnd: 111, fgProcess: 'notepad', onWork: true, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o }); };
-  const mins2 = () => p2.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')).quests.map((q) => q.minutes));
+  const mins2 = () => p2.evaluate(() => JSON.parse(localStorage.getItem('pensum-state-v1')).quests.map((q) => q.minutes));
   const m0 = (await mins2())[0];
   for (let i = 0; i < 30 && !(await p2.isVisible('.ql-card--timebox:not(.hidden)')); i++) { await send2({}); await sleep(80); }
   await p2.waitForSelector('.ql-card--timebox:not(.hidden)', { timeout: 3000 });

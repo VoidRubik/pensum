@@ -31,10 +31,10 @@ test('addLinked: appends, moves a repeat to the end, ignores junk, caps at 20', 
   assert.ok(!next.includes('f0'));
 });
 
-test('childEnv: drops GEMINI_*, QUESTLING_* and anything key/token/secret/password-shaped; keeps the rest', () => {
+test('childEnv: drops GEMINI_*, PENSUM_* and anything key/token/secret/password-shaped; keeps the rest', () => {
   const env = {
     PATH: 'C:/Windows', SystemRoot: 'C:/Windows', TEMP: 'C:/t', USERPROFILE: 'C:/u',
-    GEMINI_API_KEY: 'AIzaX', gemini_model: 'x', QUESTLING_MOCK: '1', QUESTLING_TEST: '1',
+    GEMINI_API_KEY: 'AIzaX', gemini_model: 'x', PENSUM_MOCK: '1', PENSUM_TEST: '1',
     GITHUB_TOKEN: 't', AWS_SECRET_ACCESS_KEY: 's', DB_PASSWORD: 'p', OPENAI_API_KEY: 'k', my_api_key: 'k',
   };
   const out = L.childEnv(env);

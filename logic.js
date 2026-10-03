@@ -459,9 +459,9 @@ function cleanLinked(a) {
 }
 function addLinked(list, p) { return cleanLinked([...list.filter((x) => x !== p), p]); }
 
-// Environment for a PowerShell child: no API keys or Questling switches ride along.
+// Environment for a PowerShell child: no API keys or Pensum switches ride along.
 function childEnv(env) {
-  return Object.fromEntries(Object.entries(env || {}).filter(([k]) => !/^(GEMINI|QUESTLING)_/i.test(k) && !/KEY|TOKEN|SECRET|PASSWORD/i.test(k)));
+  return Object.fromEntries(Object.entries(env || {}).filter(([k]) => !/^(GEMINI|PENSUM)_/i.test(k) && !/KEY|TOKEN|SECRET|PASSWORD/i.test(k)));
 }
 
 function sanitizeSettings(raw, workAreas) {
@@ -486,5 +486,5 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = exported;
 }
 if (typeof window !== 'undefined') {
-  window.QuestlingLogic = exported;
+  window.PensumLogic = exported;
 }

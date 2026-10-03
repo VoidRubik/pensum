@@ -1,4 +1,4 @@
-/* ui.css — the look. Tokens + surfaces from Claude Design "Questling App UI v2": 2a soft light, 2b dark.
+/* ui.css — the look. Tokens + surfaces from Claude Design "Pensum App UI v2": 2a soft light, 2b dark.
    prefers-color-scheme picks (no settings UI). Code-owned rules (.hidden, .solid, window layout) stay in style.css.
    Motion budget (the UI v2 plan §3, kept private): only transform/opacity animate; neumorphic shadows are static; the window
    edge is 16 px (--ql-pad), so every outer shadow fits inside it. */

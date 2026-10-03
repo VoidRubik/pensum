@@ -4,9 +4,9 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const main = document.querySelector('main');
-  const api = window.questling;
-  const L = window.QuestlingLogic;
-  const STORAGE_KEY = 'questling-state-v1';
+  const api = window.pensum;
+  const L = window.PensumLogic;
+  const STORAGE_KEY = 'pensum-state-v1';
   const BUBBLE_MS = 6000;
   const HELLO = "tell me what you're working on";
   const ASK = 'What do you want to finish today?';

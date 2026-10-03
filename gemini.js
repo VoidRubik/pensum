@@ -1,9 +1,9 @@
 // Raw fetch to the Gemini REST API. No SDK. Models come from ai.js (env-overridable).
 // Errors carry status / retryDelayMs / perDay / usage; the message never includes the request body.
 // timeoutMs per attempt; retries only on a network failure or a 503 (never a timeout, 400 or 429).
-// Defaults 8 s + 1 retry; the Vercel function sets QUESTLING_TIMEOUT_MS=6000 / QUESTLING_RETRIES=0.
+// Defaults 8 s + 1 retry; the Vercel function sets PENSUM_TIMEOUT_MS=6000 / PENSUM_RETRIES=0.
 const envNum = (k, d) => (process.env[k] !== undefined && process.env[k] !== '' && Number.isFinite(Number(process.env[k])) ? Number(process.env[k]) : d);
-async function callGemini({ model, contents, responseSchema, systemInstruction, generationConfig, timeoutMs = envNum('QUESTLING_TIMEOUT_MS', 8000), retries = envNum('QUESTLING_RETRIES', 1) }) {
+async function callGemini({ model, contents, responseSchema, systemInstruction, generationConfig, timeoutMs = envNum('PENSUM_TIMEOUT_MS', 8000), retries = envNum('PENSUM_RETRIES', 1) }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw Object.assign(new Error('GEMINI_API_KEY not set'), { code: 'NO_KEY' });
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;

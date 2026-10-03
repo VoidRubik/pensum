@@ -1,11 +1,11 @@
-# Questling
+# Pensum
 
 A tiny companion that helps when you can't help yourself: **starting, getting unstuck, coming back.**
 It floats at the bottom of your screen, plans your goal into small quests, and looks only at **the one
 window you pick**, only during a session. It asks, it never scolds, and the model never decides you are
 finished: you click.
 
-![Questling plan review, light theme](evidence/ui-v2/ui-v2-light-tuck-03-review.png)
+![Pensum plan review, light theme](evidence/ui-v2/ui-v2-light-tuck-03-review.png)
 
 Built for LovHack S3. Grade: **Partial** (built and tested on staged windows and samples; not yet used on a
 real task by its author). Every decision and caveat: [`DECISIONS.md`](DECISIONS.md).
@@ -21,15 +21,15 @@ without a key (recorded answers).
 ## Run the desktop app (Windows 10/11)
 
 ```
-git clone https://github.com/VoidRubik/questling.git
-cd questling
+git clone https://github.com/VoidRubik/pensum.git
+cd pensum
 npm install
 npm start
 ```
 
 Needs Node 22.12 or newer. With no key the app runs in **mock mode** (canned quests and looks, no network).
 To go live, put a free [Google AI Studio](https://aistudio.google.com/) key in `.env` (`GEMINI_API_KEY=...`) in the
-repo, or in `%APPDATA%\questling\.env`. A packaged build never contains a key. The tray icon has Show/hide,
+repo, or in `%APPDATA%\pensum\.env`. A packaged build never contains a key. The tray icon has Show/hide,
 Pause, "Hide from screen recordings", Reset position and Quit.
 
 To build a portable exe locally: `npm run dist` (output in `dist/`).
@@ -71,10 +71,10 @@ The end-to-end suites drive the real Electron window (Windows, `playwright-core`
 mock mode so no model call can happen:
 
 ```
-QUESTLING_MOCK=1 GEMINI_API_KEY= node scripts/e2e-step2.js      # also e2e-step8/10/11, e2e-polish, e2e-bugs, e2e-security
+PENSUM_MOCK=1 GEMINI_API_KEY= node scripts/e2e-step2.js      # also e2e-step8/10/11, e2e-polish, e2e-bugs, e2e-security
 ```
 
-(PowerShell: `$env:QUESTLING_MOCK='1'; $env:GEMINI_API_KEY=''`.) A few tests that guard a private design brief skip
+(PowerShell: `$env:PENSUM_MOCK='1'; $env:GEMINI_API_KEY=''`.) A few tests that guard a private design brief skip
 themselves on a fresh clone.
 
 ## Known limits
@@ -100,7 +100,7 @@ themselves on a fresh clone.
 11. Microsoft Word COM automation (live document text)
 12. .NET `System.IO.Compression` (reading `.docx`)
 13. Claude Code (Anthropic): Opus 5.5 for planning and review, Sonnet 5.5 for building and independent reviews
-14. Claude Design: "Questling App UI v2" and "Pet Motion" (pets Tuck and Kip) plus the SVG icon sprite
+14. Claude Design: "Pensum App UI v2" and "Pet Motion" (pets Tuck and Kip) plus the SVG icon sprite
 15. Agent skills used while building: superpowers, ponytail, impeccable, emil-design-eng, ui-ux-pro-max
 16. AIOS, the author's personal context system (brief, task cards, memory)
 17. Segoe UI Variable and Cascadia Mono (system fonts)

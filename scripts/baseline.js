@@ -38,7 +38,7 @@ async function startup(test) {
   res.requireMs = Object.fromEntries(Object.entries(req).map(([k, v]) => [k, Math.round(v * 10) / 10]));
 
   // C. frames per pet state + panel open/close + set-size IPC per flow
-  const h = await launch({ env: { QUESTLING_MOCK_DELAY_MS: '0' } });
+  const h = await launch({ env: { PENSUM_MOCK_DELAY_MS: '0' } });
   const { page } = h;
   res.petFrames = {};
   for (const s of ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate', 'sleepy', 'asleep']) {
@@ -70,7 +70,7 @@ async function startup(test) {
   res.consoleErrors = h.errs;
   await h.close();
   // D. real window picker + session start (non-test mode: real desktopCapturer + the PowerShell tracker; the mock model, no key)
-  const r = await launch({ test: false, env: { QUESTLING_TIME_SCALE: '1' } });
+  const r = await launch({ test: false, env: { PENSUM_TIME_SCALE: '1' } });
   await reach.ask(r); await reach.review(r);
   let t = Date.now(); await r.page.click('#start-btn'); await r.page.waitForSelector('.ql-window', { timeout: 120000 });
   const listMs = Date.now() - t;

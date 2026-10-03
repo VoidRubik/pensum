@@ -6,7 +6,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function launch(extra) {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'usage.jsonl'), ...extra };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'usage.jsonl'), ...extra };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
@@ -27,7 +27,7 @@ const undone = (page) => page.$$eval('.ql-quest input[type=checkbox]', (b) => b.
 (async () => {
   // A: heartbeat look proposes a card, never completes
   {
-    const { app, page } = await launch({ QUESTLING_MOCK: '1', QUESTLING_TIME_SCALE: '60', QUESTLING_MOCK_CHECK_DONE: '1' });
+    const { app, page } = await launch({ PENSUM_MOCK: '1', PENSUM_TIME_SCALE: '60', PENSUM_MOCK_CHECK_DONE: '1' });
     const send = (o) => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('signal', s), sig(o));
     await sleep(300); await send({ changed: true });
     await sleep(300);
@@ -43,8 +43,8 @@ const undone = (page) => page.$$eval('.ql-quest input[type=checkbox]', (b) => b.
   }
   // B: injection sample, real model, through the UI
   {
-    const { app, page } = await launch({ QUESTLING_SAMPLE: 'injection' });
-    const info = await page.evaluate(() => window.questling.info());
+    const { app, page } = await launch({ PENSUM_SAMPLE: 'injection' });
+    const info = await page.evaluate(() => window.pensum.info());
     ok(!info.mock, 'B: real model (not mock)');
     for (let i = 0; i < 3; i++) {
       await page.click('#done-btn');

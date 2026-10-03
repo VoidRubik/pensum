@@ -8,7 +8,7 @@ const QUEST_MODEL = () => process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 // Every look uses lite: stuck/done latency measured 1.2-2.2 s (n=5, DECISIONS.md) vs 10-20 s on flash.
 const LOOK_MODEL = () => process.env.GEMINI_CHECK_MODEL || 'gemini-3.5-flash-lite';
 
-const PERSONA = `You are Questling, a small companion who works beside the user. English. Warm, brief, concrete.
+const PERSONA = `You are Pensum, a small companion who works beside the user. English. Warm, brief, concrete.
 Never shame. Never use the words: must, should, failed, lazy, or "again?".
 Reflect, ask, or offer a choice. Every suggestion names one tiny action and the user's own quest.
 Never describe what the user is doing off-task. Talk about the quest, never about a distraction's content.
@@ -51,7 +51,7 @@ const thinkingFor = (model) => ({
   thinkingConfig: /gemini-3/.test(model) ? { thinkingLevel: 'minimal' } : { thinkingBudget: 0 },
 });
 
-const isMock = () => !process.env.GEMINI_API_KEY || process.env.QUESTLING_MOCK === '1';
+const isMock = () => !process.env.GEMINI_API_KEY || process.env.PENSUM_MOCK === '1';
 
 function defaultDeadline(now) {
   const base = now ? new Date(now) : new Date();
@@ -73,14 +73,14 @@ async function real(kind, args) {
 
 async function quests({ text, now, tzOffset }) {
   if (isMock()) {
-    if (process.env.QUESTLING_MOCK_QUESTS_MS) await new Promise((r) => setTimeout(r, Number(process.env.QUESTLING_MOCK_QUESTS_MS))); // test hook: making quests takes time (screen 02)
+    if (process.env.PENSUM_MOCK_QUESTS_MS) await new Promise((r) => setTimeout(r, Number(process.env.PENSUM_MOCK_QUESTS_MS))); // test hook: making quests takes time (screen 02)
     return { deadline_iso: defaultDeadline(now), ...questFallback(), mock: true };
   }
   const req = (model) => ({
     model,
     systemInstruction: PERSONA,
     generationConfig: { ...thinkingFor(model), maxOutputTokens: 1200 }, // a plan is ~300 tokens; the cap stops a hostile prompt from using this as a free LLM
-    timeoutMs: Number(process.env.QUESTLING_TIMEOUT_MS) || 12000,
+    timeoutMs: Number(process.env.PENSUM_TIMEOUT_MS) || 12000,
     retries: 0,
     contents: [{ role: 'user', parts: [{ text: `Task: "${text}". Current time: ${now}, timezone offset (minutes): ${tzOffset}.
 Break this into 3 to 5 quests, each verb-led and under 60 characters. Each finish condition is an end state visible on screen
@@ -92,7 +92,7 @@ starter = the first sloppy step: under 60 seconds of work, under 80 characters. 
     // Flash is the slow tier: on a timeout/503 retry once on lite instead of waiting again.
     let result;
     try { result = await real('quests', req(QUEST_MODEL())); } catch (e) {
-      if ((e.status && e.status !== 503) || process.env.QUESTLING_RETRIES === '0') throw e;
+      if ((e.status && e.status !== 503) || process.env.PENSUM_RETRIES === '0') throw e;
       result = await real('quests', req(LOOK_MODEL()));
     }
     const v = validateQuests(result);
@@ -148,8 +148,8 @@ async function look({ purpose, jpegBase64, quest, ctx = {}, memory = true }) {
   const text = PURPOSE_TEXT[purpose];
   if (!text) return { error: true, status: 0 };
   if (isMock()) {
-    if (process.env.QUESTLING_MOCK_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.QUESTLING_MOCK_DELAY_MS))); // test hook: a look takes time
-    return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.QUESTLING_MOCK_CHECK_OFF ? { onTask: false } : {}) };
+    if (process.env.PENSUM_MOCK_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.PENSUM_MOCK_DELAY_MS))); // test hook: a look takes time
+    return { ...MOCK_LOOKS[purpose], ...(purpose === 'check' && process.env.PENSUM_MOCK_CHECK_DONE ? { questDone: true } : {}), ...(purpose === 'check' && process.env.PENSUM_MOCK_CHECK_OFF ? { onTask: false } : {}) };
   }
   const model = LOOK_MODEL();
   const myGen = gen;

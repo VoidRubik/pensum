@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl'), QUESTLING_TIME_SCALE: '600' };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl'), PENSUM_TIME_SCALE: '600' };
   delete env.ELECTRON_RUN_AS_NODE;
   const launch = () => _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   let app = await launch();
@@ -94,8 +94,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // --- power-up on every confirmed quest; a second inside 3.6 s restarts it (real time: TIME_SCALE 1) ---
   const ud2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env2 = { ...env, QUESTLING_LEDGER_PATH: path.join(ud2, 'u.jsonl') };
-  delete env2.QUESTLING_TIME_SCALE;
+  const env2 = { ...env, PENSUM_LEDGER_PATH: path.join(ud2, 'u.jsonl') };
+  delete env2.PENSUM_TIME_SCALE;
   app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud2], env: env2 });
   page = await app.firstWindow();
   await page.waitForSelector('#bar');

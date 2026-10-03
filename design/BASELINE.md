@@ -12,7 +12,7 @@ Raw: `evidence/ui-v2/baseline-before.json`, `baseline-after.json`. "Before" scre
 | "takes a minute to load" | **Not the UI.** Cold start to `load` event is ~0.45–0.5 s. The stall is *session start*: `focus.start()` then `focus.setWork()` each `spawn('powershell.exe', [..., '-EncodedCommand', <4.7 KB>])`, and that spawn blocks the main thread synchronously | `focus.start` 5024 ms, `focus.setWork` 4158 ms (main-process timer); `pick-window` IPC 8862 ms; click window → session on **9359 ms**. Same spawn with `-File <script>`: 23 ms. Short `-Command`: 7–19 ms. Encoded command without env: 4424 ms (so it is the long encoded argument, not the env block) |
 | "not smooth" | **Not reproduced.** rAF in every pet state and across every screen change is 17.6–17.9 ms mean, p95 18.2 ms, 0 frames over 20 ms (one 53 ms hitch in the first idle sample, one 36 ms hitch in a picker run). The 9 s main-thread block above freezes the window (pet included) at the moment a session starts, which is the likeliest thing Bruno saw as "not smooth" | headless-style rAF cannot see transparent-window compositing on his GPU: **unmeasured on real use** |
 
-Fix (own commit): `focus.js` writes the tracker script to `os.tmpdir()/questling-focus-<pid>.ps1` once and spawns
+Fix (own commit): `focus.js` writes the tracker script to `os.tmpdir()/pensum-focus-<pid>.ps1` once and spawns
 `powershell -File`. Verified: `focus.start` 23 ms, `focus.setWork` 7 ms, tracker still reports the foreground process
 (`Code`) 2.5 s later, click window → session on **368 ms** (was 9359 ms).
 

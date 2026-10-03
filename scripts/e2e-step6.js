@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function launch(extra) {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'usage.jsonl'), QUESTLING_TIME_SCALE: '600', ...extra };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'usage.jsonl'), PENSUM_TIME_SCALE: '600', ...extra };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();

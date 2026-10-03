@@ -9,8 +9,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function launch({ env: extra = {}, test = true } = {}) {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl'), QUESTLING_TIME_SCALE: '600', ...extra };
-  if (test) env.QUESTLING_TEST = '1'; else delete env.QUESTLING_TEST;
+  const env = { ...process.env, PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl'), PENSUM_TIME_SCALE: '600', ...extra };
+  if (test) env.PENSUM_TEST = '1'; else delete env.PENSUM_TEST;
   delete env.ELECTRON_RUN_AS_NODE;
   const t0 = Date.now();
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
@@ -36,7 +36,7 @@ async function launch({ env: extra = {}, test = true } = {}) {
 // Each reach* leaves the app on that screen. They are cumulative: call them in order.
 const reach = {
   async ask(h) { await h.page.click('#toggle'); await h.page.waitForSelector('#task-card:not(.hidden)'); },
-  async making(h) { // needs QUESTLING_MOCK_DELAY_MS so the quest call is still pending
+  async making(h) { // needs PENSUM_MOCK_DELAY_MS so the quest call is still pending
     await h.page.fill('#task-text', 'Phylogenetic tree mind map for bio, due 6:22 pm');
     await h.page.click('#make-quests');
     await h.page.waitForSelector('#task-card.is-busy');

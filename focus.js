@@ -55,7 +55,7 @@ let workHwnd = 0;
 let script = null;
 function scriptFile() {
   if (!script) {
-    script = path.join(os.tmpdir(), `questling-focus-${process.pid}.ps1`);
+    script = path.join(os.tmpdir(), `pensum-focus-${process.pid}.ps1`);
     fs.writeFileSync(script, PS);
     process.once('exit', () => { try { fs.unlinkSync(script); } catch {} });
   }
@@ -77,7 +77,7 @@ function spawnChild() {
       try {
         const e = JSON.parse(line);
         if (e.work) { onWorkState({ alive: !!e.work.alive, visible: !!e.work.visible, proc: e.work.proc || null }); continue; }
-        if (e.process && e.title !== 'Questling') {
+        if (e.process && e.title !== 'Pensum') {
           events.push({ ts: Date.now(), process: e.process, title: e.title || '', hwnd: e.hwnd || 0 });
           if (events.length > MAX_EVENTS) events.shift();
           onEvent(events[events.length - 1]);

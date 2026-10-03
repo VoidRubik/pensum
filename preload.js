@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // The complete surface the renderer gets. The key, frames and device access all stay in main.
-contextBridge.exposeInMainWorld('questling', {
+contextBridge.exposeInMainWorld('pensum', {
   makeQuests: (req) => ipcRenderer.invoke('quests', req),
   look: (req) => ipcRenderer.invoke('look', req),
   listWindows: () => ipcRenderer.invoke('list-windows'),

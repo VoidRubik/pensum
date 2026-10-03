@@ -6,7 +6,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function launch(extra) {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'usage.jsonl'), ...extra };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'usage.jsonl'), ...extra };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
@@ -32,13 +32,13 @@ async function pushUntil(page, send, o, sel = '#card:not(.hidden) #card-chips:no
   }
   return false;
 }
-const stateOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')));
+const stateOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('pensum-state-v1')));
 const cardVisible = (page, sel = '.ql-card--ask') => page.isVisible(sel + ':not(.hidden)');
 const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.hidden)');
 
 (async () => {
   // Scale 600: 2 min = 0.2 s, 5 min = 0.5 s, 10 min = 1 s
-  const { app, page, send } = await launch({ QUESTLING_TIME_SCALE: '600' });
+  const { app, page, send } = await launch({ PENSUM_TIME_SCALE: '600' });
   await send({ onWork: false }); await sleep(100);
   ok(!(await driftCard(page)), 'drift: no ask before 2 min (scaled)');
   await sleep(200);
@@ -79,7 +79,7 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
   await app.close();
 
   // break chip + in-window drift via a check look (mock off-task)
-  const b = await launch({ QUESTLING_TIME_SCALE: '600', QUESTLING_MOCK_CHECK_OFF: '1' });
+  const b = await launch({ PENSUM_TIME_SCALE: '600', PENSUM_MOCK_CHECK_OFF: '1' });
   await b.send({ onWork: false }); await sleep(300);
   await pushUntil(b.page, b.send, { onWork: false });
   await b.page.click('text=taking a break');
@@ -95,7 +95,7 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
   await b.app.close();
 
   // in-window drift: heartbeat check look says off-task at 0.9 -> ask with a LOCAL title
-  const c = await launch({ QUESTLING_TIME_SCALE: '600', QUESTLING_MOCK_CHECK_OFF: '1' });
+  const c = await launch({ PENSUM_TIME_SCALE: '600', PENSUM_MOCK_CHECK_OFF: '1' });
   await sleep(300); await c.send({ onWork: true, fgProcess: 'notepad', changed: true });
   await c.page.waitForSelector('.ql-card--ask:not(.hidden)', { timeout: 4000 });
   const title = await c.page.textContent('#card-title');

@@ -9,16 +9,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   fs.writeFileSync(txt, 'Water Cycle Essay\r\n\r\nIntroduction\r\nThe water cycle is how water moves between the ocean, the sky and the land.\r\n\r\nCauses\r\n\r\n\r\nEffects\r\n\r\n');
   const np = spawn('notepad.exe', [txt]); await sleep(2500);
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_LEDGER_PATH: path.join(ud, 'usage.jsonl') };
-  delete env.ELECTRON_RUN_AS_NODE; delete env.QUESTLING_MOCK; delete env.QUESTLING_TEST;
+  const env = { ...process.env, PENSUM_LEDGER_PATH: path.join(ud, 'usage.jsonl') };
+  delete env.ELECTRON_RUN_AS_NODE; delete env.PENSUM_MOCK; delete env.PENSUM_TEST;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
   await page.waitForSelector('#bar');
-  const info = await page.evaluate(() => window.questling.info());
+  const info = await page.evaluate(() => window.pensum.info());
   const picked = await page.evaluate(async () => {
-    const w = (await window.questling.listWindows()).find((x) => x.title.includes('ql-evidence-essay'));
+    const w = (await window.pensum.listWindows()).find((x) => x.title.includes('ql-evidence-essay'));
     if (!w) return { ok: false };
-    const r = await window.questling.pickWindow(w.id);
+    const r = await window.pensum.pickWindow(w.id);
     return { ...r, title: w.title };
   });
   console.log('mock?', info.mock, 'picked:', JSON.stringify(picked));
@@ -26,7 +26,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   if (picked.ok && !info.mock) {
     for (let i = 0; i < 5; i++) {
       const t0 = Date.now();
-      const r = await page.evaluate(() => window.questling.look({ purpose: 'stuck', idx: 2, epoch: 1,
+      const r = await page.evaluate(() => window.pensum.look({ purpose: 'stuck', idx: 2, epoch: 1,
         quest: { title: 'Write the Causes section', finish: 'Three sentences exist under the Causes heading' },
         ctx: { task: 'my water cycle essay', quests: [{ title: 'Write the introduction', done: true }, { title: 'Write the Causes section', done: false }, { title: 'Write the Effects section', done: false }] }, allow: [] }));
       out.push({ try: i + 1, wallMs: Date.now() - t0, ...r });

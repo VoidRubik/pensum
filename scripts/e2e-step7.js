@@ -8,10 +8,10 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
 (async () => {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
   const ledger = path.join(ud, 'usage.jsonl');
-  // Real mode (no QUESTLING_MOCK) so a stray model call would show up in the ledger; quests come from the local fallback if no key is set.
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: ledger, QUESTLING_TIME_SCALE: '30' };
+  // Real mode (no PENSUM_MOCK) so a stray model call would show up in the ledger; quests come from the local fallback if no key is set.
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: ledger, PENSUM_TIME_SCALE: '30' };
   delete env.ELECTRON_RUN_AS_NODE;
-  delete env.QUESTLING_MOCK;
+  delete env.PENSUM_MOCK;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
   await page.waitForSelector('#bar');
@@ -25,7 +25,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   await page.click('.ql-window'); await page.click('#windows-start');
   await page.waitForSelector('.ql-card--starter:not(.hidden)', { timeout: 4000 });
   ok(await page.textContent('#card-title') === 'Tiny start', 'session start -> starter card');
-  const starter = await page.evaluate(() => JSON.parse(localStorage.getItem('questling-state-v1')).starter);
+  const starter = await page.evaluate(() => JSON.parse(localStorage.getItem('pensum-state-v1')).starter);
   ok((await page.textContent('#card-body')) === starter && starter.length > 0 && starter.length <= 80, 'card shows the plan starter (<= 80 chars): ' + starter.slice(0, 40));
   ok((await page.textContent('#card-primary')) === 'Go', 'primary: Go');
   await page.click('#card-primary');

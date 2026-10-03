@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function launch(extra) {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl'), QUESTLING_TIME_SCALE: '600', ...extra };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl'), PENSUM_TIME_SCALE: '600', ...extra };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
@@ -36,7 +36,7 @@ const undone = (page) => page.$$eval('.ql-quest input[type=checkbox]', (b) => b.
 (async () => {
   // Finding 4: a click during a background look is queued, not swallowed
   {
-    const { app, page, send, calls } = await launch({ QUESTLING_MOCK_DELAY_MS: '900' });
+    const { app, page, send, calls } = await launch({ PENSUM_MOCK_DELAY_MS: '900' });
     await sleep(300);
     await send({ onWork: true, fgProcess: 'notepad' });          // change -> heartbeat look starts (takes 900 ms)
     for (let i = 0; i < 20 && (await calls()) < 1; i++) await sleep(50);
@@ -63,7 +63,7 @@ const undone = (page) => page.$$eval('.ql-quest input[type=checkbox]', (b) => b.
   }
   // B2: a look that outlives the client backstop falls back to the local template and re-enables the buttons
   {
-    const { app, page } = await launch({ QUESTLING_MOCK_DELAY_MS: '6000', QUESTLING_LOOK_TIMEOUT_MS: '1500' });
+    const { app, page } = await launch({ PENSUM_MOCK_DELAY_MS: '6000', PENSUM_LOOK_TIMEOUT_MS: '1500' });
     await page.click('#stuck-btn');
     ok(await page.isDisabled('#stuck-btn'), 'B2: the stuck button is disabled while the look is in flight');
     await page.waitForSelector('.ql-card--step:not(.hidden)', { timeout: 4000 });

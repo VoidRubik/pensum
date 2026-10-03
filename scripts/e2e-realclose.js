@@ -16,8 +16,8 @@ const killNotepad = () => { try { execSync('taskkill /im notepad.exe /f', { stdi
   spawn('notepad.exe', [], { detached: true, stdio: 'ignore' }).unref();
   await sleep(2000);
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl') };
-  delete env.QUESTLING_TEST;
+  const env = { ...process.env, PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl') };
+  delete env.PENSUM_TEST;
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   try {

@@ -1,12 +1,12 @@
 // Ship-prep hardening, proven in the real Electron window (mock mode, $0, fresh profile).
-// Needs playwright-core (devDependency). Run with QUESTLING_MOCK=1 GEMINI_API_KEY= so no paid call can happen.
+// Needs playwright-core (devDependency). Run with PENSUM_MOCK=1 GEMINI_API_KEY= so no paid call can happen.
 const { launch, reach, sleep } = require('./ui-drive.js');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') + m); };
 
 (async () => {
-  const h = await launch({ env: { QUESTLING_MOCK: '1' } });
+  const h = await launch({ env: { PENSUM_MOCK: '1' } });
   const { app, page } = h;
   for (const step of ['ask', 'review', 'windows', 'starter']) await reach[step](h);
 
@@ -29,14 +29,14 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   fs.writeFileSync(picked, 'my essay about the water cycle');
   fs.writeFileSync(other, 'a file the renderer names but the user never picked');
   await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, picked);
-  const look = (linkedPath) => page.evaluate((lp) => window.questling.look({ purpose: 'check', quest: { title: 'x' }, idx: 0, epoch: 0, ctx: {}, allow: [], linkedPath: lp }), linkedPath);
+  const look = (linkedPath) => page.evaluate((lp) => window.pensum.look({ purpose: 'check', quest: { title: 'x' }, idx: 0, epoch: 0, ctx: {}, allow: [], linkedPath: lp }), linkedPath);
   const seen = () => app.evaluate(() => global.__qlState().lastGetText);
 
   await look(other);
   ok((await seen())?.linkedPath === null, 'an unlisted path is ignored (getText got linkedPath null)');
   await look('C:/Windows/win.ini');
   ok((await seen())?.linkedPath === null, 'a system path is ignored');
-  const r = await page.evaluate(() => window.questling.linkWork());
+  const r = await page.evaluate(() => window.pensum.linkWork());
   ok(r && r.path === picked && r.readable === true, 'link-work returns the picked file');
   await look(picked);
   ok((await seen())?.linkedPath === picked, 'a path chosen in the dialog is read');

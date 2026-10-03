@@ -1,4 +1,4 @@
-# questling
+# pensum
 
 A tiny companion that helps when you can't help yourself: **starting, getting unstuck, coming back.**
 It floats at the bottom of the screen (Electron, always on top, click-through outside its surfaces),
@@ -42,12 +42,12 @@ node web/build.js && node scripts/dev-server.js   # the web demo locally on :417
 
 `.env` (gitignored; never commit or paste it): `GEMINI_API_KEY=…`. Models: quests
 `gemini-3.5-flash` (`GEMINI_MODEL`), every look `gemini-3.5-flash-lite` (`GEMINI_CHECK_MODEL`). Use a key
-from a Google project with **billing off** so the free tier is a hard $0 cap. No key or `QUESTLING_MOCK=1`
+from a Google project with **billing off** so the free tier is a hard $0 cap. No key or `PENSUM_MOCK=1`
 → scripted answers, $0. If `npm start` prints a Node version and exits, unset `ELECTRON_RUN_AS_NODE`.
 
-Test/ops env: `QUESTLING_TEST=1` (fake window, scripted signals only, no tracker), `QUESTLING_TIME_SCALE=N`
-(divide every engine duration), `QUESTLING_FAKE_IDLE_SEC`, `QUESTLING_LEDGER_PATH`, `QUESTLING_DAILY_CALLS`
-(300), `QUESTLING_PER_MIN` (8), `QUESTLING_MOCK_DELAY_MS`, `QUESTLING_MOCK_CHECK_DONE|OFF`.
+Test/ops env: `PENSUM_TEST=1` (fake window, scripted signals only, no tracker), `PENSUM_TIME_SCALE=N`
+(divide every engine duration), `PENSUM_FAKE_IDLE_SEC`, `PENSUM_LEDGER_PATH`, `PENSUM_DAILY_CALLS`
+(300), `PENSUM_PER_MIN` (8), `PENSUM_MOCK_DELAY_MS`, `PENSUM_MOCK_CHECK_DONE|OFF`.
 
 ## Architecture (pinned)
 
@@ -61,7 +61,7 @@ Test/ops env: `QUESTLING_TEST=1` (fake window, scripted signals only, no tracker
 - **preload.js** is the whole renderer surface (17 functions). **ai.js + gemini.js:** raw REST, JSON schema,
   one LOOK schema for all vision calls, injection-aware system prompt, `safeText` (links, domains,
   contact details), `toneOk`, output caps.
-- **Web:** `web/shim.js` implements the same `window.questling` surface on a fake desktop with a scene bar;
+- **Web:** `web/shim.js` implements the same `window.pensum` surface on a fake desktop with a scene bar;
   `api/model.js` (Vercel function) reads a whitelisted sample server-side (never an upload), rate-limited
   per IP and globally, 6 s, no retries; any failure → recorded real answers (`demo/recorded.json`, tagged).
   `web/build.js` copies only the renderer into `public/`.

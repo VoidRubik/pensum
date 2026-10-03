@@ -14,7 +14,7 @@ ok(!/[✓✕▴▾❪▶]|❙❙/.test(html.replace(/<symbol[\s\S]*?<\/symbol>/g
 
 async function run(theme, pet) {
   const tag = `${theme}-${pet}`;
-  const h = await launch({ env: { QUESTLING_MOCK_QUESTS_MS: '1200' } });
+  const h = await launch({ env: { PENSUM_MOCK_QUESTS_MS: '1200' } });
   const { page } = h;
   await h.theme(theme);
   const shot = async (n, name) => { await sleep(450); await page.screenshot({ path: path.join(out, `ui-v2-${tag}-${n}-${name}.png`) }); };
@@ -75,7 +75,7 @@ async function run(theme, pet) {
   const h = await launch();
   await reach.ask(h);
   const { page } = h;
-  const PRIVACY = 'Questling only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc\'s text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.';
+  const PRIVACY = 'Pensum only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc\'s text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.';
   ok(await page.isHidden('#privacy-note') && await page.isVisible('#privacy-line'), 'privacy: short line visible, full text hidden by default');
   await page.click('#privacy-toggle');
   ok(await page.isVisible('#privacy-note') && (await page.textContent('#privacy-note')) === PRIVACY, 'privacy: Details shows the full text, byte-identical');

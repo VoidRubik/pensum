@@ -7,9 +7,9 @@ const path = require('node:path');
 
 const hwndOf = (id) => Number(String(id).split(':')[1]) || 0;
 
-// QUESTLING_TEST=1: frames come from demo/samples/<name>.jpg instead of a real window (QUESTLING_SAMPLE).
+// PENSUM_TEST=1: frames come from demo/samples/<name>.jpg instead of a real window (PENSUM_SAMPLE).
 const testSample = () => {
-  const f = path.join(__dirname, 'demo', 'samples', `${process.env.QUESTLING_SAMPLE || 'essay-blank'}.jpg`);
+  const f = path.join(__dirname, 'demo', 'samples', `${process.env.PENSUM_SAMPLE || 'essay-blank'}.jpg`);
   try { return fs.readFileSync(f); } catch { return null; }
 };
 
@@ -21,16 +21,16 @@ async function findSource(id, size) {
 /** Windows to pick from: id, title, small preview (stays on this PC). The pet's own window is excluded. */
 async function listWindows() {
   // 1x1 transparent PNG; the test never lists (or shows) the real desktop.
-  if (process.env.QUESTLING_TEST) return [{ id: 'window:111:0', hwnd: 111, title: 'Docs - Water Cycle essay', thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' }];
+  if (process.env.PENSUM_TEST) return [{ id: 'window:111:0', hwnd: 111, title: 'Docs - Water Cycle essay', thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' }];
   const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 200, height: 125 } });
   return sources
-    .filter((s) => s.name && s.name !== 'Questling' && !s.thumbnail.isEmpty())
+    .filter((s) => s.name && s.name !== 'Pensum' && !s.thumbnail.isEmpty())
     .map((s) => ({ id: s.id, hwnd: hwndOf(s.id), title: s.name, thumb: s.thumbnail.toDataURL() }));
 }
 
 /** JPEG of the chosen window at up to maxSide px on its long edge. null = gone, minimized or blank. */
 async function grabWindow(id, maxSide = 1600, quality = 70) {
-  if (process.env.QUESTLING_TEST) {
+  if (process.env.PENSUM_TEST) {
     const buf = testSample();
     return buf ? { jpegBase64: buf.toString('base64'), title: 'test window' } : null;
   }

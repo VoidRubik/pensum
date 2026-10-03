@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { summarizeUsage, dayKey } = require('./logic.js');
 
-let file = process.env.QUESTLING_LEDGER_PATH || null;
+let file = process.env.PENSUM_LEDGER_PATH || null;
 const unsaved = []; // entries whose write failed
 function init(dir) { if (!file) file = path.join(dir, 'usage.jsonl'); }
 

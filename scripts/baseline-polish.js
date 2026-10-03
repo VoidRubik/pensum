@@ -10,7 +10,7 @@ const { launch, reach, frames, stats, sleep } = require('./ui-drive.js');
   const out = { firstOpen: { soft: [], flat: [] }, celebrate: [], idle: [] };
   for (let i = 0; i < 4; i++) {
     for (const mode of ['soft', 'flat']) {
-      const h = await launch({ env: { QUESTLING_MOCK_DELAY_MS: '0' } });
+      const h = await launch({ env: { PENSUM_MOCK_DELAY_MS: '0' } });
       if (mode === 'flat') await h.page.evaluate(() => { document.querySelector('main').dataset.shadows = 'flat'; });
       await sleep(400);
       const p = frames(h.page, 900);

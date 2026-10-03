@@ -9,7 +9,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // start: false stops before the window picker so a test can race it
 async function launch(extra, { start = true } = {}) {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl'), QUESTLING_TIME_SCALE: '100', ...extra };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl'), PENSUM_TIME_SCALE: '100', ...extra };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();
@@ -116,7 +116,7 @@ async function pushUntil(page, send, o, sel = '#card:not(.hidden) #card-chips:no
 
   // B8: New task / Pause pressed while the window picker is still answering must not leave a session without a task
   {
-    const { app, page, mainState } = await launch({ QUESTLING_PICK_DELAY_MS: '1500' }, { start: false });
+    const { app, page, mainState } = await launch({ PENSUM_PICK_DELAY_MS: '1500' }, { start: false });
     await page.click('#windows-start');
     await page.evaluate(() => document.getElementById('new-task').click()); // mid-pick
     await sleep(2200);
@@ -127,7 +127,7 @@ async function pushUntil(page, send, o, sel = '#card:not(.hidden) #card-chips:no
     await app.close();
   }
   {
-    const { app, page, mainState } = await launch({ QUESTLING_PICK_DELAY_MS: '1500' }, { start: false });
+    const { app, page, mainState } = await launch({ PENSUM_PICK_DELAY_MS: '1500' }, { start: false });
     await page.click('#windows-start');
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('paused')); // tray Pause, mid-pick
     await sleep(2200);
@@ -137,10 +137,10 @@ async function pushUntil(page, send, o, sel = '#card:not(.hidden) #card-chips:no
     await app.close();
   }
   {
-    const { app, page, mainState } = await launch({ QUESTLING_PICK_DELAY_MS: '0' });
+    const { app, page, mainState } = await launch({ PENSUM_PICK_DELAY_MS: '0' });
     await page.click('#pause-btn'); // paused, window remembered
     await sleep(200);
-    await app.evaluate(() => { process.env.QUESTLING_PICK_DELAY_MS = '1500'; }); // the hook reads the env on every pick
+    await app.evaluate(() => { process.env.PENSUM_PICK_DELAY_MS = '1500'; }); // the hook reads the env on every pick
     await page.click('#pause-btn'); // resume -> pickWindow (slow)
     await page.evaluate(() => document.getElementById('new-task').click()); // mid-resume
     await sleep(2200);

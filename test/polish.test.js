@@ -96,26 +96,26 @@ test('petStep: offWork -> curious, below windowLost / away / break / cards / cel
 test('ledger.append: a write failure is swallowed, the image-data guard still throws', () => {
   const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ledger-'));
-  process.env.QUESTLING_LEDGER_PATH = dir; // a directory: appendFileSync -> EISDIR
+  process.env.PENSUM_LEDGER_PATH = dir; // a directory: appendFileSync -> EISDIR
   delete require.cache[require.resolve('../ledger.js')];
   const ledger = require('../ledger.js');
   assert.doesNotThrow(() => ledger.append({ kind: 'look', model: 'm' }));
   assert.throws(() => ledger.append({ blob: 'x'.repeat(501) }), /too long/);
-  delete process.env.QUESTLING_LEDGER_PATH;
+  delete process.env.PENSUM_LEDGER_PATH;
   delete require.cache[require.resolve('../ledger.js')];
 });
 
 // --- review fixes ---
 test('ledger: when the file cannot be written the daily cap still counts the calls (fail closed, not open)', () => {
   const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
-  process.env.QUESTLING_LEDGER_PATH = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ledger-')); // a directory: every write fails
+  process.env.PENSUM_LEDGER_PATH = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ledger-')); // a directory: every write fails
   delete require.cache[require.resolve('../ledger.js')];
   const ledger = require('../ledger.js');
   for (let i = 0; i < 3; i++) ledger.append({ kind: 'look', model: 'm', promptTokens: 10 });
   const t = ledger.today();
   assert.equal(t.calls, 3);
   assert.equal(t.tokens, 30);
-  delete process.env.QUESTLING_LEDGER_PATH;
+  delete process.env.PENSUM_LEDGER_PATH;
   delete require.cache[require.resolve('../ledger.js')];
 });
 test('anchorProbe: a bottom-dock anchor sits on the display edge, so probe one pixel inside it', () => {

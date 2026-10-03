@@ -15,7 +15,7 @@ const NOT_PUBLIC = ['main.js', 'ai.js', 'gemini.js', 'capture.js', 'focus.js', '
     const r = await fetch(`${BASE}/${f}`, { redirect: 'manual' });
     const body = r.status === 200 ? await r.text() : '';
     // an SPA-style fallback to index.html would be a 200 with the page: that is not the file either
-    const isRealFile = r.status === 200 && !/<title>Questling<\/title>/.test(body);
+    const isRealFile = r.status === 200 && !/<title>Pensum<\/title>/.test(body);
     ok(r.status !== 200 || !isRealFile, `/${f} is not served (${r.status})`);
   }
 
@@ -27,7 +27,7 @@ const NOT_PUBLIC = ['main.js', 'ai.js', 'gemini.js', 'capture.js', 'focus.js', '
     const t = await (await fetch(`${BASE}/${f}`)).text();
     if (KEY.test(t)) leaked.push(f);
   }
-  ok(/<title>Questling<\/title>/.test(index), 'the page is served');
+  ok(/<title>Pensum<\/title>/.test(index), 'the page is served');
   ok(leaked.length === 0, `no key pattern in ${files.length} served static files ${leaked.join(',')}`);
   ok(/connect-src 'self'/.test(index), "CSP carries connect-src 'self'");
 

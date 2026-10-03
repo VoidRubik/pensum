@@ -2,8 +2,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme, session } = require('electron');
 
+// One-time move from the old app name: copy settings + a user's own key; never overwrite.
+// Only for the real profile: e2e runs pass --user-data-dir (a temp dir) and must never inherit the old settings.
+if (path.dirname(app.getPath('userData')) === app.getPath('appData') && /^pensum$/i.test(path.basename(app.getPath('userData')))) {
+  const oldDir = path.join(app.getPath('appData'), 'questling');
+  const newDir = app.getPath('userData');
+  for (const f of ['settings.json', '.env']) {
+    const from = path.join(oldDir, f), to = path.join(newDir, f);
+    try { if (fs.existsSync(from) && !fs.existsSync(to)) { fs.mkdirSync(newDir, { recursive: true }); fs.copyFileSync(from, to); } } catch {}
+  }
+}
+
 // Key sources, first one wins (an already-set variable is never overridden): the real environment, the repo .env (dev),
-// then <userData>/.env (%APPDATA%/questling/.env: where a packaged build reads a user's own key; never bundled).
+// then <userData>/.env (%APPDATA%/pensum/.env: where a packaged build reads a user's own key; never bundled).
 for (const dir of [__dirname, app.getPath('userData')]) { try { process.loadEnvFile(path.join(dir, '.env')); } catch {} }
 const ai = require('./ai.js');
 const ledger = require('./ledger.js');
@@ -13,8 +24,8 @@ const capture = require('./capture.js');
 const { lookFlow } = require('./look-flow.js');
 const L = require('./logic.js');
 
-L.setTimeScale(Number(process.env.QUESTLING_TIME_SCALE) || 1);
-const TEST = !!process.env.QUESTLING_TEST && !app.isPackaged; // test hooks never run in the packaged exe
+L.setTimeScale(Number(process.env.PENSUM_TIME_SCALE) || 1);
+const TEST = !!process.env.PENSUM_TEST && !app.isPackaged; // test hooks never run in the packaged exe
 
 const WIDTH = 404; // v2 artboard: 16 px window padding + 372 px of content
 const BAR_H = 128; // bar 66 + 2x16 padding + pet headroom (the art overflows the pill by ~25 px; celebrate jumps ~18 more)
@@ -162,7 +173,7 @@ function trayIcon() {
 
 function createTray() {
   tray = new Tray(trayIcon());
-  tray.setToolTip('Questling');
+  tray.setToolTip('Pensum');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show / hide', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
     { label: 'Pause', click: () => { stopSession(); win.webContents.send('paused'); } },
@@ -174,8 +185,8 @@ function createTray() {
 }
 
 // --- model gateway: every model call passes gateCall() first ---
-const DAILY_CAP = () => Number(process.env.QUESTLING_DAILY_CALLS) || 300; // all model kinds
-const PER_MIN = () => Number(process.env.QUESTLING_PER_MIN) || 8;
+const DAILY_CAP = () => Number(process.env.PENSUM_DAILY_CALLS) || 300; // all model kinds
+const PER_MIN = () => Number(process.env.PENSUM_PER_MIN) || 8;
 let stamps = [];
 let cappedDay = null; // local day key when Google said per-day quota is gone
 // Real calls only: mock mode costs nothing. Returns an error reply, or null to proceed.
@@ -200,8 +211,8 @@ let winState = { alive: true, visible: true };
 let locked = false;
 let sessionGen = 0;
 let lastFrame = null; // { at, jpegBase64 } the last frame of the work window; RAM only, 10 min, cleared on stop/pause
-// QUESTLING_FAKE_IDLE_SEC lets tests run on an idle PC.
-const idleSec = () => Number(process.env.QUESTLING_FAKE_IDLE_SEC ?? powerMonitor.getSystemIdleTime());
+// PENSUM_FAKE_IDLE_SEC lets tests run on an idle PC.
+const idleSec = () => Number(process.env.PENSUM_FAKE_IDLE_SEC ?? powerMonitor.getSystemIdleTime());
 
 function emit(extra = {}) {
   if (!win || win.isDestroyed()) return;
@@ -270,7 +281,7 @@ ipcMain.handle('list-windows', () => capture.listWindows());
 ipcMain.handle('pick-window', async (_e, id) => {
   if (typeof id !== 'string') return { ok: false };
   if (TEST) {
-    const d = Number(process.env.QUESTLING_PICK_DELAY_MS); // test hook: a slow picker reply, to race New task / Pause against it
+    const d = Number(process.env.PENSUM_PICK_DELAY_MS); // test hook: a slow picker reply, to race New task / Pause against it
     if (d) await new Promise((r) => setTimeout(r, d));
     startSession({ id, hwnd: capture.hwndOf(id), title: 'test window' });
     return { ok: true, title: 'test window' };
@@ -342,7 +353,7 @@ function setSize(size) {
   place();
   win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
 }
-ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, lookTimeoutMs: TEST ? Number(process.env.QUESTLING_LOOK_TIMEOUT_MS) || undefined : undefined, ...geom(), size: settings.size, theme: settings.theme }));
+ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.PENSUM_TIME_SCALE) || 1, lookTimeoutMs: TEST ? Number(process.env.PENSUM_LOOK_TIMEOUT_MS) || undefined : undefined, ...geom(), size: settings.size, theme: settings.theme }));
 ipcMain.on('set-pref', (_e, p) => {
   if (!p) return;
   if (typeof p.size === 'string') setSize(p.size);

@@ -6,7 +6,7 @@ const realFetch = globalThis.fetch;
 let route;
 beforeEach(() => {
   process.env.GEMINI_API_KEY = 'test-key-not-real';
-  delete process.env.QUESTLING_MOCK;
+  delete process.env.PENSUM_MOCK;
   delete require.cache[require.resolve('../api/model.js')]; // fresh in-memory limiter per test
   route = require('../api/model.js');
 });
@@ -104,7 +104,7 @@ test('route sets the Vercel limits: 6 s timeout, no retries', async () => {
   AbortSignal.timeout = (n) => { seen.push(n); return orig.call(AbortSignal, n); };
   let calls = 0;
   globalThis.fetch = async () => { calls++; return { ok: false, status: 503, json: async () => ({}) }; };
-  try { await call(route, { body: lookBody() }); } finally { AbortSignal.timeout = orig; delete process.env.QUESTLING_TIMEOUT_MS; delete process.env.QUESTLING_RETRIES; }
+  try { await call(route, { body: lookBody() }); } finally { AbortSignal.timeout = orig; delete process.env.PENSUM_TIMEOUT_MS; delete process.env.PENSUM_RETRIES; }
   assert.equal(seen[0], 6000);
   assert.equal(calls, 1);
 });

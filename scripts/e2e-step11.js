@@ -5,11 +5,11 @@ const Q = require('node:path').resolve(__dirname, '..').split(require('node:path
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') + m); };
 
-const PRIVACY = "Questling only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.";
+const PRIVACY = "Pensum only looks at the window you pick, only during a session. Frames are never saved to disk. Each look sends one frame of that window, its title, and (if you link a doc or use Word) the doc's text to Google Gemini; on the free tier Google may use it to improve its products. Window previews in the picker stay on this PC.";
 
 (async () => {
   const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
-  const env = { ...process.env, QUESTLING_TEST: '1', QUESTLING_MOCK: '1', QUESTLING_FAKE_IDLE_SEC: '0', QUESTLING_LEDGER_PATH: path.join(ud, 'u.jsonl') };
+  const env = { ...process.env, PENSUM_TEST: '1', PENSUM_MOCK: '1', PENSUM_FAKE_IDLE_SEC: '0', PENSUM_LEDGER_PATH: path.join(ud, 'u.jsonl') };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud], env });
   const page = await app.firstWindow();

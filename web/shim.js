@@ -1,10 +1,10 @@
-// Web demo shim: defines the same window.questling surface as preload.js, with no device access at all.
+// Web demo shim: defines the same window.pensum surface as preload.js, with no device access at all.
 // A fake 1280x800 desktop shows a staged sample; the scene bar scripts the signals the Electron main
 // process would send. look/makeQuests go to the rate-limited /api/model; on any non-200 the recorded
 // real answers (demo/recorded.json) are used and a tiny "(recorded)" tag is shown.
-// When the Electron preload already defined window.questling, this file does nothing.
+// When the Electron preload already defined window.pensum, this file does nothing.
 (() => {
-  if (window.questling) return;
+  if (window.pensum) return;
 
   const root = document.documentElement;
   root.classList.add('web');
@@ -51,7 +51,7 @@
     idleSec: 0, locked: false, ...o,
   });
 
-  window.questling = {
+  window.pensum = {
     async makeQuests(req) {
       try {
         const q = await post({ kind: 'quests', task: String(req.text || '').slice(0, 300) });

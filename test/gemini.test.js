@@ -67,7 +67,7 @@ test('callGemini: default timeout is 8 s (not the old 20 s)', async () => {
 });
 
 test('ai.quests: flash timeout/503 gets one retry on lite, 12 s timeout', async () => {
-  delete process.env.QUESTLING_MOCK;
+  delete process.env.PENSUM_MOCK;
   const ai = require('../ai.js');
   const models = [];
   const timeouts = [];
@@ -92,7 +92,7 @@ const lookReply = (text) => ({ ok: true, status: 200, json: async () => ({ candi
 const lookArgs = { purpose: 'stuck', jpegBase64: 'AAAA', quest: { title: 'Write intro', finish: 'intro exists' }, ctx: { task: 'essay', quests: [{ title: 'Write intro', done: false }] } };
 
 test('ai.look: returns a validated look; the prompt carries the injection guard and the image', async () => {
-  delete process.env.QUESTLING_MOCK;
+  delete process.env.PENSUM_MOCK;
   const ai = require('../ai.js');
   let body;
   globalThis.fetch = async (_u, init) => { body = JSON.parse(init.body); return lookReply(goodLook()); };
@@ -141,9 +141,9 @@ test('ai.look: unknown purpose is an error without a network call', async () => 
 });
 
 // --- Vercel limits come from the environment: 6 s, no retries ---
-test('env QUESTLING_TIMEOUT_MS / QUESTLING_RETRIES override the defaults (Vercel: 6 s, none)', async () => {
-  process.env.QUESTLING_TIMEOUT_MS = '6000';
-  process.env.QUESTLING_RETRIES = '0';
+test('env PENSUM_TIMEOUT_MS / PENSUM_RETRIES override the defaults (Vercel: 6 s, none)', async () => {
+  process.env.PENSUM_TIMEOUT_MS = '6000';
+  process.env.PENSUM_RETRIES = '0';
   try {
     let ms = null, calls = 0;
     const orig = AbortSignal.timeout;
@@ -152,25 +152,25 @@ test('env QUESTLING_TIMEOUT_MS / QUESTLING_RETRIES override the defaults (Vercel
     try { await assert.rejects(callGemini(args), (e) => e.status === 503); } finally { AbortSignal.timeout = orig; }
     assert.equal(ms, 6000);
     assert.equal(calls, 1, 'no retry');
-  } finally { delete process.env.QUESTLING_TIMEOUT_MS; delete process.env.QUESTLING_RETRIES; }
+  } finally { delete process.env.PENSUM_TIMEOUT_MS; delete process.env.PENSUM_RETRIES; }
 });
 
-test('ai.quests: with QUESTLING_RETRIES=0 a flash failure is NOT retried on lite (one call, then local fallback)', async () => {
-  process.env.QUESTLING_RETRIES = '0';
-  process.env.QUESTLING_TIMEOUT_MS = '6000';
+test('ai.quests: with PENSUM_RETRIES=0 a flash failure is NOT retried on lite (one call, then local fallback)', async () => {
+  process.env.PENSUM_RETRIES = '0';
+  process.env.PENSUM_TIMEOUT_MS = '6000';
   try {
-    delete process.env.QUESTLING_MOCK;
+    delete process.env.PENSUM_MOCK;
     const ai = require('../ai.js');
     let calls = 0;
     globalThis.fetch = async () => { calls++; return err(503); };
     const r = await ai.quests({ text: 'essay', now: '2026-10-02T09:00:00Z', tzOffset: 0 });
     assert.equal(calls, 1);
     assert.equal(r.fallback, true);
-  } finally { delete process.env.QUESTLING_RETRIES; delete process.env.QUESTLING_TIMEOUT_MS; }
+  } finally { delete process.env.PENSUM_RETRIES; delete process.env.PENSUM_TIMEOUT_MS; }
 });
 
 test('ai.look: the chosen window title goes into the prompt as untrusted data; absent title adds nothing', async () => {
-  delete process.env.QUESTLING_MOCK;
+  delete process.env.PENSUM_MOCK;
   const ai = require('../ai.js');
   ai.resetMemory();
   const prompts = [];
@@ -182,7 +182,7 @@ test('ai.look: the chosen window title goes into the prompt as untrusted data; a
 });
 
 test('output budgets: looks and quests send maxOutputTokens (a public route must not be a free long-form channel)', async () => {
-  delete process.env.QUESTLING_MOCK;
+  delete process.env.PENSUM_MOCK;
   const ai = require('../ai.js');
   const bodies = [];
   globalThis.fetch = async (_u, init) => {
