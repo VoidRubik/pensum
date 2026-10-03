@@ -7,10 +7,10 @@ const path = require('node:path');
 const CAP = 400000; // hard safety cap only; the model-facing cap (capMiddle) is applied in main
 const PS_HEAD = "[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ErrorActionPreference='Stop';";
 
-function ps(script, env = {}) {
+function ps(script, env = {}, timeoutMs = 8000) {
   return new Promise((resolve) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', PS_HEAD + script],
-      { env: { ...process.env, ...env }, timeout: 8000, windowsHide: true, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
+      { env: { ...process.env, ...env }, timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
       (err, stdout) => resolve(err ? null : stdout));
   });
 }
@@ -19,7 +19,7 @@ const cap = (t) => (t && t.trim() ? t.slice(0, CAP) : null);
 
 /** Unsaved live text of the active Word document (Word must be running). */
 async function wordLive() {
-  return cap(await ps("[Runtime.InteropServices.Marshal]::GetActiveObject('Word.Application').ActiveDocument.Content.Text"));
+  return cap(await ps("[Runtime.InteropServices.Marshal]::GetActiveObject('Word.Application').ActiveDocument.Content.Text", {}, 3000)); // probe measured ~300 ms; a miss falls back to the linked file
 }
 
 /** Text of a linked file. .docx is read through a shared-read stream so it works while Word has it open. */

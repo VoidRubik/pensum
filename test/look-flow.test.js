@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
 // artifact.js destructures execFile at load: mock it BEFORE the first require so Word probes are countable.
 const cp = require('node:child_process');
 const probes = [];
-mock.method(cp, 'execFile', (_f, args, _o, cb) => { probes.push(args.join(' ')); cb(new Error('no word'), ''); return { kill() {} }; });
+const probeTimeouts = [];
+mock.method(cp, 'execFile', (_f, args, o, cb) => { probes.push(args.join(' ')); probeTimeouts.push(o.timeout); cb(new Error('no word'), ''); return { kill() {} }; });
 const artifact = require('../artifact.js');
 const { lookFlow } = require('../look-flow.js');
 
@@ -105,6 +106,15 @@ test('artifact.getText: Word is probed only for a winword process — not for an
   assert.equal(probes.length, 0, 'no PowerShell/Word probe for non-Word windows: ' + probes.join(' | ').slice(0, 80));
   await artifact.getText({ focusProc: 'WINWORD', linkedPath: null });
   assert.equal(probes.length, 1, 'one probe for the Word window');
+});
+
+test('artifact.getText: the Word probe gives up after 3 s (a cold start that misses just falls back to the linked file); .docx keeps 8 s', async () => {
+  probeTimeouts.length = 0;
+  await artifact.getText({ focusProc: 'winword', linkedPath: null });
+  assert.deepEqual(probeTimeouts, [3000]);
+  probeTimeouts.length = 0;
+  await artifact.readFile('C:\nope\essay.docx');
+  assert.deepEqual(probeTimeouts, [8000]);
 });
 
 test('artifact.getText: a linked file still works for any picked window', async () => {
