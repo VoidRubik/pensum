@@ -36,7 +36,7 @@ real-hardware smoothness are in the Not done list. Every decision and caveat: `D
 ```
 npm install
 npm start          # the overlay; tray icon has Show/hide, Pause, Quit
-npm test           # node --test, 141 unit tests, zero deps
+npm test           # node --test, 159 unit tests, zero deps
 node web/build.js && node scripts/dev-server.js   # the web demo locally on :4173
 ```
 
@@ -93,18 +93,35 @@ screenshots in `evidence/ui-v2/`) · web e2e 20 (mock) · `scripts/contrast.js` 
 "takes a minute": the PowerShell tracker spawn blocked the main thread ~9 s at session start (fixed, 368 ms now).
 Numbers and before/after: `design/BASELINE.md`.
 
+## Polish night (2026-10-02)
+
+- **Move it anywhere:** drag the pet or the quest title (under 4 px stays a click). Main follows the cursor; the drop point picks the
+  dock (cursor above the work-area midpoint = top: the panel opens downward; else bottom: upward). Saved in `settings.json` in
+  the Electron userData folder; an unplugged monitor falls back to bottom-centre. Tray menu: Reset position.
+- **Size S / M / L** (0.85 / 1 / 1.3, native page zoom, the window scales with it) in the panel footer, or Ctrl+wheel over the bar.
+- **Theme Auto / Light / Dark** (`nativeTheme`, applied before the window loads) and **Shadows Soft / Flat** (renderer-only).
+- **Power-up on every confirmed quest** (pet + a bar aura, 3.6 s); a second quest inside that restarts it; the quest-done card opens
+  after lift-off. All quests done = the same power-up + the existing flare + the recap.
+- **Glance:** the pet turns curious at once (no text, no model call) when you switch to another app that is not allowed.
+- **Fixes:** B1 timeouts are not retried, B2 a 13 s client backstop on looks, B3 Word probe 3 s, B4 stale away-time after pause,
+  B5 dismissal budget lasts the session, B6 tone filter on confirm evidence, B7 switching quest closes the old card, B8 New task
+  while the picker answers, B9 a failed ledger write keeps the paid answer, B10 real window close (`scripts/e2e-realclose.js`).
+- Unit 159/159 · e2e `scripts/e2e-polish.js` 37, `e2e-bugs.js` 12, `e2e-review.js` 9, `e2e-realclose.js` 4 (real Notepad close: pet
+  asleep in 657 ms), step2 19, step5 24, step6 10, step8 17, step10 17, ui-v2 56, web 20 (local, key blanked).
+
 ## Not done
 
 - UI v2 on real hardware: all frame numbers are rAF deltas in this PC's Electron window, not the author's screen. First time a panel
-  screen appears there are 1-2 long frames (~50-110 ms, caused by the box-shadows; later opens are smooth).
+  screen appears there are 1-2 long frames (~50-110 ms, caused by the box-shadows; later opens are smooth). Footer switch
+  Shadows: Flat removes them (4 of 4 first opens: 0 frames > 20 ms; Soft: 9 over 4 runs).
 - UI v2 deferred/dropped: see `design/BASELINE.md` (no DesignSync re-diff of the Motion file, exit animations, friendly deadline text).
 - Real use on a real task; the daily-cap behaviour at 300 calls.
 - The public push, Vercel import and `check-live.js` / `e2e-web.js` against the live URL (blocked on the
   owner's OK and a billing-off key).
-- Claude Design art; packaging to `.exe`; autostart; Phase R research results.
-- Deferred minors (see `DECISIONS.md`): stale `offSince` after pause, re-pick resets the dismissal budget,
-  `toneOk` not applied to confirm-card evidence, an open card survives a quest switch, New task during the
-  picker await, no client-side look timeout.
+- Packaging to `.exe`; autostart; Phase R research results.
+- Polish night (2 Oct): drag/dock/size/theme/shadows/power-up/glance verified by scripted e2e and unit tests only. By hand still:
+  drag across two monitors with different DPI, Ctrl+wheel, tray "Reset position", releasing the mouse off the pet mid-drag.
+- Remaining deferred minors are listed in `DECISIONS.md` (the seven from the 1 Oct review, minus the ones fixed on 2 Oct).
 
 Brief: `brainstorms/brief-20260927-183530-questling.md` (revision 2026-09-30, helper pivot).
 Brain node: `brain/situational/memory/aipet.md`.
