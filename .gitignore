@@ -6,3 +6,4 @@ public/
 .impeccable/
 private/
 dist/
+.vercel

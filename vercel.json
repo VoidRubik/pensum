@@ -1,6 +1,6 @@
 {
-  "installCommand": "echo skip",
-  "buildCommand": "node web/build.js",
+  "installCommand": "npm ci --omit=dev",
+  "buildCommand": "npm run build",
   "outputDirectory": "public",
   "headers": [
     {
@@ -14,6 +14,8 @@
     }
   ],
   "functions": {
+    "api/pet.js": { "includeFiles": "{ai.js,gemini.js,ledger.js,logic.js}", "maxDuration": 15 },
+    "api/health.js": { "maxDuration": 5 },
     "api/model.js": {
       "includeFiles": "{demo/**,ai.js,gemini.js,ledger.js,logic.js}",
       "maxDuration": 10

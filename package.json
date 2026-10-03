@@ -17,6 +17,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
+    "build": "node web/build.js",
     "dist": "electron-builder --win portable"
   },
   "devDependencies": {
@@ -57,5 +58,10 @@
       "onlyLoadAppFromAsar": true,
       "enableEmbeddedAsarIntegrityValidation": true
     }
+  },
+  "dependencies": {
+    "@upstash/ratelimit": "2.2.0",
+    "@upstash/redis": "1.39.0",
+    "zod": "3.25.76"
   }
 }
