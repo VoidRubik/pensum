@@ -79,7 +79,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   // drift: local ask with chips, no model call, no scolding
   await page.click('.ql-demo-scenes >> text=Drift');
   await page.waitForSelector('#card:not(.hidden) #card-chips:not(.hidden)', { timeout: 5000 });
-  ok(/^Still on "/.test(await page.textContent('#card-title')), 'drift scene -> local ask with chips');
+  ok(/^This looks like /.test(await page.textContent('#card-title')), 'drift scene -> local ask with chips');
   await page.click('#card-chips >> text=research');
   ok(await page.isHidden('#card'), 'chip answers the ask');
   // back from a break: sleepy, then a re-entry card

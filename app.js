@@ -90,14 +90,18 @@
   $('bubble-x').addEventListener('click', () => { clearTimeout(bubbleTimer); $('bubble').classList.add('hidden'); });
 
   // --- action card: one at a time, above the bar ---
+  // Only the starter ("Tiny start") and drift ("Quick check") cards carry a tag. A title equal to its tag is hidden, not removed (tests read textContent).
+  function setTag(tag) {
+    $('card-tag').textContent = tag || '';
+    $('card-tag').classList.toggle('hidden', !tag);
+    $('card-title').classList.toggle('hidden', !!tag && tag === $('card-title').textContent);
+  }
   function showCard(spec) {
     clearInterval(stepTimer);
     card = spec;
     $('card').className = `ql-card ql-card--${spec.kind} solid`;
-    $('card-tag').textContent = spec.tag || '';
-    $('card-tag').classList.toggle('hidden', !spec.tag);
     $('card-title').textContent = spec.title;
-    $('card-title').classList.toggle('hidden', !!spec.tag && spec.tag === spec.title); // the tag already says it (textContent stays for tests)
+    setTag(spec.tag);
     $('card-body').textContent = spec.body || '';
     $('card-evidence').textContent = spec.evidence || '';
     $('card-evidence').classList.toggle('hidden', !spec.evidence);
@@ -562,7 +566,7 @@
     }) : null;
     drift = d.ask && bp !== 'drift' ? { ...drift, since: drift.since ?? s.ts } : d.state;
     if (bp === 'timebox') showTimebox();
-    else if (bp === 'drift') askDrift(`Still on "${state.quests[curIdx()].title}"?`);
+    else if (bp === 'drift') askDrift();
     else if (bp === 'stuck' || bp === 'idle') { lastOfferAt = s.ts; offerStep(); }
     if (returning && !card && !looking && !windowLost && !away && !breakMode && mayAuto()) runLook('reentry', {}, true);
     // Heartbeat: a change worth a look, or every 6 min. The renderer decides; main never calls the model alone.
@@ -596,17 +600,25 @@
   }
 
   // Soft drift ask. Local text only; the user answers with a chip, free text, or goes back to work.
-  function askDrift(title) {
+  // Primary = back to work (what we hope for); "It's on task" teaches the allow-list. From the window title we only ever see the process name.
+  const lowerFirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+  const friendly = (p) => { const n = String(p || '').replace(/\.exe$/i, ''); return n && n === n.toLowerCase() ? n.charAt(0).toUpperCase() + n.slice(1) : n; };
+  function driftLine(inWindow) {
+    const t = lowerFirst(state.quests[curIdx()].title);
+    if (inWindow || !lastFgProcess) return `That doesn't look like ${t}. Back to it?`;
+    return `This looks like ${friendly(lastFgProcess)}. Back to ${t}?`;
+  }
+  function askDrift(inWindow = false) {
     const i = curIdx();
     state.session.driftsAsked++;
     driftPending = true;
     save();
     showCard({
-      kind: 'ask', idx: i, title, body: '', unsolicited: true, chips: CHIPS,
-      primary: "I'm on task", quiet: 'Back to it',
+      kind: 'ask', idx: i, tag: 'Quick check', title: driftLine(inWindow), body: '', unsolicited: true, chips: CHIPS,
+      primary: 'Back on track', quiet: "It's on task",
       onChip: (label) => onTaskNote(label),
-      onPrimary: () => onTaskNote('on task'),
-      onQuiet: () => { hideCard(); },
+      onPrimary: () => { hideCard(); },
+      onQuiet: () => onTaskNote('on task'),
     });
   }
   function onTaskNote(note) {
@@ -710,7 +722,7 @@
       const fresh = activeMs(c.idx) === 0;
       showCard({ ...c, unsolicited: auto, primary: "Let's go", quiet: 'Later', onPrimary: fresh ? () => beginStarter(c.idx) : hideCard, onQuiet: hideCard });
     } else if (c.kind === 'ask') {
-      if (L.allowSpeak(speech, Date.now(), speechCapMs)) askDrift(c.title);
+      if (L.allowSpeak(speech, Date.now(), speechCapMs)) askDrift(true);
     } else if (c.kind === 'step') {
       showCard({
         ...c, primary: 'Start 2 min', quiet: 'Another idea',
@@ -721,12 +733,12 @@
   }
 
   // A local countdown on the card, no model call. --left (1 -> 0) drives the ring, mmss the label.
-  function runCountdown(totalMs, onDone) {
+  function runCountdown(totalMs, onDone, keepPrimary = false) {
     clearInterval(stepTimer);
     const total = L.dur(totalMs);
     const end = Date.now() + total;
     $('card-count').classList.remove('hidden');
-    $('card-primary').classList.add('hidden');
+    $('card-primary').classList.toggle('hidden', !keepPrimary);
     const tickCount = () => {
       const left = Math.max(0, end - Date.now());
       $('card-count-text').textContent = L.mmss(left);
@@ -746,15 +758,18 @@
     if (!state || allDone()) return;
     const idx = curIdx();
     showCard({
-      kind: 'starter', idx, title: 'Tiny start', body: state.starter, primary: 'Go', quiet: 'Not now',
+      kind: 'starter', idx, tag: 'Tiny start', title: 'Tiny start', body: state.starter, primary: 'Go', quiet: 'Not now',
       onPrimary: () => beginStarter(idx),
       onQuiet: hideCard,
     });
   }
   function beginStarter(idx) {
     $('card-title').textContent = 'Tiny start';
+    setTag('Tiny start');
     $('card-quiet').textContent = 'Skip';
-    runCountdown(STARTER_MS, () => askStarted(idx));
+    $('card-primary').textContent = 'Did it'; // finished early: the same exit as "Yes" below
+    card.onPrimary = () => { hideCard(); say('Nice. Keep going.'); };
+    runCountdown(STARTER_MS, () => askStarted(idx), true);
   }
   function askStarted(idx) {
     showCard({

@@ -51,7 +51,7 @@ const reach = {
   async windows(h) { await h.page.click('#start-btn'); await h.page.waitForSelector('.ql-window'); },
   async starter(h) { await h.page.click('.ql-window'); await h.page.click('#windows-start'); await h.page.waitForSelector('.ql-card--starter:not(.hidden)'); },
   async drift(h) {
-    if (await h.page.isVisible('.ql-card--starter')) await h.page.click('#card-quiet');
+    if (await h.page.isVisible('#card:not(.hidden)')) await h.page.click('#card-x');
     for (let i = 0; i < 25 && !(await h.page.isVisible('#card:not(.hidden) #card-chips:not(.hidden)')); i++) { await h.send({ onWork: false, fgProcess: 'chrome' }); await sleep(150); }
     await h.page.waitForSelector('#card-chips:not(.hidden)');
   },

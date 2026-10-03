@@ -30,6 +30,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') 
   ok((await page.textContent('#card-primary')) === 'Go', 'primary: Go');
   await page.click('#card-primary');
   ok(await page.isVisible('#card-count'), 'Go -> countdown ring shown');
+  ok((await page.textContent('#card-primary')) === 'Did it' && (await page.textContent('#card-quiet')) === 'Skip', 'while counting: Did it / Skip');
   ok(/^\d:\d\d$/.test(await page.textContent('#card-count-text')), 'label is m:ss');
   const left = await page.$eval('#card-count', (e) => e.style.getPropertyValue('--left'));
   ok(left !== '' && Number(left) <= 1, '--left drives the ring (' + left + ')');

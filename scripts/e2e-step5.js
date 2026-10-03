@@ -43,7 +43,9 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
   ok(!(await driftCard(page)), 'drift: no ask before 2 min (scaled)');
   await sleep(200);
   ok(await pushUntil(page, send, { onWork: false }), 'drift: ask appears once 2 min (scaled) have passed');
-  ok((await page.textContent('#card-title')).startsWith('Still on "'), 'drift ask: local template title');
+  ok(/^This looks like Chrome. Back to /.test(await page.textContent('#card-title')), 'drift ask: local template title');
+  ok((await page.textContent('#card-tag')) === 'Quick check', 'drift ask: tagged Quick check');
+  ok((await page.textContent('#card-primary')) === 'Back on track' && (await page.textContent('#card-quiet')) === "It's on task", 'drift ask: Back on track (primary) / the on-task answer');
   ok((await page.$$('#card-chips .ql-chip')).length === 3, 'drift ask: 3 chips (research / lecture for this / taking a break)');
   ok(await page.isVisible('#card-input'), 'drift ask: free-text field');
   ok(await page.getAttribute('main', 'data-pet-state') === 'curious', 'drift ask -> curious');
@@ -97,7 +99,7 @@ const driftCard = (page) => page.isVisible('#card:not(.hidden) #card-chips:not(.
   await sleep(300); await c.send({ onWork: true, fgProcess: 'notepad', changed: true });
   await c.page.waitForSelector('.ql-card--ask:not(.hidden)', { timeout: 4000 });
   const title = await c.page.textContent('#card-title');
-  ok(/^Still on "/.test(title) && !/mock/i.test(title), 'in-window drift: ask with local template title (' + title.slice(0, 30) + ')');
+  ok(/^That doesn't look like /.test(title) && !/mock/i.test(title), 'in-window drift: ask with local template title (' + title.slice(0, 30) + ')');
   ok(await c.page.$$eval('.ql-quest input[type=checkbox]', (x) => x.every((y) => !y.checked)), 'in-window drift completed nothing');
   await c.app.close();
 
