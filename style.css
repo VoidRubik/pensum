@@ -1,4 +1,4 @@
-/* Code-owned rules only: .hidden, .solid and the window layout (hand-off contract, DESIGN_PROMPT.md §9).
+/* Code-owned rules only: .hidden, .solid and the window layout (hand-off contract, design brief §9, kept private).
    The look (tokens, surfaces, type, motion) lives in ui.css; the pet in pet.css. */
 * { box-sizing: border-box; }
 .hidden { display: none !important; }

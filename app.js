@@ -66,7 +66,7 @@
   const nextTitle = () => state.quests[L.currentIdx({ current: null, done: doneFlags() })]?.title;
   const activeMs = (i) => (state.activeMs && state.activeMs[i]) || 0;
 
-  // --- pet: one base state, transient overrides. The 8 names are the DESIGN_PROMPT contract. ---
+  // --- pet: one base state, transient overrides. The 8 names are the design contract (see test/design-prompt.test.js). ---
   function applyPet() {
     main.dataset.petState = L.petStep({
       celebrating, looking, quietLook, cardKind: card ? card.kind : null,

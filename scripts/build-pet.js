@@ -169,7 +169,7 @@ const KEYFRAMES = `@keyframes q-breathe{0%,100%{transform:scale(1,1)}50%{transfo
 @keyframes q-glowBody{0%,24%{opacity:0}34%{opacity:.6}42%,80%{opacity:.3}94%,100%{opacity:0}}
 @keyframes q-z{0%{opacity:0;transform:translate(0,0) scale(.7)}25%{opacity:.9}80%{opacity:0;transform:translate(8px,-18px) scale(1.15)}100%{opacity:0;transform:translate(8px,-18px)}}`;
 
-// Selectors follow the DESIGN_PROMPT contract: the data attributes pick which state group shows.
+// Selectors follow the design contract: the data attributes pick which state group shows.
 const show = [['idle', 'a'], ['idle', 'b'], ['idle', 'c'], ['idle', 'd']]
   .map(([s, v]) => `main[data-pet-state="${s}"][data-idle="${v}"] .ps-idle_${v}`)
   .concat(['working', 'curious', 'thinking', 'helper', 'celebrate', 'sleepy', 'asleep'].map((s) => `main[data-pet-state="${s}"] .ps-${s}`));
