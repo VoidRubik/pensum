@@ -24,7 +24,12 @@ async function launch({ env: extra = {}, test = true } = {}) {
   const send = (o) => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('signal', s),
     { ts: Date.now(), changed: true, fgHwnd: 222, fgProcess: 'chrome', onWork: true, windowAlive: true, windowVisible: true, idleSec: 0, locked: false, ...o });
   const sizeCalls = () => app.evaluate(() => global.__sz);
-  const theme = (t) => app.evaluate(({ nativeTheme }, v) => { nativeTheme.themeSource = v; }, t);
+  // Playwright pins prefers-color-scheme to light by default; clearing it lets the REAL path (Electron nativeTheme) drive the page.
+  const theme = async (t) => {
+    await page.emulateMedia({ colorScheme: null });
+    await app.evaluate(({ nativeTheme }, v) => { nativeTheme.themeSource = v; }, t);
+    await page.waitForFunction((d) => matchMedia('(prefers-color-scheme: dark)').matches === d, t === 'dark');
+  };
   return { app, page, send, sizeCalls, theme, errs, readyMs, close: () => app.close() };
 }
 

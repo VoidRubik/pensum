@@ -10,6 +10,18 @@
 <link rel="stylesheet" href="pet.css">
 </head>
 <body>
+<svg class="ql-sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-check" viewBox="0 0 16 16"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 4v8l6.5-4z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16"><line x1="6" y1="4.5" x2="6" y2="11.5"/><line x1="10" y1="4.5" x2="10" y2="11.5"/></symbol>
+  <symbol id="i-chevron-up" viewBox="0 0 16 16"><polyline points="4 10 8 6 12 10"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 16 16"><polyline points="4 6 8 10 12 6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 2.5h5l3 3v8H4z"/><path d="M9 2.5v3h3"/></symbol>
+  <symbol id="i-footsteps" viewBox="0 0 16 16"><path d="M5 2c1.2 0 2 1.3 2 3 0 1.3-.6 2.2-1.6 2.2S3 6.3 3 5c0-1.7.8-3 2-3z"/><path d="M4.1 9.4h2.1v.9a1.05 1.05 0 0 1-2.1 0z"/><path d="M11 6.6c1.2 0 2 1.3 2 3 0 1.3-.6 2.2-1.6 2.2S9 10.9 9 9.6c0-1.7.8-3 2-3z"/><path d="M10.1 14h2.1v.4a1.05 1.05 0 0 1-2.1 0z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+</svg>
 <main class="ql" data-pet-state="idle" data-idle="a">
 
   <section id="panel" class="ql-panel solid hidden">
@@ -79,10 +91,10 @@
       <button id="card-primary" class="ql-btn ql-btn--primary"></button>
       <button id="card-quiet" class="ql-btn ql-btn--quiet"></button>
     </div>
-    <button id="card-x" class="ql-x" aria-label="dismiss">✕</button>
+    <button id="card-x" class="ql-x" aria-label="dismiss"><svg class="ql-ic" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
 
-  <div id="bubble" class="ql-bubble solid hidden"><p id="bubble-text"></p><button id="bubble-x" class="ql-x" aria-label="dismiss">✕</button></div>
+  <div id="bubble" class="ql-bubble solid hidden"><p id="bubble-text"></p><button id="bubble-x" class="ql-x" aria-label="dismiss"><svg class="ql-ic" aria-hidden="true"><use href="#i-x"/></svg></button></div>
 
   <section id="bar" class="ql-bar solid">
     <div class="ql-pet-slot">
@@ -106,10 +118,10 @@
     </div>
     <div id="disc" class="ql-disc" title="time left on this quest"></div>
     <span id="company" class="ql-company hidden" title="keeping you company"></span>
-    <button id="stuck-btn" class="ql-icon ql-icon--stuck hidden" aria-label="I'm stuck" title="I'm stuck">…?</button>
-    <button id="done-btn" class="ql-icon hidden" data-act="done" aria-label="Done" title="I'm done with this quest">✓</button>
-    <button id="pause-btn" class="ql-icon hidden" data-act="pause" aria-label="Pause" title="pause">❚❚</button>
-    <button id="toggle" class="ql-icon" data-act="open" aria-label="Open" title="open / close">▴</button>
+    <button id="stuck-btn" class="ql-icon ql-icon--stuck hidden" aria-label="I'm stuck" title="I'm stuck"><svg class="ql-ic" aria-hidden="true"><use href="#i-footsteps"/></svg></button>
+    <button id="done-btn" class="ql-icon hidden" data-act="done" aria-label="Done" title="I'm done with this quest"><svg class="ql-ic" aria-hidden="true"><use href="#i-check"/></svg></button>
+    <button id="pause-btn" class="ql-icon hidden" data-act="pause" data-state="off" aria-label="Pause" title="pause"><svg class="ql-ic ql-ic--when-on" aria-hidden="true"><use href="#i-pause"/></svg><svg class="ql-ic ql-ic--solid ql-ic--when-off" aria-hidden="true"><use href="#i-play"/></svg></button>
+    <button id="toggle" class="ql-icon" data-act="open" data-state="off" aria-label="Open" title="open / close"><svg class="ql-ic ql-ic--when-on" aria-hidden="true"><use href="#i-chevron-down"/></svg><svg class="ql-ic ql-ic--when-off" aria-hidden="true"><use href="#i-chevron-up"/></svg></button>
     <button id="repick" class="ql-btn ql-btn--primary ql-repick hidden">Pick window again</button>
   </section>
 

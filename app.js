@@ -137,8 +137,9 @@
     $('end-btn').classList.toggle('hidden', !sessionOn);
     $('stuck-btn').classList.toggle('hidden', !sessionOn || windowLost || allDone());
     $('pause-btn').classList.toggle('hidden', !state || allDone());
-    $('pause-btn').textContent = sessionOn ? '❚❚' : '▶';
+    $('pause-btn').dataset.state = sessionOn ? 'on' : 'off';
     $('pause-btn').title = sessionOn ? 'pause' : 'resume';
+    $('pause-btn').setAttribute('aria-label', sessionOn ? 'Pause' : 'Resume');
     $('company').classList.toggle('hidden', !sessionOn || windowLost);
     $('repick').classList.toggle('hidden', !(sessionOn && windowLost));
     $('bar').classList.toggle('is-complete', allDone());
@@ -210,7 +211,9 @@
   function setExpanded(on) {
     expanded = on;
     $('panel').classList.toggle('hidden', !on);
-    $('toggle').textContent = on ? '▾' : '▴';
+    $('toggle').dataset.state = on ? 'on' : 'off';
+    $('toggle').setAttribute('aria-label', on ? 'Close' : 'Open');
+    $('toggle').setAttribute('aria-expanded', String(on));
     if (on && !state) setTimeout(() => $('task-text').focus(), 50);
     if (on) refreshUsage();
   }
