@@ -5,7 +5,7 @@ const ledger = require('./ledger.js');
 const { validateQuests, validateLook, questFallback } = require('./logic.js');
 
 const QUEST_MODEL = () => process.env.GEMINI_MODEL || 'gemini-3.5-flash';
-// Every look uses lite: stuck/done latency measured 1.2-2.2 s (n=5, DECISIONS.md) vs 10-20 s on flash.
+// Every look uses lite: stuck/done latency measured 1.2-2.2 s (n=5) vs 10-20 s on flash.
 const LOOK_MODEL = () => process.env.GEMINI_CHECK_MODEL || 'gemini-3.5-flash-lite';
 
 const PERSONA = `You are Pensum, a small companion who works beside the user. English. Warm, brief, concrete.

@@ -1,5 +1,5 @@
 // Vercel build: copy ONLY the public renderer into public/ (the repo also holds main.js, .env-adjacent
-// files, DECISIONS.md, evidence/ ... none of which may be served). Required files must exist.
+// files, internal docs, evidence/ ... none of which may be served). Required files must exist.
 const fs = require('node:fs');
 const path = require('node:path');
 
