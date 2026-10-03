@@ -1,7 +1,6 @@
 // Web demo shim: defines the same window.pensum surface as preload.js, with no device access at all.
 // A fake 1280x800 desktop shows a staged sample; the scene bar scripts the signals the Electron main
-// process would send. look/makeQuests go to the rate-limited /api/model; on any non-200 the recorded
-// real answers (demo/recorded.json) are used and a tiny "(recorded)" tag is shown.
+// process would send. answers are the recorded real model answers (demo/recorded.json), always shown with a tiny "(recorded)" tag.
 // When the Electron preload already defined window.pensum, this file does nothing.
 (() => {
   if (window.pensum) return;
@@ -45,9 +44,10 @@
   }
 
   async function post(body) {
-    const r = await fetch('/api/model', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    if (!r.ok) throw Object.assign(new Error(`http ${r.status}`), { status: r.status });
-    return r.json();
+    // The demo makes no model calls: the old public /api/model route was removed so the only door to the key is the
+    // rate-limited /api/pet. Throwing here sends every answer to the labelled recordings.
+    void body;
+    throw new Error('recorded answers only');
   }
 
   const emit = (o = {}) => onSignalFn({

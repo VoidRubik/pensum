@@ -1,4 +1,4 @@
-// Local stand-in for Vercel: serves public/ and routes POST /api/model to api/model.js.
+// Local stand-in for Vercel: serves public/ and routes POST /api/pet to api/pet.js.
 //   node web/build.js && node scripts/dev-server.js [port]     (GEMINI_API_KEY from .env)
 const http = require('node:http');
 const fs = require('node:fs');
@@ -19,13 +19,13 @@ module.exports = { resolvePublic };
 
 if (require.main === module) {
 try { process.loadEnvFile(path.join(root, '.env')); } catch {}
-const handler = require(path.join(root, 'api', 'model.js'));
+const handler = require(path.join(root, 'api', 'pet.js'));
 const PORT = Number(process.argv[2]) || 4173;
 
 http.createServer((req, res) => {
   let url;
   try { url = new URL(req.url, 'http://x'); } catch { res.statusCode = 400; return res.end('bad request'); }
-  if (url.pathname === '/api/model') {
+  if (url.pathname === '/api/pet') {
     let raw = '';
     req.on('data', (d) => { raw += d; });
     req.on('end', () => {

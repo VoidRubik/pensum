@@ -25,18 +25,15 @@ function toBody(kind, a) {
 async function post(body, { base, fetch, timeoutMs = 10000 }) {
   const r = await fetch(`${base}/api/pet`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
   const j = await r.json().catch(() => null);
-  return { result: r.ok && j && j.ok ? j.result : null, status: r.status, retryMs: (Number(r.headers.get('retry-after')) || 0) * 1000 };
+  return { result: r.ok && j && j.ok ? j.result : null };
 }
-// A 429 keeps status/retryDelayMs so the renderer's existing back-off (logic.js nextInterval) slows auto-checks.
-const rateInfo = (p) => (p && p.status === 429 ? { status: 429, retryDelayMs: p.retryMs } : {});
 async function look(a, d) {
-  let p = null;
   try {
-    p = await post(toBody('look', { ...a, jpegBase64: d.resize(a.jpegBase64) }), d);
+    const p = await post(toBody('look', { ...a, jpegBase64: d.resize(a.jpegBase64) }), d);
     const ok = p.result && validateLook(p.result);
     if (ok) return ok;
   } catch {}
-  return { ...(await d.ai.look(a)), mock: true, ...rateInfo(p) }; // ai.look has no key here -> scripted mock
+  return { ...(await d.ai.look(a)), mock: true }; // ai.look has no key here -> scripted mock
 }
 async function quests(a, d) {
   try {

@@ -30,10 +30,6 @@ for (const [name, h] of [
   const v = await R.look(args, { base, ai: fakeAi, fetch: globalThis.fetch, resize: (b) => b });
   assert.equal(v.mock, true); assert.equal(v.nextStep, 'mock step');
 }));
-test('look: 429 passes status + retryDelayMs through for the back-off', () => withStub((q, s) => { s.writeHead(429, { 'content-type': 'application/json', 'retry-after': '30' }); s.end('{"fallback":"mock","reason":"rate"}'); }, async (base) => {
-  const v = await R.look(args, { base, ai: fakeAi, fetch: globalThis.fetch, resize: (b) => b });
-  assert.equal(v.mock, true); assert.equal(v.status, 429); assert.equal(v.retryDelayMs, 30000);
-}));
 test('look: hanging server -> mock within timeout', () => withStub(() => {}, async (base) => {
   const t0 = Date.now(); const v = await R.look(args, { base, ai: fakeAi, fetch: globalThis.fetch, resize: (b) => b, timeoutMs: 300 });
   assert.equal(v.mock, true); assert.ok(Date.now() - t0 < 2000);

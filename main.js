@@ -309,7 +309,7 @@ ipcMain.on('stop-session', () => stopSession());
 if (TEST) global.__qlState = () => ({ hasFrame: !!lastFrame, hasWork: !!work, sampling: !!sampler, lookCalls, lastGetText, linked: settings.linked, capture: settings.capture, protect: lastProtect });
 
 // Own Gemini key (optional): saved to <userData>/.env, never echoed back to the renderer.
-const KEY_RE = /^[A-Za-z0-9_-]{20,80}$/;
+const KEY_RE = /^[A-Za-z0-9._-]{20,80}$/;
 const userEnv = () => path.join(app.getPath('userData'), '.env');
 ipcMain.handle('set-key', (_e, k) => {
   if (typeof k !== 'string' || !KEY_RE.test(k.trim())) return { ok: false };

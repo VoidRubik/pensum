@@ -47,6 +47,7 @@
   let breakMode = false;
   let lastFgProcess = null;
   let speechCapMs = 300000; // web demo shortens it (info().speechCapMs)
+  let planGen = 0; // bumped by resetAll: a make-quests reply that lands after a reset is dropped
   let aiMode = 'mock'; // from info(): 'mock' | 'own-key' | 'live'
   const setMock = (on) => $('mock-badge').classList.toggle('hidden', !on);
   let lookTimeoutMs = 13000; // raw ms (not L.dur: e2e runs at time scale 600); main's own call gives up at 8 s, this is the backstop
@@ -455,8 +456,10 @@
     $('task-title').textContent = text;
     $('task-card').classList.add('is-busy');
     updateBar();
+    const myPlan = planGen;
     try {
       const data = await api.makeQuests({ text, now: new Date().toISOString(), tzOffset: new Date().getTimezoneOffset() });
+      if (myPlan !== planGen) return;
       setMock(data.mock === true);
       if (!data.quests) { say(data.pet_line || "couldn't make quests, try again"); return; }
       state = L.migrate({ text, quests: data.quests.map((q) => ({ ...q, done: false })), current: null, deadline_iso: data.deadline_iso, starter: data.starter, progress: 0, activeMs: {}, startedAt: null, fired: [], linked: null });
@@ -478,6 +481,7 @@
   });
 
   function resetAll() {
+    planGen++;
     stopSession();
     queuedLook = null;
     resetRules();

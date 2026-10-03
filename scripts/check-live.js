@@ -33,13 +33,13 @@ const NOT_PUBLIC = ['main.js', 'ai.js', 'gemini.js', 'capture.js', 'focus.js', '
 
   // hammer the route with invalid requests
   const codes = [];
-  for (let i = 0; i < 12; i++) {
-    const r = await fetch(`${BASE}/api/model`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'garbage' }) });
+  for (let i = 0; i < 17; i++) {
+    const r = await fetch(`${BASE}/api/pet`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'garbage' }) });
     codes.push(r.status);
   }
   const first429 = codes.indexOf(429) + 1;
   console.log('     route statuses:', codes.join(' '));
-  ok(first429 > 0 && first429 <= 12, `route answers 429 under hammering (first 429 on request ${first429})`);
+  ok(first429 > 0 && first429 <= 17, `route answers 429 under hammering (first 429 on request ${first429})`);
   ok(codes.slice(0, Math.max(0, first429 - 1)).every((c) => c === 400), 'requests before the limit are plain 400s (nothing reached the model)');
 
   console.log(`\n${pass} pass, ${fail} fail`);
