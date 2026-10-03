@@ -4,6 +4,7 @@ const path = require('node:path');
 const { summarizeUsage, dayKey } = require('./logic.js');
 
 let file = process.env.QUESTLING_LEDGER_PATH || null;
+const unsaved = []; // entries whose write failed
 function init(dir) { if (!file) file = path.join(dir, 'usage.jsonl'); }
 
 function append(entry) {
@@ -11,7 +12,10 @@ function append(entry) {
     if (typeof v === 'string' && v.length > 500) throw new Error('ledger: string too long (image data?)');
   }
   // A failed write must not discard an answer that was already paid for: only the image-data guard above throws.
-  if (file) try { fs.appendFileSync(file,JSON.stringify({ ts: Date.now(), ...entry }) + '\n'); } catch {}
+  // The call still counts toward the daily cap (kept in memory), so a full disk cannot switch the cap off.
+  if (!file) return;
+  const line = { ts: Date.now(), ...entry };
+  try { fs.appendFileSync(file, JSON.stringify(line) + '\n'); } catch { unsaved.push(line); }
 }
 
 function read() {
@@ -20,6 +24,6 @@ function read() {
   } catch { return []; }
 }
 
-const today = () => summarizeUsage(read(), dayKey(Date.now()));
+const today = () => summarizeUsage([...read(), ...unsaved], dayKey(Date.now()));
 
 module.exports = { init, append, read, today };

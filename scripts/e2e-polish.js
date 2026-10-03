@@ -62,11 +62,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.click('#size-switch [data-size=M]'); await settle();
 
   // --- dock top: panel opens downward, pet not clipped ---
-  await app.evaluate(() => global.__qlAnchor({ cx: 960, y: 12, dock: 'top' }));
+  await app.evaluate((_el, a) => global.__qlAnchor(a), { cx: wa.x + wa.width / 2, y: wa.y + 12, dock: 'top' });
   await settle();
   ok(await page.getAttribute('main', 'data-dock') === 'top', 'forced top anchor -> data-dock=top');
   b = await bounds();
-  ok(b.y === wa.y + 12 || b.y === wa.y, `top dock: window starts at the top edge (y=${b.y})`);
+  ok(b.y === wa.y + 12, `top dock: window starts at the top edge (y=${b.y})`);
   const geo = await page.evaluate(() => ({
     bar: document.getElementById('bar').getBoundingClientRect().top,
     panel: document.getElementById('panel').getBoundingClientRect().top,
@@ -74,12 +74,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   }));
   ok(geo.panel > geo.bar, `top dock: panel is below the bar (${Math.round(geo.panel)} > ${Math.round(geo.bar)})`);
   ok(geo.pet >= 0, `top dock: pet art not clipped by the window top (y=${Math.round(geo.pet)})`);
-  await app.evaluate(() => global.__qlAnchor({ cx: 960, y: 1028, dock: 'bottom' }));
+  await app.evaluate((_el, a) => global.__qlAnchor(a), { cx: wa.x + wa.width / 2, y: wa.y + wa.height - 12, dock: 'bottom' });
   await settle();
   ok(await page.getAttribute('main', 'data-dock') === 'bottom', 'back to bottom dock');
 
   // --- settings survive a restart ---
-  await app.evaluate(() => global.__qlAnchor({ cx: 700, y: 300, dock: 'top' }));
+  await app.evaluate((_el, a) => global.__qlAnchor(a), { cx: wa.x + 700, y: wa.y + 300, dock: 'top' });
   await settle();
   const before = await bounds();
   await app.close();
@@ -88,7 +88,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.waitForSelector('#bar');
   await settle();
   const after = await bounds();
-  ok(after.x === before.x && after.y === 300, 'position survives a restart (top edge at the saved y, same x; the tall panel had been clamped to the work area): ' + JSON.stringify([before, after]));
+  ok(after.x === before.x && after.y === wa.y + 300, 'position survives a restart (top edge at the saved y, same x; the tall panel had been clamped to the work area): ' + JSON.stringify([before, after]));
   ok(await page.getAttribute('main', 'data-dock') === 'top', 'dock survives a restart');
   await app.close();
 

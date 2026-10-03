@@ -97,7 +97,7 @@ Numbers and before/after: `design/BASELINE.md`.
 
 - **Move it anywhere:** drag the pet or the quest title (under 4 px stays a click). Main follows the cursor; the drop point picks the
   dock (cursor above the work-area midpoint = top: the panel opens downward; else bottom: upward). Saved in `settings.json` in
-  the Electron userData folder; an unplugged monitor falls back to bottom-centre. Tray menu: Reset position.
+  the Electron userData folder; a saved position on a monitor that is gone falls back to bottom-centre at the next start (while running, the window is clamped to the nearest display). Tray menu: Reset position.
 - **Size S / M / L** (0.85 / 1 / 1.3, native page zoom, the window scales with it) in the panel footer, or Ctrl+wheel over the bar.
 - **Theme Auto / Light / Dark** (`nativeTheme`, applied before the window loads) and **Shadows Soft / Flat** (renderer-only).
 - **Power-up on every confirmed quest** (pet + a bar aura, 3.6 s); a second quest inside that restarts it; the quest-done card opens
@@ -113,7 +113,8 @@ Numbers and before/after: `design/BASELINE.md`.
 
 - UI v2 on real hardware: all frame numbers are rAF deltas in this PC's Electron window, not the author's screen. First time a panel
   screen appears there are 1-2 long frames (~50-110 ms, caused by the box-shadows; later opens are smooth). Footer switch
-  Shadows: Flat removes them (4 of 4 first opens: 0 frames > 20 ms; Soft: 9 over 4 runs).
+  Shadows: Flat did NOT reliably remove them (3 runs of 4 first opens: Flat 0 / 4 / 7 frames over 20 ms, Soft 9 / 10 / 9; one clean
+  run was luck), so the long first frame is probably the window resize, not only the shadows. Not fixed.
 - UI v2 deferred/dropped: see `design/BASELINE.md` (no DesignSync re-diff of the Motion file, exit animations, friendly deadline text).
 - Real use on a real task; the daily-cap behaviour at 300 calls.
 - The public push, Vercel import and `check-live.js` / `e2e-web.js` against the live URL (blocked on the

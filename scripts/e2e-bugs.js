@@ -127,6 +127,16 @@ async function pushUntil(page, send, o, sel = '#card:not(.hidden) #card-chips:no
     await app.close();
   }
   {
+    const { app, page, mainState } = await launch({ QUESTLING_PICK_DELAY_MS: '1500' }, { start: false });
+    await page.click('#windows-start');
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('paused')); // tray Pause, mid-pick
+    await sleep(2200);
+    const st = await mainState();
+    ok(!st.hasWork && !st.sampling, `B8: tray Pause mid-pick -> the late pick does not start a session (${JSON.stringify({ hasWork: st.hasWork, sampling: st.sampling })})`);
+    ok(await page.getAttribute('main', 'data-pet-state') !== 'working', 'B8: the pet is not working after Pause');
+    await app.close();
+  }
+  {
     const { app, page, mainState } = await launch({ QUESTLING_PICK_DELAY_MS: '0' });
     await page.click('#pause-btn'); // paused, window remembered
     await sleep(200);

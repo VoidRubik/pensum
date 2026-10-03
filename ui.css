@@ -140,11 +140,11 @@ input:focus-visible { outline-offset: 0; }
   position: absolute;
   inset: -1px;
   border-radius: var(--ql-radius-pill);
-  box-shadow: 0 0 16px 6px var(--ql-flare);
+  box-shadow: 0 0 10px 2px var(--ql-flare); /* the glow plus the 1.03 scale must stay inside the 16 px window padding, or the window edge clips it */
   pointer-events: none;
   animation: q-barPulse 1.8s ease-out 2;
 }
-@keyframes q-barPulse { 0% { opacity: 0.9; transform: scale(0.96); } 100% { opacity: 0; transform: scale(1.1); } }
+@keyframes q-barPulse { 0% { opacity: 0.9; transform: scale(0.98); } 100% { opacity: 0; transform: scale(1.03); } }
 .ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-fill); box-shadow: var(--ql-glow); flex: none; }
 .ql-disc {
   width: 22px;

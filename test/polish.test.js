@@ -103,3 +103,28 @@ test('ledger.append: a write failure is swallowed, the image-data guard still th
   delete process.env.QUESTLING_LEDGER_PATH;
   delete require.cache[require.resolve('../ledger.js')];
 });
+
+// --- review fixes ---
+test('ledger: when the file cannot be written the daily cap still counts the calls (fail closed, not open)', () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  process.env.QUESTLING_LEDGER_PATH = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ledger-')); // a directory: every write fails
+  delete require.cache[require.resolve('../ledger.js')];
+  const ledger = require('../ledger.js');
+  for (let i = 0; i < 3; i++) ledger.append({ kind: 'look', model: 'm', promptTokens: 10 });
+  const t = ledger.today();
+  assert.equal(t.calls, 3);
+  assert.equal(t.tokens, 30);
+  delete process.env.QUESTLING_LEDGER_PATH;
+  delete require.cache[require.resolve('../ledger.js')];
+});
+test('anchorProbe: a bottom-dock anchor sits on the display edge, so probe one pixel inside it', () => {
+  assert.deepEqual(L.anchorProbe({ cx: 100, y: 1080, dock: 'bottom' }), { x: 100, y: 1079 });
+  assert.deepEqual(L.anchorProbe({ cx: 100, y: 20, dock: 'top' }), { x: 100, y: 20 });
+});
+test('dropAnchorY: when the dock flips the bar stays under the cursor', () => {
+  // top dock: bar top = y + (pad 16 + headroom 30) * z, cursor on the bar centre (33 * z)
+  assert.equal(L.dropAnchorY('top', 500, 1), 500 - (16 + 30 + 33));
+  assert.equal(L.dropAnchorY('top', 500, 2), 500 - 2 * (16 + 30 + 33));
+  // bottom dock: bar bottom = y - pad * z, cursor on the bar centre
+  assert.equal(L.dropAnchorY('bottom', 500, 1), 500 + 33 + 16);
+});

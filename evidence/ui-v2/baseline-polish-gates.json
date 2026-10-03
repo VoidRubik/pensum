@@ -1,0 +1,56 @@
+{
+ "flatFirstOpen": {
+  "runs": 4,
+  "totalOver20ms": 7,
+  "worstMax": 83.4
+ },
+ "softFirstOpen": {
+  "runs": 4,
+  "totalOver20ms": 9,
+  "worstMax": 83.5
+ },
+ "idle": {
+  "worstP95": 16.8,
+  "worstMax": 16.8
+ },
+ "celebrate": {
+  "worstP95": 16.8,
+  "worstMax": 16.9,
+  "runs": [
+   {
+    "frames": 90,
+    "mean": 16.7,
+    "p95": 16.8,
+    "max": 16.9,
+    "over20ms": 0
+   },
+   {
+    "frames": 90,
+    "mean": 16.7,
+    "p95": 16.8,
+    "max": 16.8,
+    "over20ms": 0
+   },
+   {
+    "frames": 90,
+    "mean": 16.7,
+    "p95": 16.8,
+    "max": 16.9,
+    "over20ms": 0
+   },
+   {
+    "frames": 90,
+    "mean": 16.7,
+    "p95": 16.8,
+    "max": 16.9,
+    "over20ms": 0
+   }
+  ]
+ },
+ "gates": {
+  "flatNoLongFrames": false,
+  "celebrateNoSlowerThanIdle": true,
+  "celebrateNoFrameOver33ms": true
+ },
+ "when": "2026-10-03T03:12:53.176Z"
+}

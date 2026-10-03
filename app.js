@@ -26,6 +26,7 @@
   let windowLost = false;
   let offWork = false; // foreground is a known process that is neither the work window nor on the allow-list: the pet glances over
   let away = false;
+  let pickGen = 0; // bumped by stopSession: a window pick that answers after a pause / New task is stale
   let epoch = 0; // bumped on pause/start/new task/quest change/checkbox; stale looks are dropped
   let sup = { suppress: {} }; // "not yet" suppression per quest
   let notYetNote = null;
@@ -276,12 +277,12 @@
   // Drag: the pet and the quest title move the overlay. Main follows the cursor (window is click-through, so no OS drag region).
   // Under 4 px of travel it stays a plain click.
   let drag = null; // { x, y, id, el, started }
-  function dragEnd() {
+  function dragEnd(cancel) {
     if (!drag) return;
     const was = drag;
     drag = null;
     main.classList.remove('is-dragging');
-    if (was.started) api.dragEnd();
+    if (was.started) api.dragEnd(cancel === true);
   }
   [document.querySelector('.ql-pet-slot'), document.querySelector('.ql-bar__mid')].forEach((el) => {
     el.addEventListener('pointerdown', (e) => {
@@ -296,10 +297,10 @@
       main.classList.add('is-dragging');
       api.dragStart();
     });
-    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => el.addEventListener(ev, dragEnd));
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => el.addEventListener(ev, () => dragEnd()));
   });
-  window.addEventListener('blur', dragEnd);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dragEnd(); });
+  window.addEventListener('blur', () => dragEnd());
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dragEnd(true); }); // Escape cancels: the overlay goes back
 
   document.addEventListener('mousemove', (e) => {
     if (drag?.started) return;
@@ -547,9 +548,9 @@
   });
 
   async function startWith(w) {
-    const s = state;
+    const s = state, g = pickGen;
     const r = await api.pickWindow(w.id);
-    if (state !== s) { api.stopSession(); return; } // New task while the picker answered: main just started a session for nothing
+    if (state !== s || pickGen !== g) { api.stopSession(); return; } // New task / Pause while the picker answered: main just started a session for nothing
     if (!r.ok) { say("that window is gone — pick another"); openPicker(); return; }
     work = { id: w.id, title: r.title || w.title };
     const repick = sessionOn; // picking again after the window was lost is not a new session
@@ -577,6 +578,7 @@
 
   function stopSession() {
     queuedLook = null;
+    pickGen++;
     sessionOn = false;
     breakMode = false;
     drift = { since: null, lastAskAt: null };
@@ -598,9 +600,9 @@
   async function resume() {
     if (!state) return;
     if (!work) { openPicker(); return; }
-    const s = state;
+    const s = state, g = pickGen;
     const r = await api.pickWindow(work.id);
-    if (state !== s) { api.stopSession(); return; }
+    if (state !== s || pickGen !== g) { api.stopSession(); return; }
     if (!r.ok) { openPicker(); return; }
     sessionOn = true;
     offWork = false;

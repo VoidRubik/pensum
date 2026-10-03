@@ -30,7 +30,7 @@ let settings = { anchor: null, size: 'M', theme: 'system' }; // settings.json in
 let lastCssH = BAR_H; // the renderer reports its content height in CSS px
 const zoom = () => L.SIZES[settings.size];
 const curAnchor = () => settings.anchor || L.defaultAnchor(screen.getPrimaryDisplay().workArea);
-const waFor = (a) => screen.getDisplayNearestPoint({ x: Math.round(a.cx), y: Math.round(a.y) }).workArea;
+const waFor = (a) => screen.getDisplayNearestPoint(L.anchorProbe(a)).workArea;
 
 function geom() {
   const a = curAnchor();
@@ -64,17 +64,26 @@ function saveSettings() {
 
 // --- drag: the window is click-through, so an OS drag region would eat clicks. The renderer says when a drag starts,
 // main follows the cursor with a fixed width/height (plain setPosition drifts the size across mixed-DPI monitors). ---
-let drag = null; // { timer, kill, offX, offY, w, h }
-function dragEnd() {
+let drag = null; // { timer, kill, offX, offY, w, h, start }
+function dragEnd(cancel) {
   if (!drag) return;
   clearInterval(drag.timer);
   clearTimeout(drag.kill);
   if (!win || win.isDestroyed()) { drag = null; return; }
+  if (cancel === true) { // Escape: back to where the drag started
+    const s = drag.start;
+    drag = null;
+    win.setBounds(s);
+    win.setIgnoreMouseEvents(false);
+    place();
+    return;
+  }
   const c = screen.getCursorScreenPoint();
   const b = win.getBounds();
   drag = null;
   const dock = L.dockFor(c.y, screen.getDisplayNearestPoint(c).workArea);
   const raw = L.anchorFrom({ x: b.x, y: b.y, w: b.width, h: b.height }, dock);
+  if (dock !== curAnchor().dock) raw.y = L.dropAnchorY(dock, c.y, zoom()); // the layout flips: keep the bar under the cursor
   const placed = L.placeWindow({ anchor: raw, w: b.width, h: b.height, wa: waFor(raw) });
   settings.anchor = L.anchorFrom({ x: placed.x, y: placed.y, w: placed.w, h: placed.h }, dock);
   saveSettings();
@@ -87,15 +96,15 @@ ipcMain.on('drag-start', () => {
   const b = win.getBounds();
   win.setIgnoreMouseEvents(false);
   drag = {
-    offX: c.x - b.x, offY: c.y - b.y, w: b.width, h: b.height,
+    offX: c.x - b.x, offY: c.y - b.y, w: b.width, h: b.height, start: b,
     timer: setInterval(() => {
       const p = screen.getCursorScreenPoint();
       win.setBounds({ x: p.x - drag.offX, y: p.y - drag.offY, width: drag.w, height: drag.h });
     }, 16),
-    kill: setTimeout(dragEnd, 30000),
+    kill: setTimeout(() => dragEnd(), 30000),
   };
 });
-ipcMain.on('drag-end', dragEnd);
+ipcMain.on('drag-end', (_e, cancel) => dragEnd(cancel));
 
 function createWindow() {
   win = new BrowserWindow({
@@ -117,7 +126,7 @@ function createWindow() {
   win.setIgnoreMouseEvents(true, { forward: true });
   win.webContents.on('did-finish-load', () => { win.webContents.setZoomFactor(zoom()); place(); });
   win.webContents.on('zoom-changed', (_e, dir) => setSize(L.stepSize(settings.size, dir)));
-  for (const ev of ['blur', 'hide', 'closed']) win.on(ev, dragEnd);
+  for (const ev of ['blur', 'hide', 'closed']) win.on(ev, () => dragEnd());
   win.loadFile('index.html');
   win.once('ready-to-show', () => win.showInactive());
 }
@@ -299,18 +308,18 @@ ipcMain.handle('link-work', async () => {
 });
 
 ipcMain.handle('usage', () => ({ ...ledger.today(), cap: DAILY_CAP() }));
-ipcMain.on('set-size', (_e, h) => { if (Number.isFinite(h)) place(h); });
+ipcMain.on('set-size', (_e, h) => { if (!Number.isFinite(h)) return; if (drag) lastCssH = h; else place(h); }); // the drag owns the bounds until it ends
 ipcMain.on('set-click-through', (_e, through) => { if (!drag) win.setIgnoreMouseEvents(!!through, { forward: true }); });
 // S/M/L: native zoom of the page, the window scales with it. ResizeObserver does not fire on zoom, so main re-places itself.
 function setSize(size) {
-  if (!L.SIZES[size] || size === settings.size) return;
+  if (!Object.hasOwn(L.SIZES, size) || size === settings.size) return;
   settings.size = size;
   saveSettings();
   win.webContents.setZoomFactor(zoom());
   place();
   win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
 }
-ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, lookTimeoutMs: Number(process.env.QUESTLING_LOOK_TIMEOUT_MS) || undefined, ...geom(), size: settings.size, theme: settings.theme }));
+ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, lookTimeoutMs: TEST ? Number(process.env.QUESTLING_LOOK_TIMEOUT_MS) || undefined : undefined, ...geom(), size: settings.size, theme: settings.theme }));
 ipcMain.on('set-pref', (_e, p) => {
   if (!p) return;
   if (typeof p.size === 'string') setSize(p.size);

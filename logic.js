@@ -437,6 +437,12 @@ const defaultAnchor = (wa) => ({ cx: Math.round(wa.x + wa.width / 2), y: wa.y + 
 const dockFor = (cursorY, wa) => (cursorY < wa.y + wa.height / 2 ? 'top' : 'bottom');
 /** bottom dock keeps the bottom edge (grows up); top dock keeps the top edge (grows down). */
 const anchorFrom = (b, dock) => ({ cx: Math.round(b.x + b.w / 2), y: dock === 'top' ? b.y : b.y + b.h, dock });
+/** The point that picks the display for an anchor. A bottom-dock anchor IS the display's bottom edge, which belongs to the display
+ * below on Windows (half-open rectangles), so probe one pixel inside it. */
+const anchorProbe = (a) => ({ x: Math.round(a.cx), y: Math.round(a.dock === 'bottom' ? a.y - 1 : a.y) });
+/** Anchor y after a drop that FLIPPED the dock: the layout flips (bar at the opposite end of the window), so aim the window at
+ * the cursor: it sits on the bar, whose centre is 33 css px from the bar's edge; 16 = window padding, 30 = pet headroom (top dock only). */
+const dropAnchorY = (dock, cursorY, z) => (dock === 'top' ? cursorY - (16 + 30 + 33) * z : cursorY + (33 + 16) * z);
 /** anchor + size -> bounds, always inside the work area. */
 function placeWindow({ anchor, w, h, wa }) {
   const W = Math.min(w, wa.width);
@@ -458,7 +464,7 @@ function sanitizeSettings(raw, workAreas) {
   };
 }
 
-const exported = { SIZES, stepSize, defaultAnchor, dockFor, anchorFrom, placeWindow, sanitizeSettings, computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+const exported = { anchorProbe, dropAnchorY, SIZES, stepSize, defaultAnchor, dockFor, anchorFrom, placeWindow, sanitizeSettings, computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).
