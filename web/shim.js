@@ -93,6 +93,11 @@
     async info() { return { mock: false, test: false, timeScale: 1, web: true, speechCapMs: 2500 }; },
     setSize() {},
     setClickThrough() {},
+    dragStart() {},
+    dragEnd() {},
+    setPref() {},
+    onGeom() {},
+    onPrefs() {},
     onPaused() {},
   };
 

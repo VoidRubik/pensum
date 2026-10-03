@@ -1,5 +1,6 @@
+const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, powerMonitor, dialog, Tray, Menu, nativeImage, nativeTheme } = require('electron');
 
 try { process.loadEnvFile(path.join(__dirname, '.env')); } catch {}
 const ai = require('./ai.js');
@@ -23,18 +24,78 @@ const SETTLE_MS = 3000; // ignore diffs right after a foreground change (title-b
 let win = null;
 let tray = null;
 
-// Bottom-center of the primary display, growing upward. The transparent window is click-through
-// except over the bar / bubble / panel (renderer toggles via set-click-through).
-function placeBottomCenter(height) {
-  const wa = screen.getPrimaryDisplay().workArea;
-  const h = Math.max(BAR_H, Math.min(MAX_H, wa.height - 24, Math.round(height)));
-  win.setBounds({
-    x: Math.round(wa.x + (wa.width - WIDTH) / 2),
-    y: wa.y + wa.height - h - 12,
-    width: WIDTH,
-    height: h,
-  });
+// --- placement: anchor { cx, y, dock } + size -> bounds (pure rules in logic.js) ---
+// The transparent window is click-through except over the bar / bubble / panel (renderer toggles via set-click-through).
+let settings = { anchor: null, size: 'M', theme: 'system' }; // settings.json in userData; loaded once the app is ready
+let lastCssH = BAR_H; // the renderer reports its content height in CSS px
+const zoom = () => L.SIZES[settings.size];
+const curAnchor = () => settings.anchor || L.defaultAnchor(screen.getPrimaryDisplay().workArea);
+const waFor = (a) => screen.getDisplayNearestPoint({ x: Math.round(a.cx), y: Math.round(a.y) }).workArea;
+
+function geom() {
+  const a = curAnchor();
+  return { dock: a.dock, maxH: Math.min(MAX_H, (waFor(a).height - 24) / zoom()) };
 }
+function place(cssH = lastCssH) {
+  if (!win || win.isDestroyed()) return;
+  lastCssH = cssH;
+  const z = zoom();
+  const a = curAnchor();
+  const wa = waFor(a);
+  const h = Math.max(Math.ceil(BAR_H * z), Math.min(Math.ceil(MAX_H * z), wa.height - 24, Math.ceil(cssH * z)));
+  const b = L.placeWindow({ anchor: a, w: Math.ceil(WIDTH * z), h, wa });
+  win.setBounds({ x: b.x, y: b.y, width: b.w, height: b.h });
+  win.webContents.send('geom', geom());
+}
+
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+function loadSettings() {
+  let raw = null;
+  try { raw = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch {}
+  settings = L.sanitizeSettings(raw, screen.getAllDisplays().map((d) => d.workArea));
+}
+function saveSettings() {
+  try {
+    const tmp = settingsFile() + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(settings));
+    fs.renameSync(tmp, settingsFile());
+  } catch {} // a failed save only loses the preference
+}
+
+// --- drag: the window is click-through, so an OS drag region would eat clicks. The renderer says when a drag starts,
+// main follows the cursor with a fixed width/height (plain setPosition drifts the size across mixed-DPI monitors). ---
+let drag = null; // { timer, kill, offX, offY, w, h }
+function dragEnd() {
+  if (!drag) return;
+  clearInterval(drag.timer);
+  clearTimeout(drag.kill);
+  if (!win || win.isDestroyed()) { drag = null; return; }
+  const c = screen.getCursorScreenPoint();
+  const b = win.getBounds();
+  drag = null;
+  const dock = L.dockFor(c.y, screen.getDisplayNearestPoint(c).workArea);
+  const raw = L.anchorFrom({ x: b.x, y: b.y, w: b.width, h: b.height }, dock);
+  const placed = L.placeWindow({ anchor: raw, w: b.width, h: b.height, wa: waFor(raw) });
+  settings.anchor = L.anchorFrom({ x: placed.x, y: placed.y, w: placed.w, h: placed.h }, dock);
+  saveSettings();
+  win.setIgnoreMouseEvents(false); // until the next mousemove decides
+  place();
+}
+ipcMain.on('drag-start', () => {
+  if (drag || !win) return;
+  const c = screen.getCursorScreenPoint();
+  const b = win.getBounds();
+  win.setIgnoreMouseEvents(false);
+  drag = {
+    offX: c.x - b.x, offY: c.y - b.y, w: b.width, h: b.height,
+    timer: setInterval(() => {
+      const p = screen.getCursorScreenPoint();
+      win.setBounds({ x: p.x - drag.offX, y: p.y - drag.offY, width: drag.w, height: drag.h });
+    }, 16),
+    kill: setTimeout(dragEnd, 30000),
+  };
+});
+ipcMain.on('drag-end', dragEnd);
 
 function createWindow() {
   win = new BrowserWindow({
@@ -51,8 +112,12 @@ function createWindow() {
   win.setAlwaysOnTop(true, 'screen-saver');
   // Keeps the pet out of any screenshot. (Playwright/CDP page.screenshot is unaffected.)
   win.setContentProtection(true);
-  placeBottomCenter(BAR_H);
+  Menu.setApplicationMenu(null); // no Ctrl+/- menu zoom: size is the S/M/L switch and Ctrl+wheel
+  place(BAR_H);
   win.setIgnoreMouseEvents(true, { forward: true });
+  win.webContents.on('did-finish-load', () => { win.webContents.setZoomFactor(zoom()); place(); });
+  win.webContents.on('zoom-changed', (_e, dir) => setSize(L.stepSize(settings.size, dir)));
+  for (const ev of ['blur', 'hide', 'closed']) win.on(ev, dragEnd);
   win.loadFile('index.html');
   win.once('ready-to-show', () => win.showInactive());
 }
@@ -75,6 +140,7 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show / hide', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
     { label: 'Pause', click: () => { stopSession(); win.webContents.send('paused'); } },
+    { label: 'Reset position', click: () => { settings.anchor = null; saveSettings(); place(); } },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
@@ -228,16 +294,35 @@ ipcMain.handle('link-work', async () => {
 });
 
 ipcMain.handle('usage', () => ({ ...ledger.today(), cap: DAILY_CAP() }));
-ipcMain.on('set-size', (_e, h) => { if (Number.isFinite(h)) placeBottomCenter(h); });
-ipcMain.on('set-click-through', (_e, through) => win.setIgnoreMouseEvents(!!through, { forward: true }));
-ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, maxH: MAX_H }));
+ipcMain.on('set-size', (_e, h) => { if (Number.isFinite(h)) place(h); });
+ipcMain.on('set-click-through', (_e, through) => { if (!drag) win.setIgnoreMouseEvents(!!through, { forward: true }); });
+// S/M/L: native zoom of the page, the window scales with it. ResizeObserver does not fire on zoom, so main re-places itself.
+function setSize(size) {
+  if (!L.SIZES[size] || size === settings.size) return;
+  settings.size = size;
+  saveSettings();
+  win.webContents.setZoomFactor(zoom());
+  place();
+  win.webContents.send('prefs', { size: settings.size, theme: settings.theme });
+}
+ipcMain.handle('info', () => ({ mock: ai.isMock(), test: TEST, timeScale: Number(process.env.QUESTLING_TIME_SCALE) || 1, ...geom(), size: settings.size, theme: settings.theme }));
+ipcMain.on('set-pref', (_e, p) => { if (p && typeof p.size === 'string') setSize(p.size); });
+
+// Test hooks: force an anchor / read the window bounds (Playwright cannot move the OS cursor).
+if (TEST) {
+  global.__qlAnchor = (a) => { settings.anchor = a; saveSettings(); place(); };
+  global.__qlBounds = () => win.getBounds();
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.whenReady().then(() => {
     ledger.init(app.getPath('userData'));
-    powerMonitor.on('lock-screen', () => { locked = true; emit(); });
+    loadSettings();
+    const replace = () => place();
+    for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(ev, replace);
+    powerMonitor.on('lock-screen', () => { dragEnd(); locked = true; emit(); });
     powerMonitor.on('unlock-screen', () => { locked = false; emit(); });
     createWindow();
     createTray();

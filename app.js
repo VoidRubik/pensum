@@ -95,6 +95,13 @@
   }));
   try { const saved = localStorage.getItem(PET_KEY); if (saved === 'tuck' || saved === 'kip') setPet(saved); } catch {}
 
+  // Size S/M/L lives in main (native zoom + window bounds); the switch only reflects it. Electron only.
+  function showPrefs(p) {
+    document.querySelectorAll('#size-switch [data-size]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.size === p.size)));
+  }
+  document.querySelectorAll('#size-switch [data-size]').forEach((b) => b.addEventListener('click', () => api.setPref({ size: b.dataset.size })));
+  api.onPrefs(showPrefs);
+
   // Idle never loops identically: a random variant every 7-16 s at a slightly different speed (only while idle).
   function scheduleIdle() {
     setTimeout(() => {
@@ -240,7 +247,36 @@
   ['panel', 'card', 'bubble', 'bar'].forEach((id) => ro.observe($(id)));
 
   let through = true;
+  // Drag: the pet and the quest title move the overlay. Main follows the cursor (window is click-through, so no OS drag region).
+  // Under 4 px of travel it stays a plain click.
+  let drag = null; // { x, y, id, el, started }
+  function dragEnd() {
+    if (!drag) return;
+    const was = drag;
+    drag = null;
+    main.classList.remove('is-dragging');
+    if (was.started) api.dragEnd();
+  }
+  [document.querySelector('.ql-pet-slot'), document.querySelector('.ql-bar__mid')].forEach((el) => {
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || drag) return;
+      drag = { x: e.clientX, y: e.clientY, id: e.pointerId, el, started: false };
+      try { el.setPointerCapture(e.pointerId); } catch {}
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag || drag.started || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return;
+      drag.started = true;
+      through = false;
+      main.classList.add('is-dragging');
+      api.dragStart();
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => el.addEventListener(ev, dragEnd));
+  });
+  window.addEventListener('blur', dragEnd);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dragEnd(); });
+
   document.addEventListener('mousemove', (e) => {
+    if (drag?.started) return;
     const solid = !!e.target.closest('.solid');
     if (solid === through) { through = !solid; api.setClickThrough(through); }
   });
@@ -898,8 +934,20 @@
     if (r.speak) say(NUDGE_LINES[r.speak]);
   }
 
-  api.info().then(({ mock, timeScale, speechCapMs: cap, maxH, web }) => {
-    winMax = web ? window.innerHeight - 24 : Math.min(maxH || 780, screen.availHeight - 24);
+  // Main owns placement: it pushes the dock edge and the tallest window that fits the work area (CSS px) after every place.
+  function applyGeom(g) {
+    if (!g) return;
+    main.dataset.dock = g.dock;
+    winMax = g.maxH;
+    requestAnimationFrame(fit);
+  }
+  api.onGeom(applyGeom);
+
+  api.info().then(({ mock, timeScale, speechCapMs: cap, maxH, dock, size, theme, web }) => {
+    if (web) winMax = window.innerHeight - 24;
+    else applyGeom({ dock, maxH });
+    $('size-row').classList.toggle('hidden', !!web);
+    if (!web) showPrefs({ size, theme });
     requestAnimationFrame(fit);
     L.setTimeScale(timeScale);
     if (cap) speechCapMs = cap;

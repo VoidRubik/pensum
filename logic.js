@@ -425,7 +425,40 @@ function nextInterval(base, { status, perDay, retryDelayMs } = {}) {
   return Math.min(15 * 60000, Math.max(retryDelayMs || 0, 2 * base));
 }
 
-const exported = { computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
+// --- window placement (main.js): the overlay is anchored by its centre x and the edge it grows away from ---
+const SIZES = { S: 0.85, M: 1, L: 1.3 };
+const SIZE_ORDER = ['S', 'M', 'L'];
+const stepSize = (size, dir) => {
+  const i = SIZE_ORDER.indexOf(size) === -1 ? 1 : SIZE_ORDER.indexOf(size);
+  return SIZE_ORDER[clamp(i + (dir === 'in' ? 1 : -1), 0, 2)];
+};
+const defaultAnchor = (wa) => ({ cx: Math.round(wa.x + wa.width / 2), y: wa.y + wa.height - 12, dock: 'bottom' });
+/** Dock from where the cursor was released (not the window centre: the window is tall while the panel is open). */
+const dockFor = (cursorY, wa) => (cursorY < wa.y + wa.height / 2 ? 'top' : 'bottom');
+/** bottom dock keeps the bottom edge (grows up); top dock keeps the top edge (grows down). */
+const anchorFrom = (b, dock) => ({ cx: Math.round(b.x + b.w / 2), y: dock === 'top' ? b.y : b.y + b.h, dock });
+/** anchor + size -> bounds, always inside the work area. */
+function placeWindow({ anchor, w, h, wa }) {
+  const W = Math.min(w, wa.width);
+  const H = Math.min(h, wa.height);
+  const x = clamp(Math.round(anchor.cx - W / 2), wa.x, wa.x + wa.width - W);
+  const y = clamp(anchor.dock === 'top' ? anchor.y : anchor.y - H, wa.y, wa.y + wa.height - H);
+  return { x, y, w: W, h: H };
+}
+/** settings.json -> safe values. workAreas = every display's work area; an anchor on none of them (unplugged monitor) is dropped. */
+function sanitizeSettings(raw, workAreas) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const a = r.anchor;
+  const on = a && Number.isFinite(a.cx) && Number.isFinite(a.y) && (a.dock === 'top' || a.dock === 'bottom')
+    && workAreas.some((w) => a.cx >= w.x && a.cx <= w.x + w.width && a.y >= w.y && a.y <= w.y + w.height);
+  return {
+    anchor: on ? { cx: a.cx, y: a.y, dock: a.dock } : null,
+    size: SIZE_ORDER.includes(r.size) ? r.size : 'M',
+    theme: ['system', 'light', 'dark'].includes(r.theme) ? r.theme : 'system',
+  };
+}
+
+const exported = { SIZES, stepSize, defaultAnchor, dockFor, anchorFrom, placeWindow, sanitizeSettings, computeProgress, validateQuests, questFallback, safeText, toneOk, freshLine, validateLook, gateLook, applyLook, diffFraction, dur, setTimeScale, lookDue, stepWindow, recap, windowLabel, fitSummary, fmtMin, fmtActive, statsFor, bumpStat, discLeft, timeboxDue, nextQuestIdx, PET_STATES, IDLE_VARIANTS, petStep, pickIdle, idleDelay, idleSpeed, mmss, reentryTrigger, freshFrame, allowMatches, addAllow, driftStep, allowSpeak, breakpoint, migrate, STARTER_DEFAULT, isStale, proposeStep, notYet, currentIdx, redactTitle, focusSummary, shouldSkip, artifactDigest, capMiddle, nudgeDue, summarizeUsage, rateGate, nextInterval, dayKey };
 
 // Dual CommonJS (main process, node --test) / browser global (renderer via
 // a plain <script> tag — no build step, no bundler).

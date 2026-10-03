@@ -23,3 +23,11 @@ main.ql {
 
 /* .solid = the surfaces that catch clicks (the rest of the window is click-through) */
 .solid { pointer-events: auto; }
+
+/* Drag handles (app.js): the pet and the quest title move the whole overlay. */
+.ql-pet-slot, .ql-bar__mid { cursor: grab; touch-action: none; }
+.ql.is-dragging .ql-pet-slot, .ql.is-dragging .ql-bar__mid { cursor: grabbing; }
+
+/* Docked at the top of the screen: stack upside down so the bar stays at the window edge and the rest grows downward.
+   The extra top padding is the pet headroom that the bottom dock gets from the bar's own bottom position (art overflows ~25 px, power-up ~18 more). */
+.ql[data-dock="top"] { flex-direction: column-reverse; padding-top: calc(var(--ql-pad) + 30px); }

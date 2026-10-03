@@ -13,5 +13,10 @@ contextBridge.exposeInMainWorld('questling', {
   info: () => ipcRenderer.invoke('info'),
   setSize: (h) => ipcRenderer.send('set-size', h),
   setClickThrough: (on) => ipcRenderer.send('set-click-through', on),
+  dragStart: () => ipcRenderer.send('drag-start'),
+  dragEnd: () => ipcRenderer.send('drag-end'),
+  setPref: (p) => ipcRenderer.send('set-pref', p),
+  onGeom: (fn) => ipcRenderer.on('geom', (_e, g) => fn(g)),
+  onPrefs: (fn) => ipcRenderer.on('prefs', (_e, p) => fn(p)),
   onPaused: (fn) => ipcRenderer.on('paused', () => fn()),
 });
