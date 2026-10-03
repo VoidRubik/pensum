@@ -269,7 +269,7 @@ test('allowSpeak: one unsolicited line per 5 min; two dismissals silence the ses
   assert.equal(L.allowSpeak({ lastSpokeAt: null, dismissed: 0 }, 1), true, 'nothing spoken yet');
 });
 
-test('allowSpeak: the cap is a parameter (web demo uses a short one)', () => {
+test('allowSpeak: the cap is a parameter (callers can pass a short one)', () => {
   assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 0 }, 7000, 8000), false);
   assert.equal(L.allowSpeak({ lastSpokeAt: 0, dismissed: 0 }, 8000, 8000), true);
 });

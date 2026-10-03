@@ -17,7 +17,6 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "build": "node web/build.js",
     "dist": "electron-builder --win portable"
   },
   "devDependencies": {
@@ -48,7 +47,6 @@
       "style.css",
       "ui.css",
       "pet.css",
-      "web/shim.js",
       "package.json"
     ],
     "win": {

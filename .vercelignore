@@ -1,16 +1,10 @@
 /*
 !api
-!web
-!demo
+!site
 !ai.js
 !gemini.js
 !ledger.js
 !logic.js
-!index.html
-!app.js
-!style.css
-!ui.css
-!pet.css
 !package.json
 !package-lock.json
 !vercel.json

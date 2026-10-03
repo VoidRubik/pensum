@@ -46,7 +46,7 @@
   let speech = { lastSpokeAt: null, dismissed: 0 }; // unsolicited-speech budget (logic.allowSpeak)
   let breakMode = false;
   let lastFgProcess = null;
-  let speechCapMs = 300000; // web demo shortens it (info().speechCapMs)
+  let speechCapMs = 300000; // info().speechCapMs can shorten it
   let planGen = 0; // bumped by resetAll: a make-quests reply that lands after a reset is dropped
   let aiMode = 'mock'; // from info(): 'mock' | 'own-key' | 'live'
   const setMock = (on) => $('mock-badge').classList.toggle('hidden', !on);
@@ -1026,20 +1026,16 @@
   }
   api.onGeom(applyGeom);
 
-  api.info().then(({ mock, timeScale, speechCapMs: cap, lookTimeoutMs: lt, maxH, dock, size, theme, web, aiMode: am }) => {
+  api.info().then(({ mock, timeScale, speechCapMs: cap, lookTimeoutMs: lt, maxH, dock, size, theme, aiMode: am }) => {
     if (am) aiMode = am;
-    if (web) winMax = window.innerHeight - 24;
-    else applyGeom({ dock, maxH });
-    $('size-row').classList.toggle('hidden', !!web);
-    $('theme-row').classList.toggle('hidden', !!web);
-    if (!web) showPrefs({ size, theme });
+    applyGeom({ dock, maxH });
+    showPrefs({ size, theme });
     requestAnimationFrame(fit);
     L.setTimeScale(timeScale);
     if (cap) speechCapMs = cap;
     if (lt) lookTimeoutMs = lt;
     setMock(mock);
-    $('key-form').classList.toggle('hidden', !!web);
-    if (!web) refreshKey();
+    refreshKey();
     setInterval(tick, L.dur(30000));
     scheduleIdle();
   });

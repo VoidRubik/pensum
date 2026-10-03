@@ -1,4 +1,4 @@
-// The exe's and the web demo's only door to the model. Key lives in this function's env only.
+// The exe's only door to the model. Key lives in this function's env only.
 // Order: method -> per-IP limit (counts invalid spam too) -> content-type -> strict schema -> key
 //        -> global daily budget (valid bodies only) -> one model call.
 // Every failure the client can recover from is { fallback:'mock' }. Never logs bodies.

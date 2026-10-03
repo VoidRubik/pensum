@@ -13,7 +13,6 @@ real task by its author).
 ## Try it
 
 - **Windows:** [download Pensum 1.0.0 (portable exe)](https://github.com/VoidRubik/pensum/releases/latest). Double-click, no install, no admin, live AI with no setup.
-- **Mac / Linux:** [web demo (simulated desktop)](https://DOMAIN_TBD.vercel.app)
 - **Video:** VIDEO LINK
 
 Windows may warn because the app is unsigned → **More info → Run anyway.** The first launch takes a few seconds
@@ -32,7 +31,7 @@ Windows may warn because the app is unsigned → **More info → Run anyway.** T
 - Frames are **never saved**. Each look sends one frame of the window you picked, its title (private-window, password and banking words dropped), and nothing else, to Google Gemini **through the Pensum server** for that one answer. With your own key (Settings → gear) the app calls Gemini directly and may also send the text of a document you link or have open in Word.
 - **On the free tier Google may use what it receives to improve its products, and humans may review it.**
 - The Pensum server keeps no request bodies and does not log them. Its rate limiter stores your IP address as a counter key, which expires within a day.
-- The usage ledger on your PC stores only model, token counts, timing and status. Pause and End session clear the chosen window, the sampler and the in-memory frame. The web demo reads no screen at all.
+- The usage ledger on your PC stores only model, token counts, timing and status. Pause and End session clear the chosen window, the sampler and the in-memory frame.
 - By default the overlay is hidden from screenshots and screen recordings (content protection); the tray toggle "Hide from screen recordings" turns that off, for example to record a demo. Frames sent to Gemini come only from the picked window, so the overlay is never in them either way.
 - Hardening: sandboxed renderer with context isolation, navigation / new-window / permission requests denied, the main process reads only document files you chose in the link dialog, PowerShell helpers get no API keys.
 
@@ -44,21 +43,13 @@ Models: `gemini-3.5-flash-lite` through the Pensum server (plans and looks). Wit
 
 ## Why desktop
 
-Pensum looks at the one real window you pick, and follows which app is in front, so it can notice you wandered off without ever screenshotting your other apps. A browser tab can't do that. The web demo is therefore a labelled simulation.
-
-## Real vs simulated
-
-| Piece | Windows exe | Web demo |
-|---|---|---|
-| Window capture | real | staged sample image |
-| AI answers | live through the server; a visible **MOCK MODE** badge appears when it is rate-limited or offline | simulated desktop; answers are recordings tagged "(recorded)" |
-| Desktop | your real one | fake |
+Pensum looks at the one real window you pick, and follows which app is in front, so it can notice you wandered off without ever screenshotting your other apps. A browser tab can't do that, which is why Pensum is a Windows desktop app with no web version.
 
 ## Limits
 
 The server allows 15 requests per minute and 150 per day per IP, plus a global daily budget (`PENSUM_GLOBAL_DAY`, set to 70% of the model's free-tier requests per day; the exact free-tier figure was not verified at the time of writing). When a limit is hit the app keeps working in MOCK MODE.
 
-Known limits: the desktop app is Windows-only (window capture and focus tracking use Win32 and PowerShell); free-tier Gemini latency has long tails (up to 16 s), looks time out and the app carries on; not yet verified: use on a real, long task and multi-monitor drag with different DPI.
+Known limits: the app is Windows-only (window capture and focus tracking use Win32 and PowerShell); free-tier Gemini latency has long tails (up to 16 s), looks time out and the app carries on; not yet verified: use on a real, long task and multi-monitor drag with different DPI.
 
 ## Run locally
 
@@ -97,7 +88,7 @@ Built Sep 26 – Oct 4, 2026 for LovHack S3. Every library, service and template
 3. Google Gemini API, `gemini-3.5-flash`: quests with your own key
 4. Google Gemini API, `gemini-3.5-flash-lite`: looks, and plans through the server
 5. Google AI Studio free-tier key
-6. Vercel: static demo plus serverless functions
+6. Vercel: serverless functions and a one-page landing
 7. Upstash Redis and `@upstash/ratelimit` / `@upstash/redis`: shared rate limits
 8. zod: strict request validation
 9. Playwright (`playwright-core`, `_electron`) for the end-to-end tests

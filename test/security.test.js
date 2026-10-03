@@ -1,4 +1,4 @@
-// Ship-prep hardening: linked-file allow-list, child-process env scrub, Vercel headers, dev-server path guard.
+// Ship-prep hardening: linked-file allow-list, child-process env scrub, Vercel headers.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -55,16 +55,4 @@ test('vercel.json sets the security headers on every path', () => {
   assert.equal(h['Content-Security-Policy'], "frame-ancestors 'none'");
 });
 
-test('dev-server resolvePublic: stays inside public/, null on traversal, sibling prefix, malformed or NUL input', () => {
-  const { resolvePublic } = require('../scripts/dev-server.js');
-  const pub = path.join(root, 'public');
-  assert.equal(resolvePublic(root, '/'), path.join(pub, 'index.html'));
-  assert.equal(resolvePublic(root, '/app.js'), path.join(pub, 'app.js'));
-  assert.equal(resolvePublic(root, '/a%20b.js'), path.join(pub, 'a b.js'));
-  assert.equal(resolvePublic(root, '/../package.json'), null);
-  assert.equal(resolvePublic(root, '/%2e%2e/package.json'), null);
-  if (process.platform === 'win32') assert.equal(resolvePublic(root, '/..%5cpackage.json'), null, 'backslash traversal (a plain filename character elsewhere)');
-  assert.equal(resolvePublic(root, '/../public-secret/x'), null, 'a sibling that merely shares the prefix');
-  assert.equal(resolvePublic(root, '/%E0%A4%A'), null, 'malformed percent-escape does not throw');
-  assert.equal(resolvePublic(root, '/a%00b'), null);
-});
+
