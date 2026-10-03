@@ -2,6 +2,9 @@
 // changes, and {work:{alive,visible}} when the chosen work window (QL_WORK) is closed/minimized/restored.
 // Events live in a ring buffer in memory only — window titles never touch disk.
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { focusSummary } = require('./logic.js');
 
 const PS = `
@@ -46,9 +49,20 @@ let onEvent = () => {};
 let onWorkState = () => {};
 let workHwnd = 0;
 
+// -File, not -EncodedCommand: spawning powershell with the ~4.7 KB encoded command blocked the main thread ~5 s on
+// this machine (measured 2026-10-02: 5022 ms vs 23 ms), twice per session start (start + the setWork respawn).
+let script = null;
+function scriptFile() {
+  if (!script) {
+    script = path.join(os.tmpdir(), `questling-focus-${process.pid}.ps1`);
+    fs.writeFileSync(script, PS);
+    process.once('exit', () => { try { fs.unlinkSync(script); } catch {} });
+  }
+  return script;
+}
+
 function spawnChild() {
-  const enc = Buffer.from(PS, 'utf16le').toString('base64');
-  const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc],
+  const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptFile()],
     { windowsHide: true, env: { ...process.env, QL_PARENT: String(process.pid), QL_WORK: String(workHwnd) } });
   child = c;
   let buf = '';
