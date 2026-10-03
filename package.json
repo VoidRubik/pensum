@@ -25,7 +25,7 @@
     "playwright-core": "^1.63.0"
   },
   "pensum": {
-    "apiBase": "https://PENSUM-DOMAIN-TBD.vercel.app"
+    "apiBase": "https://pensum-eight.vercel.app"
   },
   "build": {
     "appId": "app.pensum",
