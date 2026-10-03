@@ -363,6 +363,22 @@ input:focus-visible { outline-offset: 0; }
 .ql-privacy__line .ql-ic { margin-top: 1px; color: var(--ql-muted); }
 .ql-note .ql-link-btn { display: inline; padding: 0; font-size: 12px; color: var(--ql-accent-text); text-decoration: underline; }
 
+/* 07 quest done, 08 all done */
+.ql-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ql-stat { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: var(--ql-radius-card); box-shadow: var(--ql-sunken); }
+.ql-stat__v { font-size: 22px; font-weight: 600; }
+.ql-next { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--ql-radius-card); box-shadow: var(--ql-raised); }
+.ql-next__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ql-next__title { font-size: 14px; font-weight: 600; }
+.ql-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ql-checks li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.ql-check { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--ql-fill); color: var(--ql-on-fill); box-shadow: var(--ql-glow); }
+.ql-check .ql-ic { width: 10px; height: 10px; stroke-width: 2.4; }
+.ql-recap__stats { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 12px 14px; border-radius: var(--ql-radius-card); box-shadow: var(--ql-sunken); font-size: 12px; }
+.ql-recap__stats div { display: flex; gap: 6px; }
+.ql-recap__stats dd { order: -1; margin: 0; color: var(--ql-ink); font-weight: 600; }
+.ql-recap__stats dt { color: var(--ql-muted); text-transform: lowercase; }
+
 @media (prefers-reduced-motion: reduce) {
   .ql-seg__glint { animation: none; }
   .ql-bar.is-complete::after { animation: none; opacity: 0.5; }

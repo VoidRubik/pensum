@@ -18,9 +18,11 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
     window.__states = [];
     window.__idle = [];
     window.__speeds = [];
+    window.__combo = []; // petState/idle pairs, to catch a hop that lasts 2 ms at time scale 600
     const m = document.querySelector('main');
     new MutationObserver((recs) => recs.forEach((r) => {
       if (r.attributeName === 'data-pet-state') window.__states.push(m.dataset.petState);
+      if (r.attributeName === 'data-pet-state' || r.attributeName === 'data-idle') window.__combo.push(m.dataset.petState + '/' + m.dataset.idle);
       if (r.attributeName === 'data-idle') window.__idle.push(m.dataset.idle);
       if (r.attributeName === 'style') window.__speeds.push(m.style.getPropertyValue('--speed'));
     })).observe(m, { attributes: true });
@@ -49,12 +51,20 @@ const STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebrate',
   await page.click('#card-x');
   await page.click('#done-btn');                                     // thinking -> curious (confirm)
   await page.waitForSelector('.ql-card--confirm:not(.hidden)');
-  await page.click('#card-primary');                                 // celebrate
-  await page.waitForFunction(() => window.__states.includes('celebrate'));
+  await page.evaluate(() => { window.__combo.length = 0; });
+  await page.click('#card-primary');                                 // quest confirmed -> the hop (idle variant c), not a celebration
+  await page.waitForSelector('#quest-done:not(.hidden)');
+  ok((await page.evaluate(() => window.__combo)).includes('idle/c'), 'quest confirmed -> idle with data-idle=c (the hop): ' + (await page.evaluate(() => window.__combo.join(' > '))));
+  ok(!(await page.evaluate(() => window.__states.includes('celebrate'))), 'one quest of three is not a celebration');
+  await page.waitForFunction(() => document.querySelector('main').dataset.petState === 'working', null, { timeout: 4000 });
+  ok(true, 'the hop ends and the pet is back to working');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('signal', { ts: Date.now(), changed: false, fgHwnd: 0, fgProcess: null, onWork: false, windowAlive: false, windowVisible: false, idleSec: 0, locked: false }));
   await page.waitForFunction(() => window.__states.includes('asleep'));   // window lost
   await page.click('#pause-btn');                                    // sleepy
   await page.waitForFunction(() => window.__states.includes('sleepy'));
+  // all quests done -> celebrate (the power-up)
+  await page.evaluate(() => { for (let i = 0; i < 3; i++) { const b = [...document.querySelectorAll('.ql-quest input[type=checkbox]')].find((x) => !x.checked); if (b) b.click(); } }); // the list re-renders after each tick, so look again
+  await page.waitForFunction(() => window.__states.includes('celebrate'));
   const seen = await page.evaluate(() => [...new Set(window.__states)]);
   ok(STATES.every((s) => seen.includes(s)), 'all 8 states reached through the UI: ' + seen.join(', '));
   ok(seen.every((s) => STATES.includes(s)), 'no state outside the contract names');

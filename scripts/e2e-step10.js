@@ -47,6 +47,11 @@ async function completeCurrent(page) {
     await page.waitForSelector('.ql-card--reentry:not(.hidden)', { timeout: 3000 }); // back after >= 3 min (scaled) off the work window
     await page.click('#card-quiet');
     await completeCurrent(page);
+    await page.waitForSelector('#quest-done:not(.hidden)');
+    ok(/^Quest 1 of 3 done/.test(await page.textContent('#qd-tag')), 'quest confirmed -> the quest-done card: ' + await page.textContent('#qd-tag'));
+    ok((await page.textContent('#qd-drifts')) === '1' && (await page.textContent('#qd-back')) === '1' && (await page.textContent('#qd-stuck')) === '1', 'quest-done card: drifts / back / stuck = 1 / 1 / 1');
+    ok(/^d+m$|^<1m$/.test(await page.textContent('#qd-min')) && (await page.textContent('#qd-next')).length > 0, 'quest-done card: minutes + up next: ' + await page.textContent('#qd-min') + ' / ' + await page.textContent('#qd-next'));
+    await page.click('#qd-start');
     await page.click('#toggle');
     ok(await page.isVisible('#end-btn'), 'End session visible while a session runs');
     ok(await page.isHidden('#start-btn'), 'Start hidden while a session runs');

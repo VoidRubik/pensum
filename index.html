@@ -68,19 +68,43 @@
       <p id="link-name" class="ql-note"></p>
     </div>
 
-    <div id="recap" class="ql-recap hidden">
-      <p id="recap-praise" class="ql-recap__praise"></p>
-      <ul id="recap-list" class="ql-recap__list"></ul>
-      <dl class="ql-recap__stats">
-        <dt>Done</dt><dd id="rs-done"></dd>
-        <dt>On quest</dt><dd id="rs-min"></dd>
-        <dt>Drifts caught</dt><dd id="rs-drifts"></dd>
-        <dt>Back on track</dt><dd id="rs-back"></dd>
-        <dt>Stuck steps used</dt><dd id="rs-stuck"></dd>
+    <div id="quest-done" class="ql-stack hidden">
+      <div class="ql-head__text">
+        <span id="qd-tag" class="ql-tag"></span>
+        <h3 id="qd-title" class="ql-title"></h3>
+      </div>
+      <div class="ql-stats">
+        <div class="ql-stat"><span class="ql-meta">On quest</span><span id="qd-min" class="ql-stat__v ql-mono"></span></div>
+        <div class="ql-stat"><span class="ql-meta">Drifts caught</span><span id="qd-drifts" class="ql-stat__v ql-mono"></span></div>
+        <div class="ql-stat"><span class="ql-meta">Back on track</span><span id="qd-back" class="ql-stat__v ql-mono"></span></div>
+        <div class="ql-stat"><span class="ql-meta">Stuck steps</span><span id="qd-stuck" class="ql-stat__v ql-mono"></span></div>
+      </div>
+      <div class="ql-next">
+        <div class="ql-next__text"><span class="ql-meta">Up next</span><span id="qd-next" class="ql-next__title"></span></div>
+        <span id="qd-next-min" class="ql-pill"></span>
+      </div>
+      <div class="ql-row">
+        <button id="qd-start" class="ql-btn ql-btn--primary">Start next quest</button>
+        <button id="qd-break" class="ql-btn ql-btn--quiet">Break</button>
+      </div>
+    </div>
+
+    <div id="recap" class="ql-stack hidden">
+      <div class="ql-head__text">
+        <span id="recap-tag" class="ql-tag hidden"></span>
+        <h3 id="recap-praise" class="ql-title"></h3>
+      </div>
+      <ul id="recap-list" class="ql-checks"></ul>
+      <dl class="ql-recap__stats ql-mono">
+        <div><dt>Done</dt><dd id="rs-done"></dd></div>
+        <div><dt>On quest</dt><dd id="rs-min"></dd></div>
+        <div><dt>Drifts caught</dt><dd id="rs-drifts"></dd></div>
+        <div><dt>Back on track</dt><dd id="rs-back"></dd></div>
+        <div><dt>Stuck steps used</dt><dd id="rs-stuck"></dd></div>
       </dl>
       <div class="ql-row">
-        <button id="recap-close" class="ql-btn ql-btn--primary">Back to quests</button>
-        <button id="recap-new" class="ql-btn ql-btn--quiet">New task</button>
+        <button id="recap-new" class="ql-btn ql-btn--primary">New task</button>
+        <button id="recap-close" class="ql-btn ql-btn--quiet">Close</button>
       </div>
     </div>
 

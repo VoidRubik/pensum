@@ -33,6 +33,7 @@
   let card = null; // { kind, idx, onPrimary, onQuiet }
   let celebrating = false;
   let busy = false; // the quests are being made (screen 02)
+  let hopping = false; // a quest was just confirmed: idle variant c (the hop) for ~1.2 s
   let lastSig = 0;
   let lastChangeAt = 0;
   let lastOfferAt = 0;
@@ -66,14 +67,15 @@
   function applyPet() {
     main.dataset.petState = L.petStep({
       celebrating, looking, quietLook, cardKind: card ? card.kind : null,
-      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy,
+      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy, hopping,
     });
+    if (hopping) main.dataset.idle = 'c';
   }
 
   // Idle never loops identically: a random variant every 7-16 s at a slightly different speed (only while idle).
   function scheduleIdle() {
     setTimeout(() => {
-      if (main.dataset.petState === 'idle') {
+      if (main.dataset.petState === 'idle' && !hopping) {
         main.dataset.idle = L.pickIdle(main.dataset.idle, Math.random());
         main.style.setProperty('--speed', L.idleSpeed(Math.random()).toFixed(2));
       }
@@ -88,6 +90,12 @@
     bubbleTimer = setTimeout(() => $('bubble').classList.add('hidden'), BUBBLE_MS);
   }
   $('bubble-x').addEventListener('click', () => { clearTimeout(bubbleTimer); $('bubble').classList.add('hidden'); });
+
+  function hop() {
+    hopping = true;
+    applyPet();
+    setTimeout(() => { hopping = false; applyPet(); }, L.dur(1200));
+  }
 
   // --- action card: one at a time, above the bar ---
   // Only the starter ("Tiny start") and drift ("Quick check") cards carry a tag. A title equal to its tag is hidden, not removed (tests read textContent).
@@ -216,6 +224,7 @@
 
   function setExpanded(on) {
     expanded = on;
+    if (!on && part === 'questdone') showPanelPart('quests'); // never reopen on a stale quest-done screen
     $('panel').classList.toggle('hidden', !on);
     $('toggle').dataset.state = on ? 'on' : 'off';
     $('toggle').setAttribute('aria-label', on ? 'Close' : 'Open');
@@ -231,11 +240,14 @@
   }
 
   // --- panel: onboarding, quests, window picker ---
+  let part = 'task';
   function showPanelPart(name) {
+    part = name;
     $('task-card').classList.toggle('hidden', name !== 'task');
     $('quest-card').classList.toggle('hidden', name !== 'quests');
     $('windows').classList.toggle('hidden', name !== 'windows');
     $('recap').classList.toggle('hidden', name !== 'recap');
+    $('quest-done').classList.toggle('hidden', name !== 'questdone');
     $('privacy').classList.toggle('hidden', name !== 'task' && name !== 'windows'); // the capture notice sits where capture is introduced
   }
 
@@ -326,7 +338,7 @@
     if (card && card.idx === i) hideCard();
     renderQuests();
     save();
-    if (!finishIfAllDone() && checked) say(`Quest done! Next: ${nextTitle()}`);
+    if (!finishIfAllDone() && checked) { hop(); say(`Quest done! Next: ${nextTitle()}`); }
   }
 
   function openQuests() {
@@ -465,7 +477,7 @@
     changedSinceLook = false;
     drift = { since: null, lastAskAt: null };
     speech = { lastSpokeAt: null, dismissed: 0 };
-    if (!repick) { state.session = { ...state.session, driftsAsked: 0, backOnTrack: 0, stuckUsed: 0 }; save(); }
+    if (!repick) { state.session = { ...state.session, driftsAsked: 0, backOnTrack: 0, stuckUsed: 0 }; state.questStats = {}; save(); }
     showPanelPart('quests');
     setExpanded(false);
     updateBar();
@@ -545,7 +557,7 @@
       updateBar();
     }
     if (s.fgProcess) lastFgProcess = s.fgProcess;
-    if (driftPending && s.onWork) { driftPending = false; state.session.backOnTrack++; save(); }
+    if (driftPending && s.onWork) { driftPending = false; state.session.backOnTrack++; state.questStats = L.bumpStat(state.questStats, curIdx(), 'back'); save(); }
     if (breakMode && s.onWork && s.idleSec < 10 && !away && !windowLost) endBreak();
 
     if (!s.onWork) offSince = offSince ?? s.ts;
@@ -611,6 +623,7 @@
   function askDrift(inWindow = false) {
     const i = curIdx();
     state.session.driftsAsked++;
+    state.questStats = L.bumpStat(state.questStats, i, 'drifts');
     driftPending = true;
     save();
     showCard({
@@ -699,7 +712,7 @@
     }
     const r = L.applyLook({ quests: state.quests, idx: i, purpose, auto, sup, starter: state.starter, activeMs: activeMs(i) }, v);
     sup = r.sup;
-    if (r.card && r.card.kind === 'step') { state.session.stuckUsed++; save(); }
+    if (r.card && r.card.kind === 'step') { state.session.stuckUsed++; state.questStats = L.bumpStat(state.questStats, i, 'stuck'); save(); }
     if (r.card && auto && !L.allowSpeak(speech, Date.now(), speechCapMs)) applyPet();
     else if (r.card) showStepOrConfirm(r.card, auto);
     else applyPet();
@@ -789,20 +802,42 @@
     epoch++;
     renderQuests();
     save();
-    if (!finishIfAllDone()) {
-      celebrating = true;
-      applyPet();
-      setTimeout(() => { celebrating = false; applyPet(); }, L.dur(3600));
-      say(`Quest done! Next: ${nextTitle()}`);
-    }
+    if (!finishIfAllDone()) { hop(); showQuestDone(i); }
   }
+
+  // Screen 07: this quest's numbers (counters are per quest), what is up next, and two ways on.
+  function showQuestDone(i) {
+    const st = L.statsFor(state.questStats, i);
+    const n = curIdx(); // the quest the bar now shows
+    $('qd-tag').textContent = `Quest ${i + 1} of ${state.quests.length} done`;
+    $('qd-title').textContent = state.quests[i].title;
+    $('qd-min').textContent = L.fmtActive(activeMs(i));
+    $('qd-drifts').textContent = String(st.drifts);
+    $('qd-back').textContent = String(st.back);
+    $('qd-stuck').textContent = String(st.stuck);
+    $('qd-next').textContent = state.quests[n].title;
+    $('qd-next-min').textContent = `${state.quests[n].minutes}m`;
+    showPanelPart('questdone');
+    setExpanded(true);
+  }
+  $('qd-start').addEventListener('click', () => { setExpanded(false); if (!sessionOn) resume(); });
+  $('qd-break').addEventListener('click', () => { setExpanded(false); startBreak(); });
 
   // End-of-session summary in the panel (planned vs done, minutes on quest, drifts caught, back on track, stuck steps) + one praise line.
   function showRecap() {
-    const r = L.recap({ quests: state.quests, activeMs: state.activeMs, session: state.session });
+    const r = L.recap({ quests: state.quests, activeMs: state.activeMs, session: state.session, questStats: state.questStats });
     $('recap-praise').textContent = r.praise;
+    $('recap-tag').textContent = r.done === r.planned ? `All ${r.planned} quests done` : '';
+    $('recap-tag').classList.toggle('hidden', r.done !== r.planned);
     $('recap-list').innerHTML = '';
-    r.doneTitles.forEach((t) => { const li = document.createElement('li'); li.textContent = t; $('recap-list').appendChild(li); });
+    r.doneTitles.forEach((t) => {
+      const li = document.createElement('li');
+      li.insertAdjacentHTML('afterbegin', '<span class="ql-check"><svg class="ql-ic" aria-hidden="true"><use href="#i-check"/></svg></span>');
+      const span = document.createElement('span');
+      span.textContent = t;
+      li.appendChild(span);
+      $('recap-list').appendChild(li);
+    });
     $('rs-done').textContent = `${r.done} of ${r.planned}`;
     $('rs-min').textContent = `${r.minutes} min`;
     $('rs-drifts').textContent = String(r.drifts);
@@ -810,7 +845,6 @@
     $('rs-stuck').textContent = String(r.stuck);
     showPanelPart('recap');
     setExpanded(true);
-    say(r.praise);
   }
   $('end-btn').addEventListener('click', () => { hideCard(); stopSession(); showRecap(); });
   $('recap-close').addEventListener('click', () => { if (state) openQuests(); else showPanelPart('task'); });
