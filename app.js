@@ -33,7 +33,7 @@
   let card = null; // { kind, idx, onPrimary, onQuiet }
   let celebrating = false;
   let busy = false; // the quests are being made (screen 02)
-  let hopping = false; // a quest was just confirmed: idle variant c (the hop) for ~1.2 s
+  let powerTimer = null; // the power-up (celebrate) in progress
   let lastSig = 0;
   let lastChangeAt = 0;
   let lastOfferAt = 0;
@@ -67,9 +67,9 @@
   function applyPet() {
     main.dataset.petState = L.petStep({
       celebrating, looking, quietLook, cardKind: card ? card.kind : null,
-      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy, hopping,
+      sessionOn, hasTask: !!state, breakMode, windowLost, away, busy,
     });
-    if (hopping) main.dataset.idle = 'c';
+    $('bar').classList.toggle('is-powered', celebrating); // the bar's own aura rides the same 3.6 s
   }
 
   // Two pets, one on screen: the active <svg class="pet"> lives in the slot, the other in <template id="pet-<name>"> (not rendered,
@@ -105,7 +105,7 @@
   // Idle never loops identically: a random variant every 7-16 s at a slightly different speed (only while idle).
   function scheduleIdle() {
     setTimeout(() => {
-      if (main.dataset.petState === 'idle' && !hopping) {
+      if (main.dataset.petState === 'idle') {
         main.dataset.idle = L.pickIdle(main.dataset.idle, Math.random());
         main.style.setProperty('--speed', L.idleSpeed(Math.random()).toFixed(2));
       }
@@ -121,10 +121,20 @@
   }
   $('bubble-x').addEventListener('click', () => { clearTimeout(bubbleTimer); $('bubble').classList.add('hidden'); });
 
-  function hop() {
-    hopping = true;
+  // Power-up on every confirmed quest (all-done too). A second quest inside 3.6 s restarts it: drop `celebrating` for two
+  // frames so the CSS animation starts over, never cut short by the first timer.
+  function powerUp() {
+    clearTimeout(powerTimer);
+    const restart = celebrating;
+    const go = () => {
+      celebrating = true;
+      applyPet();
+      powerTimer = setTimeout(() => { celebrating = false; applyPet(); }, L.dur(3600));
+    };
+    if (!restart) return go();
+    celebrating = false;
     applyPet();
-    setTimeout(() => { hopping = false; applyPet(); }, L.dur(1200));
+    requestAnimationFrame(() => requestAnimationFrame(go));
   }
 
   // --- action card: one at a time, above the bar ---
@@ -397,7 +407,7 @@
     if (card && card.idx === i) hideCard();
     renderQuests();
     save();
-    if (!finishIfAllDone() && checked) { hop(); say(`Quest done! Next: ${nextTitle()}`); }
+    if (!finishIfAllDone() && checked) { powerUp(); say(`Quest done! Next: ${nextTitle()}`); }
   }
 
   function openQuests() {
@@ -861,7 +871,11 @@
     epoch++;
     renderQuests();
     save();
-    if (!finishIfAllDone()) { hop(); showQuestDone(i); }
+    if (finishIfAllDone()) return;
+    powerUp();
+    const e = epoch;
+    setTimeout(() => { if (epoch === e && state) showQuestDone(i); }, L.dur(1200)); // the card opens after lift-off, not over the lifting pet
+
   }
 
   // Screen 07: this quest's numbers (counters are per quest), what is up next, and two ways on.
@@ -913,9 +927,7 @@
     if (!allDone()) return false;
     hideCard();
     if (sessionOn) stopSession();
-    celebrating = true;
-    applyPet();
-    setTimeout(() => { celebrating = false; applyPet(); }, L.dur(3600));
+    powerUp();
     showRecap();
     return true;
   }

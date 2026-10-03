@@ -189,11 +189,10 @@ const PET_STATES = ['idle', 'working', 'curious', 'thinking', 'helper', 'celebra
 const IDLE_VARIANTS = ['a', 'b', 'c', 'd'];
 
 /** Which of the 8 pet states to show. One base state plus transient overrides; priority top to bottom. */
-function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away, busy, hopping }) {
+function petStep({ celebrating, looking, quietLook, cardKind, sessionOn, hasTask, breakMode, windowLost, away, busy }) {
   if (celebrating) return 'celebrate';
   if ((looking && !quietLook) || busy) return 'thinking'; // busy = the quests are being made
   if (cardKind) return cardKind === 'step' ? 'helper' : 'curious';
-  if (hopping) return 'idle'; // a quest was just confirmed: the app forces idle variant c (the hop) for ~1.2 s
   if (!sessionOn) return hasTask ? 'sleepy' : 'idle';
   if (windowLost) return 'asleep';
   if (breakMode || away) return 'sleepy';

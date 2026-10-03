@@ -75,7 +75,10 @@ const compose = (P, st) => {
   let auraFx = '', frontFx = '';
   if (st.power) {
     const E = P.energy;
-    auraFx = `<g${an('q-aura', '3.6s', 60, 112)}><g${an('q-flicker', '.36s', 60, 112)}>` +
+    // The design blurs the aura with an SVG filter (repaints every frame); a static radial gradient gives the same soft edge, animated by opacity only.
+    const gid = `qglow-${E.b.slice(1)}`;
+    auraFx = `<defs><radialGradient id="${gid}"><stop offset=".45" stop-color="${E.b}" stop-opacity=".5"/><stop offset="1" stop-color="${E.b}" stop-opacity="0"/></radialGradient></defs>` +
+      `<g${an('q-aura', '3.6s', 60, 112)}><ellipse cx="60" cy="68" rx="66" ry="64" fill="url(#${gid})"/><g${an('q-flicker', '.36s', 60, 112)}>` +
       `<path d="M60 2C70 22 80 20 86 10C88 30 108 52 108 82C108 106 88 118 60 118C32 118 12 106 12 82C12 52 32 30 34 10C40 20 50 22 60 2Z" fill="${E.b}" opacity=".55"/>` +
       `<path d="M60 16C68 32 76 30 80 22C82 40 98 58 98 84C98 104 82 112 60 112C38 112 22 104 22 84C22 58 38 40 40 22C44 30 52 32 60 16Z" fill="${E.a}" opacity=".85"/></g></g>` +
       `<g${an('q-shock', '3.6s', 60, 112)}><ellipse cx="60" cy="112" rx="34" ry="6" fill="none" stroke="${E.b}" stroke-width="2.5"/></g>`;

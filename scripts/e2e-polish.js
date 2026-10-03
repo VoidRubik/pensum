@@ -73,6 +73,45 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(after.x === before.x && after.y === 300, 'position survives a restart (top edge at the saved y, same x; the tall panel had been clamped to the work area): ' + JSON.stringify([before, after]));
   ok(await page.getAttribute('main', 'data-dock') === 'top', 'dock survives a restart');
   await app.close();
+
+  // --- power-up on every confirmed quest; a second inside 3.6 s restarts it (real time: TIME_SCALE 1) ---
+  const ud2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ql-ud-'));
+  const env2 = { ...env, QUESTLING_LEDGER_PATH: path.join(ud2, 'u.jsonl') };
+  delete env2.QUESTLING_TIME_SCALE;
+  app = await _electron.launch({ executablePath: Q + '/node_modules/electron/dist/electron.exe', args: [Q, '--user-data-dir=' + ud2], env: env2 });
+  page = await app.firstWindow();
+  await page.waitForSelector('#bar');
+  await page.click('#toggle');
+  await page.fill('#task-text', 'my water cycle essay');
+  await page.click('#make-quests');
+  await page.waitForSelector('.ql-quest');
+  await page.click('#start-btn');
+  await page.waitForSelector('.ql-window');
+  await page.click('.ql-window'); await page.click('#windows-start');
+  await page.waitForSelector('#stuck-btn:not(.hidden)');
+  if (await page.isVisible('.ql-card--starter')) await page.click('#card-quiet');
+  await page.evaluate(() => {
+    window.__celeb = [];
+    const m = document.querySelector('main');
+    new MutationObserver(() => window.__celeb.push(m.dataset.petState)).observe(m, { attributes: true, attributeFilter: ['data-pet-state'] });
+  });
+  const tick = () => page.evaluate(() => { [...document.querySelectorAll('.ql-quest input[type=checkbox]')].find((x) => !x.checked).click(); });
+  const state = () => page.getAttribute('main', 'data-pet-state');
+  const powered = () => page.evaluate(() => document.getElementById('bar').classList.contains('is-powered'));
+  await tick();
+  const t1 = Date.now();
+  await sleep(300);
+  ok(await state() === 'celebrate' && await powered(), 'one confirmed quest -> celebrate + .ql-bar.is-powered');
+  await sleep(700);
+  await tick(); // ~1 s after the first
+  const t2 = Date.now();
+  await sleep(2800); // t1 + ~3.8 s: the first power-up would be over by now
+  ok(Date.now() - t1 > 3700 && await state() === 'celebrate', 'second quest inside 3.6 s: the power-up keeps going past the first one\'s end');
+  const log = await page.evaluate(() => window.__celeb);
+  ok(log.filter((x) => x === 'celebrate').length >= 2, 'it restarted: celebrate was left and re-entered (' + log.join(' > ') + ')');
+  await sleep(Math.max(0, t2 + 3600 - Date.now()) + 700);
+  ok(await state() !== 'celebrate' && !(await powered()), 'it ends 3.6 s after the second quest');
+  await app.close();
   console.log(`\n${pass} pass, ${fail} fail`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

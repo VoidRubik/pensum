@@ -132,6 +132,17 @@ input:focus-visible { outline-offset: 0; }
   animation: q-flare 1.4s ease-out 3;
 }
 @keyframes q-flare { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* Power-up aura around the pill (design q-barAura animated box-shadow; here the ring shadow is static and only transform + opacity move). */
+.ql-bar.is-powered::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--ql-radius-pill);
+  box-shadow: 0 0 16px 6px var(--ql-flare);
+  pointer-events: none;
+  animation: q-barPulse 1.8s ease-out 2;
+}
+@keyframes q-barPulse { 0% { opacity: 0.9; transform: scale(0.96); } 100% { opacity: 0; transform: scale(1.1); } }
 .ql-company { width: 8px; height: 8px; border-radius: 50%; background: var(--ql-fill); box-shadow: var(--ql-glow); flex: none; }
 .ql-disc {
   width: 22px;
@@ -389,6 +400,7 @@ input:focus-visible { outline-offset: 0; }
 @media (prefers-reduced-motion: reduce) {
   .ql-seg__glint { animation: none; }
   .ql-bar.is-complete::after { animation: none; opacity: 0.5; }
+  .ql-bar.is-powered::before { animation: none; opacity: 0.4; }
   .ql-bubble, .ql-card, .ql-panel, .ql-stack, .ql-quests.is-in .ql-quest { animation-name: ql-fade; }
   .ql-skel__row { animation: none; }
 }

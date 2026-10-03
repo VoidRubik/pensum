@@ -1,4 +1,4 @@
-// UI v2 logic: fit meter, pet busy/hopping, per-quest stats. Written before the code (watched failing first).
+// UI v2 logic: fit meter, pet busy, per-quest stats. Written before the code (watched failing first).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const L = require('../logic.js');
@@ -41,22 +41,18 @@ test('fmtMin: 54m, 1h 16m, 2h', () => {
   assert.equal(L.fmtMin(0), '0m');
 });
 
-// --- pet: busy (quests being made) and hopping (quest just confirmed) ---
+// --- pet: busy (quests being made) ---
 const base = { celebrating: false, looking: false, quietLook: false, cardKind: null, sessionOn: true, hasTask: true, breakMode: false, windowLost: false, away: false };
 test('petStep: busy (making quests) -> thinking, even with no session and no task', () => {
   assert.equal(L.petStep({ ...base, busy: true, sessionOn: false, hasTask: false }), 'thinking');
   assert.equal(L.petStep({ ...base, busy: true, celebrating: true }), 'celebrate', 'celebrate still wins');
 });
-test('petStep: hopping -> idle (the app forces variant c), over the base states but under cards and celebrate', () => {
-  assert.equal(L.petStep({ ...base, hopping: true }), 'idle');
-  assert.equal(L.petStep({ ...base, hopping: true, sessionOn: false }), 'idle', 'paused: still hops');
-  assert.equal(L.petStep({ ...base, hopping: true, cardKind: 'step' }), 'helper', 'a card is more urgent than the hop');
-  assert.equal(L.petStep({ ...base, hopping: true, celebrating: true }), 'celebrate');
-  assert.equal(L.petStep({ ...base, hopping: false }), 'working');
+test('petStep: the hop is gone - a confirmed quest is a power-up (celebrate), so a stray hopping flag changes nothing', () => {
+  assert.equal(L.petStep({ ...base, hopping: true }), 'working');
 });
 test('petStep: still only PET_STATES names with the new flags', () => {
-  for (const busy of [false, true]) for (const hopping of [false, true]) for (const cardKind of [null, 'ask', 'step']) {
-    assert.ok(L.PET_STATES.includes(L.petStep({ ...base, busy, hopping, cardKind })));
+  for (const busy of [false, true]) for (const cardKind of [null, 'ask', 'step']) {
+    assert.ok(L.PET_STATES.includes(L.petStep({ ...base, busy, cardKind })));
   }
 });
 
