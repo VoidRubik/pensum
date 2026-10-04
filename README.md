@@ -7,9 +7,6 @@ finished: you click.
 
 ![Pensum plan review, light theme](evidence/ui-v2/ui-v2-light-tuck-03-review.png)
 
-Built for LovHack S3. Grade: **Partial** (built and tested on staged windows and samples; not yet used on a
-real task by its author).
-
 ## Try it
 
 - **Windows:** [download Pensum 1.0.0 (portable exe)](https://github.com/VoidRubik/pensum/releases/latest). Double-click, no install, no admin, live AI with no setup.
@@ -103,6 +100,5 @@ Built Sep 26 – Oct 4, 2026 for LovHack S3. Every library, service and template
 18. AIOS, the author's personal context system (brief, task cards, memory)
 19. Segoe UI Variable and Cascadia Mono (system fonts)
 20. Electron security checklist (docs)
-21. LovHack S3 rules on Devpost
 
 MIT licensed: [`LICENSE`](LICENSE).
