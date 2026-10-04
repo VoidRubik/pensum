@@ -57,7 +57,7 @@ npm install
 npm start
 ```
 
-Needs Node 22.12 or newer. With no network key the dev build runs in **mock mode** unless `PENSUM_API` points at a deployed server. To use your own key, open Settings (the gear) and paste a free [Google AI Studio](https://aistudio.google.com/) key, or put `GEMINI_API_KEY=...` in `.env` in the repo or in `%APPDATA%\pensum\.env`. A packaged build never contains a key. Environment variables use the `PENSUM_` prefix (`PENSUM_MOCK=1` forces mock mode).
+Needs Node 22.12 or newer. The first `npm start` downloads the Electron binary (a few seconds). With no key the dev build uses the Pensum server (live AI, same as the exe); `PENSUM_API` points it at a different deployed server. To use your own key, open Settings (the gear) and paste a free [Google AI Studio](https://aistudio.google.com/) key, or put `GEMINI_API_KEY=...` in `.env` in the repo or in `%APPDATA%\pensum\.env`. A packaged build never contains a key. Environment variables use the `PENSUM_` prefix (`PENSUM_MOCK=1` forces mock mode).
 
 If the window never appears, your shell may have `ELECTRON_RUN_AS_NODE=1` set (VS Code terminals do): unset it before `npm start`. Build the portable exe with `npm run dist` (output in `dist/`).
 
