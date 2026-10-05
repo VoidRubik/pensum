@@ -10,7 +10,7 @@ finished: you click.
 ## Try it
 
 - **Windows:** [download Pensum 1.0.0 (portable exe)](https://github.com/VoidRubik/pensum/releases/latest). Double-click, no install, no admin, live AI with no setup.
-- **Video:** VIDEO LINK
+- **Video:** [watch the 2:30 demo on YouTube](https://www.youtube.com/watch?v=4GIkYc8CqFU)
 
 Windows may warn because the app is unsigned → **More info → Run anyway.** The first launch takes a few seconds
 (a portable exe unpacks itself).
