@@ -44,7 +44,7 @@ Pensum looks at the one real window you pick, and follows which app is in front,
 
 ## Limits
 
-The server allows 15 requests per minute and 150 per day per IP, plus a global daily budget (`PENSUM_GLOBAL_DAY`, set to 70% of the model's free-tier requests per day; the exact free-tier figure was not verified at the time of writing). When a limit is hit the app keeps working in MOCK MODE.
+The server allows 15 requests per minute and 150 per day per IP, plus a global budget of 500 requests per day (`PENSUM_GLOBAL_DAY`; the default, meant to stay under the model's free-tier daily quota, which was not verified at the time of writing). When a limit is hit the app keeps working in MOCK MODE.
 
 Known limits: the app is Windows-only (window capture and focus tracking use Win32 and PowerShell); free-tier Gemini latency has long tails (up to 16 s), looks time out and the app carries on; not yet verified: use on a real, long task and multi-monitor drag with different DPI.
 
@@ -100,5 +100,7 @@ Built Sep 26 – Oct 4, 2026 for LovHack S3. Every library, service and template
 18. AIOS, the author's personal context system (brief, task cards, memory)
 19. Segoe UI Variable and Cascadia Mono (system fonts)
 20. Electron security checklist (docs)
+
+Demo video: recorded with OBS Studio, edited with HyperFrames (HeyGen), captions timed with faster-whisper, audio leveled with FFmpeg.
 
 MIT licensed: [`LICENSE`](LICENSE).
