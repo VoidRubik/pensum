@@ -4,7 +4,7 @@ const { callGemini } = require('./gemini.js');
 const ledger = require('./ledger.js');
 const { validateQuests, validateLook, questFallback } = require('./logic.js');
 
-const QUEST_MODEL = () => process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const QUEST_MODEL = () => process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 // Every look uses lite: stuck/done latency measured 1.2-2.2 s (n=5) vs 10-20 s on flash.
 const LOOK_MODEL = () => process.env.GEMINI_CHECK_MODEL || 'gemini-3.5-flash-lite';
 

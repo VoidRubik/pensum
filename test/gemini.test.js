@@ -82,7 +82,7 @@ test('ai.quests: flash timeout/503 gets one retry on lite, 12 s timeout', async 
     const r = await ai.quests({ text: 'essay', now: '2026-10-02T09:00:00Z', tzOffset: 0 });
     assert.equal(r.fallback, undefined, 'must not fall back to local quests');
   } finally { AbortSignal.timeout = orig; }
-  assert.deepEqual(models, ['gemini-3.5-flash', 'gemini-3.5-flash-lite']);
+  assert.deepEqual(models, ['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
   assert.equal(timeouts[0], 12000);
 });
 

@@ -36,7 +36,7 @@ Windows may warn because the app is unsigned → **More info → Run anyway.** T
 
 Electron 44 + electron-builder (portable exe) · vanilla HTML/CSS/JS renderer · plain Vercel Node functions (`api/pet.js`) · Upstash Redis rate limits · zod request validation · Node's built-in test runner · Playwright for end-to-end tests.
 
-Models: `gemini-3.5-flash-lite` through the Pensum server (plans and looks). With your own key: `gemini-3.5-flash` for plans and `gemini-3.5-flash-lite` for looks.
+Models: `gemini-3.5-flash-lite` through the Pensum server (plans and looks). With your own key: `gemini-3.6-flash` for plans and `gemini-3.5-flash-lite` for looks.
 
 ## Why desktop
 
@@ -82,7 +82,7 @@ Built Sep 26 – Oct 4, 2026 for LovHack S3. Every library, service and template
 
 1. Electron 44 (MIT): desktopCapturer, Tray, powerMonitor, nativeTheme, net
 2. Node.js 22 and its built-in test runner
-3. Google Gemini API, `gemini-3.5-flash`: quests with your own key
+3. Google Gemini API, `gemini-3.6-flash`: quests with your own key
 4. Google Gemini API, `gemini-3.5-flash-lite`: looks, and plans through the server
 5. Google AI Studio free-tier key
 6. Vercel: serverless functions and a one-page landing
