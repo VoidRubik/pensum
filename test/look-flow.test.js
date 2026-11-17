@@ -98,7 +98,9 @@ test('lookFlow: done gets the full text, others a digest; title goes through red
 });
 
 // --- artifact.getText: Word is only probed when the picked window IS Word ---
-test('artifact.getText: Word is probed only for a winword process — not for another app, not for an unknown one', async () => {
+// The Word/.docx probe is Windows-only by decision (artifact.js returns null elsewhere; MIGRATION.md §1a).
+const winOnly = { skip: process.platform !== 'win32' && 'Word probe is Windows-only' };
+test('artifact.getText: Word is probed only for a winword process — not for another app, not for an unknown one', winOnly, async () => {
   probes.length = 0;
   assert.equal(await artifact.getText({ focusProc: 'chrome', linkedPath: null }), null);
   assert.equal(await artifact.getText({ focusProc: null, linkedPath: null }), null);
@@ -108,7 +110,7 @@ test('artifact.getText: Word is probed only for a winword process — not for an
   assert.equal(probes.length, 1, 'one probe for the Word window');
 });
 
-test('artifact.getText: the Word probe gives up after 3 s (a cold start that misses just falls back to the linked file); .docx keeps 8 s', async () => {
+test('artifact.getText: the Word probe gives up after 3 s (a cold start that misses just falls back to the linked file); .docx keeps 8 s', winOnly, async () => {
   probeTimeouts.length = 0;
   await artifact.getText({ focusProc: 'winword', linkedPath: null });
   assert.deepEqual(probeTimeouts, [3000]);
