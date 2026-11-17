@@ -9,6 +9,8 @@ const CAP = 400000; // hard safety cap only; the model-facing cap (capMiddle) is
 const PS_HEAD = "[Console]::OutputEncoding=[Text.Encoding]::UTF8;$ErrorActionPreference='Stop';";
 
 function ps(script, env = {}, timeoutMs = 8000) {
+  // Windows-only: Word COM + the .docx reader. Linux -> null (plain-text linked files still work).
+  if (process.platform !== 'win32') return Promise.resolve(null);
   return new Promise((resolve) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', PS_HEAD + script],
       { env: { ...L.childEnv(process.env), ...env }, timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },

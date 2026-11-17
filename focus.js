@@ -63,6 +63,9 @@ function scriptFile() {
 }
 
 function spawnChild() {
+  // Windows-only (user32 via PowerShell). Linux: no tracker yet; current()/summary() stay empty (Wayland
+  // exposes no foreground-window API to apps; an X11 port would poll `xdotool getactivewindow`).
+  if (process.platform !== 'win32') return;
   const c = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptFile()],
     { windowsHide: true, env: { ...L.childEnv(process.env), QL_PARENT: String(process.pid), QL_WORK: String(workHwnd) } });
   child = c;
